@@ -20,6 +20,21 @@ constexpr uint32_t kClientNoiseLayerFlag = 0x4;
 constexpr float kNoiseScaleUnitYards = 100.0f;
 constexpr uint32_t kNoGradingCurve = 0;
 constexpr float kGradingCurveCodeMax = 255.0f;
+constexpr int32_t kOutlandMap = 530;
+constexpr int32_t kNorthrendMap = 571;
+constexpr uint32_t kEasternKingdomsGlobalLight = 1;
+constexpr uint32_t kKalimdorGlobalLight = 191;
+
+struct StandInMapWideLight
+{
+    int32_t mapId;
+    uint32_t lightId;
+};
+
+constexpr StandInMapWideLight kStandInsForMapsClassicNeverHad[] = {
+    {kOutlandMap, kKalimdorGlobalLight},
+    {kNorthrendMap, kEasternKingdomsGlobalLight},
+};
 
 struct Header
 {
@@ -410,6 +425,14 @@ const FogData::Light* FogData::FindLight(uint32_t id) const
     return nullptr;
 }
 
+const FogData::Light* FogData::StandInMapWideLight(int mapId) const
+{
+    for (const auto& standIn : kStandInsForMapsClassicNeverHad)
+        if (standIn.mapId == mapId)
+            return FindLight(standIn.lightId);
+    return nullptr;
+}
+
 const FogData::Params* FogData::FindParams(uint32_t id) const
 {
     auto it = std::lower_bound(m_params.begin(), m_params.end(), id,
@@ -632,6 +655,8 @@ FogData::LightBlend FogData::BlendLights(int mapId, const float* position) const
     const float sphereNormalization = sphereWeight > 1.0f ? 1.0f / sphereWeight : 1.0f;
 
     LightBlend background = {};
+    if (!mapWide)
+        mapWide = StandInMapWideLight(mapId);
     if (mapWide)
         background.Add(mapWide, 1.0f);
     int nesting = 0;
@@ -722,6 +747,12 @@ void FogData::CollectMapsWithFog()
     for (const Light& light : m_lights)
         if (HasFogInAnySlot(light))
             m_mapsWithFog.push_back(light.mapId);
+    for (const auto& standIn : kStandInsForMapsClassicNeverHad)
+    {
+        const Light* light = FindLight(standIn.lightId);
+        if (light && HasFogInAnySlot(*light))
+            m_mapsWithFog.push_back(standIn.mapId);
+    }
     std::sort(m_mapsWithFog.begin(), m_mapsWithFog.end());
     m_mapsWithFog.erase(std::unique(m_mapsWithFog.begin(), m_mapsWithFog.end()), m_mapsWithFog.end());
 }

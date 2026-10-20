@@ -726,8 +726,11 @@ float WeightOf(const AuthoredFog& fog, uint32_t light)
 constexpr int kEasternKingdoms = 0;
 constexpr int kKalimdor = 1;
 constexpr int kOutland = 530;
+constexpr int kNorthrend = 571;
+constexpr int kMapWithoutClassicLights = 9999;
 const LightParamsSelection kClearWeather = {};
 constexpr uint32_t kEasternKingdomsGlobalLight = 1;
+constexpr uint32_t kKalimdorGlobalLight = 191;
 constexpr uint32_t kStormwindLight = 77;
 constexpr float kDayFraction1800 = 0.75f;
 constexpr float kDayFraction1845 = 2250.0f / 2880.0f;
@@ -762,8 +765,27 @@ void CheckClassicData(const FogData& data)
           "Classic keys interpolated between 18:00 and 19:30");
 
     AuthoredFog none = {};
-    Check(!data.Resolve(kOutland, harbourAtStormwindLightEdge, kDayFraction1800, kClearWeather, none),
+    Check(!data.Resolve(kMapWithoutClassicLights, harbourAtStormwindLightEdge, kDayFraction1800, kClearWeather,
+                        none),
           "maps without Classic lights fall back to derived layers");
+}
+
+void CheckOutlandAndNorthrendBorrowAContinentLight(const FogData& data)
+{
+    const float hellfirePeninsula[3] = {-248.0f, 950.0f, 85.0f};
+    const float howlingFjord[3] = {1350.0f, -5000.0f, 210.0f};
+    AuthoredFog outland = {};
+    AuthoredFog northrend = {};
+    const bool outlandFog = data.Resolve(kOutland, hellfirePeninsula, kDayFraction1800, kClearWeather, outland);
+    const bool northrendFog = data.Resolve(kNorthrend, howlingFjord, kDayFraction1800, kClearWeather, northrend);
+    std::printf("     Outland: light 191 weight %.2f, %d layers; Northrend: light 1 weight %.2f, %d layers\n",
+                WeightOf(outland, kKalimdorGlobalLight), outland.layerCount,
+                WeightOf(northrend, kEasternKingdomsGlobalLight), northrend.layerCount);
+    Check(outlandFog && std::fabs(WeightOf(outland, kKalimdorGlobalLight) - 1.0f) < 1e-4f && outland.layerCount > 0,
+          "Outland takes the Classic fog of Kalimdor's global light");
+    Check(northrendFog && std::fabs(WeightOf(northrend, kEasternKingdomsGlobalLight) - 1.0f) < 1e-4f &&
+              northrend.layerCount > 0,
+          "Northrend takes the Classic fog of the Eastern Kingdoms' global light");
 }
 
 constexpr float kNoon = 0.5f;
@@ -1868,6 +1890,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     FogData classic;
     Check(classic.Load(dataPath), "Classic fog data loads");
     CheckClassicData(classic);
+    CheckOutlandAndNorthrendBorrowAContinentLight(classic);
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
     CheckZoneLights(classic);

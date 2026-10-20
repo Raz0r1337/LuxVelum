@@ -193,6 +193,7 @@ private:
     static bool IsMapWide(const Light& light);
     static float SphereWeight(const Light& light, const float* position);
     const Light* FindLight(uint32_t id) const;
+    const Light* StandInMapWideLight(int mapId) const;
     const Params* FindParams(uint32_t id) const;
     float EnclosedArea(const ZoneLight& zone) const;
     float ZoneWeight(const ZoneLight& zone, const float* position) const;

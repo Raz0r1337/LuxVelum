@@ -4,9 +4,9 @@ Volumetric fog and modern water for the Ascension/CoA 3.3.5a (build 12340) Direc
 
 It consists of a loader, a D3D9 device wrapper with a readable depth buffer, world-render hooks, a per-pixel
 ray-marching fog renderer and a water renderer. Fog layers come from the Classic client's own
-`LightDataGlobalVolumeFog` data wherever its lights cover the map, and are derived from the 3.3.5 day/night lighting
-elsewhere (Outland, Northrend, custom maps). Water is shaded like WoW Forever's PBR water, from its liquid presets,
-wave spectra and foam textures.
+`LightDataGlobalVolumeFog` data wherever its lights cover the map (Outland and Northrend borrow a Classic continent's
+global light), and are derived from the 3.3.5 day/night lighting elsewhere (custom maps). Water is shaded like WoW
+Forever's PBR water, from its liquid presets, wave spectra and foam textures.
 
 ## About this fork
 
@@ -228,6 +228,12 @@ client's darker lighting; this is a compatibility calibration, not a reproductio
 Classic data applies on maps where any Classic light has fog, wherever Classic lights hold at least half of the
 blend weight. A light without fog in the active slot counts with zero density, so the fog thins smoothly into it
 and the distance fog hides the far clip there. Other maps use the derived layers.
+
+Classic never had Outland (map 530) or Northrend (map 571), so the kit and the shipped `fogdata.bin` hold no light
+for either; their fog, glow and colour grading come from a stand-in global light instead: Kalimdor's (light 191, dry
+and warm) for Outland and the Eastern Kingdoms' (light 1) for Northrend. Their haze and far-wall layers sit
+relative to the player's height (flag bit 1), so the terrain heights there do not move them. Without a stand-in both
+maps fell back to the derived layers, which players noticed as much weaker fog than on the old continents.
 
 The phase of the Classic sun and moon scattering peaks at 1 toward the light. The authored intensities rise as g
 falls, to about 4π for evenly scattering rows, which suggests that the modern lookup is energy-normalised (inferred;
