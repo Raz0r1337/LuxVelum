@@ -1219,6 +1219,63 @@ void CheckOutlandDensityThinsTheBorrowedFog(const FogData& data)
           "OutlandDensity 0.5 halves the borrowed Classic layers in Hellfire Peninsula");
 }
 
+void CheckOutlandSkyColourTintsTheBorrowedFog(const FogData& data)
+{
+    const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
+    const Vec3 toSun = {0.607f, 0.607f, 0.513f};
+    const float evening = 0.7279f;
+    FrameInputs frame = ContinentFrame(kOutland, hellfirePeninsula, evening, toSun, false);
+    frame.fogColor = 0xFF282A2Au;
+    AuthoredFog fog = {};
+    const bool resolved = data.Resolve(kOutland, frame.camPos, evening, kClearWeather, fog);
+    Config borrowed = {};
+    borrowed.outlandSkyColor = 0.0f;
+    Config sky = borrowed;
+    sky.outlandSkyColor = 1.0f;
+    Config half = borrowed;
+    half.outlandSkyColor = 0.5f;
+    const FogParams kalimdor = BuildFogParams(frame, ConfigForMap(borrowed, kOutland), &fog);
+    const FogParams own = BuildFogParams(frame, ConfigForMap(sky, kOutland), &fog);
+    const FogParams mixed = BuildFogParams(frame, ConfigForMap(half, kOutland), &fog);
+    float clientFog[3];
+    UnpackColor(frame.fogColor, clientFog);
+    for (float& c : clientFog)
+        c = std::pow(c, 2.2f);
+    bool takesClientFog = true;
+    bool halfway = true;
+    const auto luminance = [](const float* rgb) { return 0.2126f * rgb[0] + 0.7152f * rgb[1] + 0.0722f * rgb[2]; };
+    const auto hasClientHue = [&](const float* rgb) {
+        const float scale = luminance(rgb) / luminance(clientFog);
+        return std::fabs(rgb[0] - clientFog[0] * scale) < 1e-4f && std::fabs(rgb[1] - clientFog[1] * scale) < 1e-4f &&
+               std::fabs(rgb[2] - clientFog[2] * scale) < 1e-4f;
+    };
+    for (int i = 0; i < fog.layerCount; ++i)
+    {
+        takesClientFog = takesClientFog && hasClientHue(own.layers[i].emissive) &&
+                         hasClientHue(own.layers[i].shadowEmissive) &&
+                         std::fabs(luminance(own.layers[i].emissive) - luminance(kalimdor.layers[i].emissive)) < 1e-4f;
+        for (int c = 0; c < 3; ++c)
+            halfway = halfway && std::fabs(mixed.layers[i].emissive[c] - 0.5f * (kalimdor.layers[i].emissive[c] +
+                                                                                    own.layers[i].emissive[c])) < 1e-5f;
+    }
+    std::printf("     Hellfire Peninsula layer 1 emissive: Kalimdor %.3f %.3f %.3f, client fog %.3f %.3f %.3f\n",
+                kalimdor.layers[1].emissive[0], kalimdor.layers[1].emissive[1], kalimdor.layers[1].emissive[2],
+                own.layers[1].emissive[0], own.layers[1].emissive[1], own.layers[1].emissive[2]);
+    Check(resolved && fog.layerCount > 0 && takesClientFog && halfway &&
+              std::fabs(kalimdor.layers[1].emissive[0] - own.layers[1].emissive[0]) > 0.01f,
+          "OutlandSkyColor mixes the borrowed layers' ambient colours toward the hue of the client's fog colour at "
+          "their own brightness: 1 takes that hue, 0.5 lands halfway, 0 keeps Kalimdor's colours");
+
+    FrameInputs stormwind = ContinentFrame(kEasternKingdoms, {-8565.21f, 993.46f, 104.96f}, evening, toSun, false);
+    stormwind.fogColor = frame.fogColor;
+    AuthoredFog classic = {};
+    data.Resolve(kEasternKingdoms, stormwind.camPos, evening, kClearWeather, classic);
+    const FogParams plain = BuildFogParams(stormwind, ConfigForMap(borrowed, kEasternKingdoms), &classic);
+    const FogParams tinted = BuildFogParams(stormwind, ConfigForMap(sky, kEasternKingdoms), &classic);
+    Check(std::memcmp(plain.layers, tinted.layers, sizeof(plain.layers)) == 0,
+          "the sky colour settings leave the Classic fog of the old continents as authored");
+}
+
 float BoxMean7x7(const Image& img, UINT cx, UINT cy, int ch)
 {
     double sum = 0.0;
@@ -1948,6 +2005,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckOutlandAndNorthrendBorrowAContinentLight(classic);
     CheckRegionalFogSettings();
     CheckOutlandDensityThinsTheBorrowedFog(classic);
+    CheckOutlandSkyColourTintsTheBorrowedFog(classic);
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
     CheckZoneLights(classic);

@@ -49,6 +49,7 @@ constexpr float kLuminanceWeights[3] = {0.2126f, 0.7152f, 0.0722f};
 constexpr float kReferenceFarTarget = 200.0f;
 constexpr float kNoLimit = 1.0e9f;
 constexpr int kOutlandMap = 530;
+constexpr float kMinClientFogLuminance = 1.0e-4f;
 constexpr int kNorthrendMap = 571;
 
 float SmoothStep(float e0, float e1, float x)
@@ -328,6 +329,38 @@ float ClientToClassicDirectLight(const AuthoredFog& fog, const float* clientDire
     return std::clamp(Luminance(clientDirectLight) / classicLuminance, 0.0f, 1.0f);
 }
 
+float RegionSkyColorShare(const Config& cfg, MapRegion region)
+{
+    switch (region)
+    {
+    case MapRegion::Outland:
+        return cfg.outlandSkyColor;
+    case MapRegion::Northrend:
+        return cfg.northrendSkyColor;
+    default:
+        return 0.0f;
+    }
+}
+
+void MixTowardHue(float* rgb, const float* hue, float hueLuminance, float share)
+{
+    const float brightness = Luminance(rgb) / hueLuminance;
+    for (int c = 0; c < 3; ++c)
+        rgb[c] += (hue[c] * brightness - rgb[c]) * share;
+}
+
+void TakeClientFogHue(const float* clientFog, float share, FogLayer* layers)
+{
+    const float hueLuminance = Luminance(clientFog);
+    if (!(hueLuminance > kMinClientFogLuminance))
+        return;
+    for (int i = 0; i < kSceneLayers; ++i)
+    {
+        MixTowardHue(layers[i].emissive, clientFog, hueLuminance, share);
+        MixTowardHue(layers[i].shadowEmissive, clientFog, hueLuminance, share);
+    }
+}
+
 float RegionDensity(const Config& cfg, MapRegion region)
 {
     switch (region)
@@ -381,6 +414,9 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     {
         p.directLightMatch = ClientToClassicDirectLight(*authored, p.lightColor, p.linear);
         AuthoredLayers(*authored, cfg, p, cfg.sunScatter * p.directLightMatch, p.layers, p.noise);
+        const float skyShare = std::clamp(RegionSkyColorShare(cfg, RegionOfMap(in.mapId)), 0.0f, 1.0f);
+        if (skyShare > 0.0f)
+            TakeClientFogHue(fogColor, skyShare, p.layers);
         HaloHue(*authored, p.rayColor);
         DistanceLayer(in, cfg, p, elevationFadedScatter, fogColor, distanceFog);
         const float thinness = ClassicFogThinness(p, *authored, in.camPos[2]);

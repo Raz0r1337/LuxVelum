@@ -41,6 +41,8 @@ struct Config
     float northrendDensity = 0.5f;
     int outlandClassicFog = 1;
     int northrendClassicFog = 1;
+    float outlandSkyColor = 1.0f;
+    float northrendSkyColor = 1.0f;
     int colorSpace = 1;
     int classicPhase = 0;
     float sunScatter = 1.0f;

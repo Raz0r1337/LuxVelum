@@ -196,10 +196,17 @@ bool DrawRegions(Config& c)
     changed |= Toggle("Outland Classic fog", c.outlandClassicFog,
                       "Classic never had Outland. On: its fog, glow and colour grading come from Kalimdor's global "
                       "light. Off: derived layers, with the client's glow and no colour grading");
+    changed |= Slider("Outland sky colour", c.outlandSkyColor, 0.0f, 1.0f, "%.2f",
+                      "How much the borrowed Classic fog takes the hue of Outland's own stock fog, which blends into "
+                      "its sky, at the fog's own brightness: 1 = the client's hue, 0 = Kalimdor's colours");
     changed |= Multiplier("Northrend density", c.northrendDensity, "Fog thickness in Northrend, on top of Density");
     changed |= Toggle("Northrend Classic fog", c.northrendClassicFog,
                       "Classic never had Northrend. On: its fog, glow and colour grading come from the Eastern "
                       "Kingdoms' global light. Off: derived layers, with the client's glow and no colour grading");
+    changed |= Slider("Northrend sky colour", c.northrendSkyColor, 0.0f, 1.0f, "%.2f",
+                      "How much the borrowed Classic fog takes the hue of Northrend's own stock fog, which blends "
+                      "into its sky, at the fog's own brightness: 1 = the client's hue, 0 = the Eastern Kingdoms' "
+                      "colours");
     return changed;
 }
 
