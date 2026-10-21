@@ -5,10 +5,9 @@ import struct
 import sys
 import zipfile
 
-DESCRIPTION = ("Build fogdata.bin from the 3.3.5 client's Light, LightIntBand and LightFloatBand tables (a "
-               "DBFilesClient folder or zip): every client light becomes a fog light placed, coloured and thinned by "
-               "its own client values, with the layers and glow of the same light in the Classic fog data or, "
-               "where Classic had none, of the Classic light whose 3.3.5 lighting is most alike.")
+DESCRIPTION = ("Add fog lights for every map the Classic data in a fogdata.bin does not cover, placed and coloured by "
+               "the 3.3.5 client's Light, LightIntBand and LightFloatBand tables (a DBFilesClient folder or zip), "
+               "with the layers and glow of the Classic light whose 3.3.5 lighting is most alike.")
 CLIENT_TABLES = ("Light.dbc", "LightIntBand.dbc", "LightFloatBand.dbc")
 DBC_MAGIC = b"WDBC"
 DBC_HEADER_FORMAT = "<4s4I"
@@ -44,7 +43,7 @@ GRADING_CURVE_FORMAT = "<I32B"
 
 LIGHT_PARAMS_SLOTS = 8
 CLEAR_SLOT = 0
-FIRST_PARAMS_ID = 1
+GENERATED_ID_BASE = 1000000
 HALF_MINUTES_PER_DAY = 2880
 MATCH_SAMPLES = 24
 DISPLAY_GAMMA = 2.2
@@ -227,8 +226,9 @@ class FogData:
             offset += size * count
         if offset != len(data):
             raise SystemExit("the input fogdata.bin has %d bytes, its header promises %d" % (len(data), offset))
-        self.lights, params, self.keys, self.layers, _, _, self.curves = tables
-        self.params = {p[0]: p for p in params}
+        lights, params, self.keys, self.layers, self.zone_lights, self.zone_points, self.curves = tables
+        self.lights = [light for light in lights if light[0] < GENERATED_ID_BASE]
+        self.params = {p[0]: p for p in params if p[0] < GENERATED_ID_BASE}
 
     def keys_of(self, params_id):
         params = self.params.get(params_id)
@@ -240,22 +240,22 @@ class FogData:
         return any(layers for _, layers in self.keys_of(params_id))
 
 
-def twin_of(classic, client_light):
-    if not client_light or client_light[1] != classic[1] or not client_light[7 + CLEAR_SLOT]:
-        return False
-    x, y, _ = world_position(client_light)
-    return abs(x - classic[2]) <= SAME_LIGHT_TOLERANCE_YARDS and abs(y - classic[3]) <= SAME_LIGHT_TOLERANCE_YARDS
+def classic_maps(fog):
+    return {light[1] for light in fog.lights}
 
 
-def twins(fog, client):
+def templates(fog, client):
     by_id = {light[0]: light for light in client.lights}
-    return {classic[0]: (classic, by_id[classic[0]]) for classic in fog.lights
-            if twin_of(classic, by_id.get(classic[0]))}
-
-
-def templates(fog, client, pairs):
-    return [(classic, twin, client.signature(twin[7 + CLEAR_SLOT])) for classic, twin in pairs.values()
-            if fog.has_fog(classic[7 + CLEAR_SLOT])]
+    found = []
+    for classic in fog.lights:
+        twin = by_id.get(classic[0])
+        if not twin or twin[1] != classic[1] or not fog.has_fog(classic[7 + CLEAR_SLOT]) or not twin[7 + CLEAR_SLOT]:
+            continue
+        x, y, _ = world_position(twin)
+        if abs(x - classic[2]) > SAME_LIGHT_TOLERANCE_YARDS or abs(y - classic[3]) > SAME_LIGHT_TOLERANCE_YARDS:
+            continue
+        found.append((classic, twin, client.signature(twin[7 + CLEAR_SLOT])))
+    return found
 
 
 def nearest_template(pool, signature):
@@ -266,14 +266,25 @@ class Builder:
     def __init__(self, fog, client):
         self.fog = fog
         self.client = client
-        self.params = {}
+        self.params = dict(fog.params)
         self.keys = []
         self.layers = []
-        self.lights = []
+        self.lights = list(fog.lights)
         self.generated = {}
+        self.rebuild_classic_keys()
+
+    def rebuild_classic_keys(self):
+        for params_id in sorted(self.params):
+            first = len(self.keys)
+            for key, layers in self.fog.keys_of(params_id):
+                self.keys.append(key[:2] + (len(self.layers),) + key[3:])
+                self.layers.extend(layers)
+            old = self.params[params_id]
+            self.params[params_id] = (params_id, first, len(self.keys) - first, old[3])
 
     def add_light(self, light, template):
         classic, twin = template[:2]
+        light_id = GENERATED_ID_BASE + light[0]
         slots = []
         for slot in range(LIGHT_PARAMS_SLOTS):
             target_params = light[7 + slot]
@@ -285,12 +296,12 @@ class Builder:
             twin_params = twin[7 + slot] or twin[7 + CLEAR_SLOT]
             recipe = (classic_params, twin_params, target_params, glow_params)
             if recipe not in self.generated:
-                self.generated[recipe] = FIRST_PARAMS_ID + len(self.generated)
+                self.generated[recipe] = GENERATED_ID_BASE + len(self.generated)
                 self.add_params(self.generated[recipe], *recipe)
             slots.append(self.generated[recipe])
         x, y, z = world_position(light)
         start, end = light[5] / CLIENT_UNITS_PER_YARD, light[6] / CLIENT_UNITS_PER_YARD
-        self.lights.append((light[0], light[1], x, y, z, start, end, *slots))
+        self.lights.append((light_id, light[1], x, y, z, start, end, *slots))
 
     def add_params(self, params_id, classic_params, twin_params, target_params, glow_params):
         first = len(self.keys)
@@ -319,48 +330,46 @@ class Builder:
     def blob(self):
         params = [self.params[p] for p in sorted(self.params)]
         tables = ((LIGHT_FORMAT, self.lights), (PARAMS_FORMAT, params), (KEY_FORMAT, self.keys),
-                  (LAYER_FORMAT, self.layers), (ZONE_LIGHT_FORMAT, []), (ZONE_POINT_FORMAT, []),
-                  (GRADING_CURVE_FORMAT, self.fog.curves))
+                  (LAYER_FORMAT, self.layers), (ZONE_LIGHT_FORMAT, self.fog.zone_lights),
+                  (ZONE_POINT_FORMAT, self.fog.zone_points), (GRADING_CURVE_FORMAT, self.fog.curves))
         header = struct.pack(HEADER_FORMAT, FILE_MAGIC, FORMAT_VERSION, *(len(rows) for _, rows in tables))
         return header + b"".join(struct.pack(f, *row) for f, rows in tables for row in rows)
 
 
 def convert(fog, client):
-    pairs = twins(fog, client)
-    pool = templates(fog, client, pairs)
+    pool = templates(fog, client)
     if not pool:
         raise SystemExit("no Classic light with fog has a twin in the client's Light table")
+    covered = classic_maps(fog)
     builder = Builder(fog, client)
     chosen = {}
     for light in client.lights:
-        if not light[7 + CLEAR_SLOT]:
+        if light[1] in covered or not light[7 + CLEAR_SLOT]:
             continue
-        template = pairs.get(light[0])
-        if not template or template[1] is not light:
-            template = nearest_template(pool, client.signature(light[7 + CLEAR_SLOT]))
+        template = nearest_template(pool, client.signature(light[7 + CLEAR_SLOT]))
         builder.add_light(light, template)
         chosen.setdefault(light[1], []).append((light[0], template[0][0]))
-    return builder.blob(), chosen, len(pairs), len(pool)
+    return builder.blob(), chosen, len(pool)
 
 
 def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
-    parser.add_argument("classic", help="the Classic fog data, normally data/classic_fog.bin")
+    parser.add_argument("fogdata", help="the fogdata.bin with the Classic lights, normally data/fogdata.bin")
     parser.add_argument("client", help="the client's DBFilesClient folder or a zip archive with %s"
                                        % ", ".join(CLIENT_TABLES))
     parser.add_argument("output", help="output path, normally data/fogdata.bin")
-    parser.add_argument("--list", action="store_true", help="print the Classic light each light takes its layers from")
+    parser.add_argument("--list", action="store_true", help="print the Classic light each new light takes after")
     args = parser.parse_args()
-    with open(args.classic, "rb") as handle:
+    with open(args.fogdata, "rb") as handle:
         fog = FogData(handle.read())
     with ClientTables(args.client) as tables:
         client = ClientLighting(tables)
-    blob, chosen, kept, pool = convert(fog, client)
+    blob, chosen, pool = convert(fog, client)
     with open(args.output, "wb") as handle:
         handle.write(blob)
     maps = ", ".join("%d: %d" % (m, len(lights)) for m, lights in sorted(chosen.items()))
-    print("%s: %d client lights, %d with the layers of the same Classic light, the rest from %d templates; maps %s; "
-          "%d bytes" % (args.output, sum(len(v) for v in chosen.values()), kept, pool, maps, len(blob)))
+    print("%s: %d Classic lights kept, %d client lights added from %d templates on maps %s; %d bytes"
+          % (args.output, len(fog.lights), sum(len(v) for v in chosen.values()), pool, maps, len(blob)))
     if args.list:
         for map_id, lights in sorted(chosen.items()):
             print("map %d: %s" % (map_id, " ".join("%d<-%d" % pair for pair in lights)))
