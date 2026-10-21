@@ -5,15 +5,14 @@ import struct
 import sys
 import zipfile
 
-DESCRIPTION = ("Build fogdata.bin from the 3.3.5 client's Light, LightParams, LightIntBand and LightFloatBand tables "
-               "(a DBFilesClient folder or zip): every client light becomes a fog light placed, coloured, thinned and "
-               "glowing by its own client values, with the layers of the same light in the Classic fog data or, "
+DESCRIPTION = ("Build fogdata.bin from the 3.3.5 client's Light, LightIntBand and LightFloatBand tables (a "
+               "DBFilesClient folder or zip): every client light becomes a fog light placed, coloured and thinned by "
+               "its own client values, with the layers and glow of the same light in the Classic fog data or, "
                "where Classic had none, of the Classic light whose 3.3.5 lighting is most alike.")
-CLIENT_TABLES = ("Light.dbc", "LightParams.dbc", "LightIntBand.dbc", "LightFloatBand.dbc")
+CLIENT_TABLES = ("Light.dbc", "LightIntBand.dbc", "LightFloatBand.dbc")
 DBC_MAGIC = b"WDBC"
 DBC_HEADER_FORMAT = "<4s4I"
 DBC_LIGHT_FORMAT = "<2i5f8i"
-DBC_LIGHT_PARAMS_FORMAT = "<4if4f"
 DBC_INT_BAND_FORMAT = "<2I16I16I"
 DBC_FLOAT_BAND_FORMAT = "<2I16I16f"
 DBC_BAND_KEYS = 16
@@ -147,7 +146,6 @@ def float_bands(tables):
 class ClientLighting:
     def __init__(self, tables):
         self.lights = tables.records("Light.dbc", DBC_LIGHT_FORMAT)
-        self.glow = {r[0]: r[4] for r in tables.records("LightParams.dbc", DBC_LIGHT_PARAMS_FORMAT)}
         self.ints = int_bands(tables)
         self.floats = float_bands(tables)
 
@@ -283,8 +281,9 @@ class Builder:
                 slots.append(0)
                 continue
             classic_params = classic[7 + slot] if self.fog.has_fog(classic[7 + slot]) else classic[7 + CLEAR_SLOT]
+            glow_params = classic[7 + slot] if classic[7 + slot] in self.fog.params else classic[7 + CLEAR_SLOT]
             twin_params = twin[7 + slot] or twin[7 + CLEAR_SLOT]
-            recipe = (classic_params, twin_params, target_params)
+            recipe = (classic_params, twin_params, target_params, glow_params)
             if recipe not in self.generated:
                 self.generated[recipe] = FIRST_PARAMS_ID + len(self.generated)
                 self.add_params(self.generated[recipe], *recipe)
@@ -293,7 +292,7 @@ class Builder:
         start, end = light[5] / CLIENT_UNITS_PER_YARD, light[6] / CLIENT_UNITS_PER_YARD
         self.lights.append((light[0], light[1], x, y, z, start, end, *slots))
 
-    def add_params(self, params_id, classic_params, twin_params, target_params):
+    def add_params(self, params_id, classic_params, twin_params, target_params, glow_params):
         first = len(self.keys)
         for key, layers in self.fog.keys_of(classic_params):
             half_minute = key[0]
@@ -310,7 +309,7 @@ class Builder:
                 layer[LAYER_DIFFUSE] = recoloured(layer[LAYER_DIFFUSE], twin_direct, target_direct) & RGB_MASK
                 layer[LAYER_DENSITY] *= density
                 self.layers.append(tuple(layer))
-        self.params[params_id] = (params_id, first, len(self.keys) - first, self.client.glow.get(target_params, 0.0))
+        self.params[params_id] = (params_id, first, len(self.keys) - first, self.fog.params[glow_params][3])
 
     def density_ratio(self, twin_params, target_params, half_minute):
         twin = self.client.fog_distance(twin_params, half_minute)

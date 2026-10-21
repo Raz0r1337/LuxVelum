@@ -234,9 +234,9 @@ blend weight. A light without fog in the active slot counts with zero density, s
 and the distance fog hides the far clip there. Other maps use the derived layers.
 
 `tools/convert_client_lights.py` builds `data/fogdata.bin` from `classic_fog.bin` and the 3.3.5 client's `Light`,
-`LightParams`, `LightIntBand` and `LightFloatBand` tables (the Reforged HD client's `DBFilesClient`, folder or zip), so
-that every map, the old continents included, takes the positions, colours, fog distances and glow of the client the
-game runs, which is also what its sky shows:
+`LightIntBand` and `LightFloatBand` tables (the Reforged HD client's `DBFilesClient`, folder or zip), so that every
+map, the old continents included, takes the positions, colours and fog distances of the client the game runs, which
+is also what its sky shows:
 
 ```powershell
 python tools/convert_client_lights.py data/classic_fog.bin <DBFilesClient folder or zip> data/fogdata.bin
@@ -254,8 +254,10 @@ the layers keep their shape, heights, noise and grading curve; the emissive, sha
 the light's own fog band (band 7) at the template's luminance scaled by the ratio of the two lights' fog-band
 luminance (0.5–2), the sun scattering and the direct light likewise from the direct band (band 0), and the density
 follows the ratio of the fog distances (float band 0, 0.5–2). A twin is its own template, so it keeps its Classic
-brightness and density and takes only the hue of its client colours. The glow is the client's own `LightParams` glow.
-Recipes shared by several lights are written once and the run is repeatable. 827 lights on 73 maps (3.3 MB); maps
+brightness and density and takes only the hue of its client colours. The glow is the Forever glow of the Classic
+light's params in the same slot: the 3.3.5 `LightParams` glow (1.0 in Ashenvale where Forever has 0) drives the old
+client's bloom and washed the colours out. Recipes shared by several lights are written once and the run is
+repeatable. 827 lights on 73 maps (3.4 MB); maps
 the client has no light for, such as the Stockade (map 34) and the Classic-only maps above 2700, use the derived
 layers.
 

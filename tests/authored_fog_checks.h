@@ -12,8 +12,6 @@ constexpr float kMidnight = 0.0f;
 constexpr float kDayFraction1730 = 2100.0f / 2880.0f;
 constexpr int kLegacyGlowSlot = 1;
 constexpr float kLegacyParams37Glow = 1.0f;
-constexpr float kClearGlowOfLight1 = 0.65f;
-constexpr float kClearGlowOfLight77 = 0.2f;
 constexpr float kDeathSlotGlowOfLight1 = 0.8f;
 constexpr float kDeathSlotGlowOfLight77 = 0.6f;
 constexpr int kCurveMidInput = 16;
@@ -95,16 +93,13 @@ void CheckClassicGlow(const FogData& data)
                      ScreenEffectSlot(FogData::kDeathSlot, 0.0f), ghost) &&
         data.Resolve(kEasternKingdoms, kBlastedLandsLight19Centre, kNoon, ScreenEffectSlot(kLegacyGlowSlot, 0.0f),
                      legacy);
-    const float expectedClear = WeightOf(clear, kEasternKingdomsGlobalLight) * kClearGlowOfLight1 +
-                                WeightOf(clear, kStormwindLight) * kClearGlowOfLight77;
     const float expectedGhost = WeightOf(ghost, kEasternKingdomsGlobalLight) * kDeathSlotGlowOfLight1 +
                                 WeightOf(ghost, kStormwindLight) * kDeathSlotGlowOfLight77;
-    std::printf("     glow: Stormwind light edge clear %.3f (expected %.3f), ghost %.3f (expected %.3f); Blasted Lands "
-                "slot 1 %.3f with %d layers\n",
-                clear.glow, expectedClear, ghost.glow, expectedGhost, legacy.glow, legacy.layerCount);
-    Check(resolved && clear.hasGlow && Near(clear.glow, expectedClear) && ghost.hasGlow &&
-              Near(ghost.glow, expectedGhost),
-          "the client's glow blends by light weight in the selected light params slot");
+    std::printf("     glow: Stormwind light edge clear %.3f, ghost %.3f (expected %.3f); Blasted Lands slot 1 %.3f "
+                "with %d layers\n",
+                clear.glow, ghost.glow, expectedGhost, legacy.glow, legacy.layerCount);
+    Check(resolved && clear.hasGlow && clear.glow == 0.0f && ghost.hasGlow && Near(ghost.glow, expectedGhost),
+          "the Classic glow of the client lights blends by light weight in the selected light params slot");
     Check(legacy.hasGlow && Near(legacy.glow, kLegacyParams37Glow) && legacy.layerCount == 0,
           "light params without fog still supply their glow");
 }
