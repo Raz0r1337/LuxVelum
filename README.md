@@ -44,7 +44,9 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
 - **Distance fog** that replaces the stock linear fog on maps without Classic data: it turns opaque where
   the stock fog did, is lit by the direct light (warm at sunset), and fades into a horizon band on the sky.
   With Classic layers it returns only across the edge of Classic coverage and where the Classic layers are
-  too thin to hide the far clip.
+  too thin to hide the far clip. Sky seen below the horizon, such as the void under the edges of Netherstorm, takes
+  the fog of the sky mirrored above it; levelled to the horizon, its rays crossed the whole fog range and showed a
+  white wall.
 - **Forward scattering** around the visible sun or moon sprite (Henyey–Greenstein phase).
 - **Local lights**: up to eight native point lights in view scatter into the medium with the client's constant,
   linear and quadratic attenuation. Light/ray intersections preserve small light volumes between march samples.

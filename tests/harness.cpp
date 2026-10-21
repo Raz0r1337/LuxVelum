@@ -162,6 +162,8 @@ constexpr int kGripDragY = 24;
 constexpr int kGripShrink = -2000;
 constexpr float kPanelSizeTolerance = 1.5f;
 constexpr float kBesideShrunkPanelGap = 4.0f;
+constexpr UINT kVoidProbeRows = 120;
+constexpr int kMaxVoidMirrorDifference = 3;
 
 int g_failures = 0;
 
@@ -675,7 +677,7 @@ float ReferenceUnshadowedSkyTransmittance(const FrameInputs& in, const Config& c
     const float* m = in.cameraRelativeView;
     Vec3 dirW = {v.x * m[0] + v.y * m[1] + v.z * m[2], v.x * m[4] + v.y * m[5] + v.z * m[6],
                  v.x * m[8] + v.y * m[9] + v.z * m[10]};
-    const double upward = std::fmax(dirW.z, 0.0f);
+    const double upward = std::fabs(dirW.z);
     double tau = 0.0;
     for (const FogLayer& layer : fog.layers)
     {
@@ -1982,6 +1984,40 @@ void CheckDisabledTemporalIsStable(Harness& h, const Config& cfg, Vec3 eye, Vec3
     vf_test_set_config(&cfg);
 }
 
+void CheckVoidBelowTheHorizonMirrorsTheSky(Harness& h, const Config& cfg, Vec3 eye, const float* proj,
+                                           const D3DVIEWPORT9& world)
+{
+    Config transmittanceView = cfg;
+    transmittanceView.temporal = 0.0f;
+    transmittanceView.godRays = 0.0f;
+    transmittanceView.debugView = 2;
+    transmittanceView.dataMode = 0;
+    transmittanceView.noiseAmount = 0.0f;
+    vf_test_set_config(&transmittanceView);
+    const Vec3 level = Add(eye, {100.0f, 0.0f, 0.0f});
+    float view[16];
+    CameraRelativeLookAt(eye, level, view);
+    FrameInputs in = MakeInputs(view, proj, eye, level, world);
+    h.BeginFrame();
+    const char* skip = "";
+    const bool rendered = vf_test_render(&in, &skip) != 0;
+    const Image t = Capture(h.dev);
+    h.dev->EndScene();
+    vf_test_set_config(&cfg);
+    const UINT horizonRow = world.Y + world.Height / 2;
+    int worst = 0;
+    for (UINT rows : {kVoidProbeRows, 2 * kVoidProbeRows})
+        worst = std::max(worst, std::abs(static_cast<int>(t.At(world.Width / 2, horizonRow - rows)[2]) -
+                                         t.At(world.Width / 2, horizonRow + rows)[2]));
+    std::printf("     no geometry in view: sky transmittance %d/255 %u rows above the horizon, %d/255 below; largest "
+                "mirror difference %d/255\n",
+                t.At(world.Width / 2, horizonRow - kVoidProbeRows)[2], kVoidProbeRows,
+                t.At(world.Width / 2, horizonRow + kVoidProbeRows)[2], worst);
+    Check(rendered && worst <= kMaxVoidMirrorDifference,
+          "sky below the horizon, such as the void under Netherstorm's edges, thins the fog as the sky above does "
+          "instead of a level ray through the whole fog range");
+}
+
 int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstring& iniPath,
         const std::string& waterDataPath, bool cpuOnly = false)
 {
@@ -2220,6 +2256,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
 
     CheckLinearComposite(h, cfg, eye, at, proj, world);
     CheckDisabledTemporalIsStable(h, cfg, eye, at, proj, world);
+    CheckVoidBelowTheHorizonMirrorsTheSky(h, cfg, eye, proj, world);
     forever_look_checks::CheckColourGrading(h, world, classic);
     forever_look_checks::CheckFogCompensatesTheDeliveredGlow(h, cfg, world);
     vf_test_set_config(&cfg);
