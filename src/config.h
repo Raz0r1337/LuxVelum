@@ -36,6 +36,11 @@ struct Config
     int stockFog = 1;
     bool transparentFog = false;
     int dataMode = 1;
+    float azerothDensity = 1.0f;
+    float outlandDensity = 0.5f;
+    float northrendDensity = 0.5f;
+    int outlandClassicFog = 1;
+    int northrendClassicFog = 1;
     int colorSpace = 1;
     int classicPhase = 0;
     float sunScatter = 1.0f;

@@ -788,6 +788,39 @@ void CheckOutlandAndNorthrendBorrowAContinentLight(const FogData& data)
           "Northrend takes the Classic fog of the Eastern Kingdoms' global light");
 }
 
+void CheckRegionalFogSettings()
+{
+    Config cfg = {};
+    cfg.density = 0.8f;
+    cfg.azerothDensity = 1.5f;
+    cfg.outlandDensity = 0.5f;
+    cfg.northrendDensity = 0.25f;
+    const Config azeroth = ConfigForMap(cfg, kEasternKingdoms);
+    const Config dungeon = ConfigForMap(cfg, kMapWithoutClassicLights);
+    const Config outland = ConfigForMap(cfg, kOutland);
+    const Config northrend = ConfigForMap(cfg, kNorthrend);
+    std::printf("     density 0.8 by region: Azeroth %.2f, other map %.2f, Outland %.2f, Northrend %.2f\n",
+                azeroth.density, dungeon.density, outland.density, northrend.density);
+    Check(std::fabs(azeroth.density - 1.2f) < 1e-5f && std::fabs(dungeon.density - 1.2f) < 1e-5f &&
+              std::fabs(outland.density - 0.4f) < 1e-5f && std::fabs(northrend.density - 0.2f) < 1e-5f,
+          "each region scales Density by its own density: Azeroth on every map but Outland and Northrend");
+    Check(outland.dataMode == 1 && northrend.dataMode == 1 && BorrowsClassicFog(cfg, kOutland) &&
+              BorrowsClassicFog(cfg, kNorthrend),
+          "Outland and Northrend borrow the Classic fog by default");
+
+    cfg.outlandClassicFog = 0;
+    Check(ConfigForMap(cfg, kOutland).dataMode == 0 && !BorrowsClassicFog(cfg, kOutland) &&
+              ConfigForMap(cfg, kNorthrend).dataMode == 1 && ConfigForMap(cfg, kEasternKingdoms).dataMode == 1,
+          "OutlandClassicFog=0 gives Outland the derived layers and leaves Northrend and Azeroth alone");
+    cfg.outlandClassicFog = 1;
+    cfg.northrendClassicFog = 0;
+    Check(ConfigForMap(cfg, kNorthrend).dataMode == 0 && !BorrowsClassicFog(cfg, kNorthrend) &&
+              ConfigForMap(cfg, kOutland).dataMode == 1 && BorrowsClassicFog(cfg, kEasternKingdoms),
+          "NorthrendClassicFog=0 gives Northrend the derived layers and leaves Outland and Azeroth alone");
+    cfg.dataMode = 0;
+    Check(ConfigForMap(cfg, kOutland).dataMode == 0, "DataMode=0 keeps the derived layers in every region");
+}
+
 constexpr float kNoon = 0.5f;
 constexpr uint32_t kElwynnZoneLight = 16849;
 constexpr uint32_t kOrgrimmarDragZoneLight = 16845;
@@ -1162,6 +1195,28 @@ void CheckFogThinsIntoFoglessClassicLight(const FogData& data)
     Check(Near(WeightOf(fogs[0], kFoglessBlastedLandsLight), 1.0f) && SceneLayersDensity(params[0]) == 0.0f &&
               params[0].layers[kDistanceFogLayer].density > 0.0f,
           "inside a Classic light without fog only the distance fog hides the far clip");
+}
+
+void CheckOutlandDensityThinsTheBorrowedFog(const FogData& data)
+{
+    const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
+    const Vec3 toSun = {0.607f, 0.607f, 0.513f};
+    const float evening = 0.7279f;
+    const FrameInputs frame = ContinentFrame(kOutland, hellfirePeninsula, evening, toSun, false);
+    AuthoredFog fog = {};
+    const bool resolved = data.Resolve(kOutland, frame.camPos, evening, kClearWeather, fog);
+    Config full = {};
+    full.outlandDensity = 1.0f;
+    Config halved = full;
+    halved.outlandDensity = 0.5f;
+    const FogParams fullParams = BuildFogParams(frame, ConfigForMap(full, kOutland), &fog);
+    const FogParams halvedParams = BuildFogParams(frame, ConfigForMap(halved, kOutland), &fog);
+    const float fullDensity = SceneLayersDensity(fullParams);
+    const float halvedDensity = SceneLayersDensity(halvedParams);
+    std::printf("     Hellfire Peninsula at dusk: scene layer density %.6f at OutlandDensity 1, %.6f at 0.5\n",
+                fullDensity, halvedDensity);
+    Check(resolved && fullDensity > 0.0f && std::fabs(halvedDensity - 0.5f * fullDensity) < 1e-6f,
+          "OutlandDensity 0.5 halves the borrowed Classic layers in Hellfire Peninsula");
 }
 
 float BoxMean7x7(const Image& img, UINT cx, UINT cy, int ch)
@@ -1891,6 +1946,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     Check(classic.Load(dataPath), "Classic fog data loads");
     CheckClassicData(classic);
     CheckOutlandAndNorthrendBorrowAContinentLight(classic);
+    CheckRegionalFogSettings();
+    CheckOutlandDensityThinsTheBorrowedFog(classic);
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
     CheckZoneLights(classic);

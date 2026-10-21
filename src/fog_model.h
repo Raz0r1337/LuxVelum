@@ -78,6 +78,17 @@ struct FogParams
 
 void UnpackColor(uint32_t argb, float* rgb);
 FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const AuthoredFog* authored);
+
+enum class MapRegion
+{
+    Azeroth,
+    Outland,
+    Northrend,
+};
+
+MapRegion RegionOfMap(int mapId);
+bool BorrowsClassicFog(const Config& cfg, int mapId);
+Config ConfigForMap(const Config& cfg, int mapId);
 PointLightUpload LocalLightUpload(const Config& cfg);
 bool AnyLayerNoise(const FogParams& fog);
 float EnergyNormalisedPhaseScale(float g);

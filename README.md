@@ -233,7 +233,9 @@ Classic never had Outland (map 530) or Northrend (map 571), so the kit and the s
 for either; their fog, glow and colour grading come from a stand-in global light instead: Kalimdor's (light 191, dry
 and warm) for Outland and the Eastern Kingdoms' (light 1) for Northrend. Their haze and far-wall layers sit
 relative to the player's height (flag bit 1), so the terrain heights there do not move them. Without a stand-in both
-maps fell back to the derived layers, which players noticed as much weaker fog than on the old continents.
+maps fell back to the derived layers, which players noticed as much weaker fog than on the old continents. The
+borrowed fog read as too dense there in play, so `OutlandDensity` and `NorthrendDensity` start at 0.5, and
+`OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow.
 
 The phase of the Classic sun and moon scattering peaks at 1 toward the light. The authored intensities rise as g
 falls, to about 4π for evenly scattering rows, which suggests that the modern lookup is energy-normalised (inferred;
@@ -755,6 +757,8 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `StockFog` | 1 | 1 replaces the stock fog with the distance fog, 0 keeps it |
 | `TransparentFog` | 0 | 1 fogs see-through effects at their own distance, 0 at the scene behind (see Transparent fog) |
 | `DataMode` | 1 | 1 Classic layers where available, 0 derived layers everywhere |
+| `AzerothDensity`, `OutlandDensity`, `NorthrendDensity` | 1, 0.5, 0.5 | Density per region, on top of `Density` |
+| `OutlandClassicFog`, `NorthrendClassicFog` | 1, 1 | 1 borrows a Classic global light there, 0 derived layers |
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |
 | `SunScatter`, `Ambient`, `Exposure` | 1, 1, 1 | Light in the fog |
 | `ClassicExposure` | 1 | Brightness of the Classic layers (1 = as authored) |

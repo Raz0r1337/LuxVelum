@@ -184,6 +184,25 @@ bool DrawDensity(Config& c)
     return changed;
 }
 
+bool DrawRegions(Config& c)
+{
+    const Section section("Regions", ImGuiTreeNodeFlags_DefaultOpen);
+    if (!section)
+        return false;
+    bool changed = Multiplier("Azeroth density", c.azerothDensity,
+                              "Fog thickness on the old continents, in their dungeons and on every other map, on top "
+                              "of Density");
+    changed |= Multiplier("Outland density", c.outlandDensity, "Fog thickness in Outland, on top of Density");
+    changed |= Toggle("Outland Classic fog", c.outlandClassicFog,
+                      "Classic never had Outland. On: its fog, glow and colour grading come from Kalimdor's global "
+                      "light. Off: derived layers, with the client's glow and no colour grading");
+    changed |= Multiplier("Northrend density", c.northrendDensity, "Fog thickness in Northrend, on top of Density");
+    changed |= Toggle("Northrend Classic fog", c.northrendClassicFog,
+                      "Classic never had Northrend. On: its fog, glow and colour grading come from the Eastern "
+                      "Kingdoms' global light. Off: derived layers, with the client's glow and no colour grading");
+    return changed;
+}
+
 bool DrawLight(Config& c)
 {
     const Section section("Light", ImGuiTreeNodeFlags_DefaultOpen);
@@ -367,6 +386,7 @@ bool SettingsPanel::DrawSettings(Config& edited, const FogFrameStatus& fogStatus
     ImGui::PushItemWidth(-labels);
     bool changed = DrawQuality(edited);
     changed |= DrawDensity(edited);
+    changed |= DrawRegions(edited);
     changed |= DrawLight(edited);
     changed |= DrawGlowAndGrading(edited);
     changed |= DrawWorld(edited);

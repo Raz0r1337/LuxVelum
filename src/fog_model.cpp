@@ -48,6 +48,8 @@ constexpr float kMinClassicDirectLuminance = 1.0e-3f;
 constexpr float kLuminanceWeights[3] = {0.2126f, 0.7152f, 0.0722f};
 constexpr float kReferenceFarTarget = 200.0f;
 constexpr float kNoLimit = 1.0e9f;
+constexpr int kOutlandMap = 530;
+constexpr int kNorthrendMap = 571;
 
 float SmoothStep(float e0, float e1, float x)
 {
@@ -325,6 +327,19 @@ float ClientToClassicDirectLight(const AuthoredFog& fog, const float* clientDire
         return 1.0f;
     return std::clamp(Luminance(clientDirectLight) / classicLuminance, 0.0f, 1.0f);
 }
+
+float RegionDensity(const Config& cfg, MapRegion region)
+{
+    switch (region)
+    {
+    case MapRegion::Outland:
+        return cfg.outlandDensity;
+    case MapRegion::Northrend:
+        return cfg.northrendDensity;
+    default:
+        return cfg.azerothDensity;
+    }
+}
 }
 
 void UnpackColor(uint32_t argb, float* rgb)
@@ -378,6 +393,37 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     }
     ApplyInteriorFog(interiorWeight, cfg, p);
     return p;
+}
+
+MapRegion RegionOfMap(int mapId)
+{
+    if (mapId == kOutlandMap)
+        return MapRegion::Outland;
+    if (mapId == kNorthrendMap)
+        return MapRegion::Northrend;
+    return MapRegion::Azeroth;
+}
+
+bool BorrowsClassicFog(const Config& cfg, int mapId)
+{
+    switch (RegionOfMap(mapId))
+    {
+    case MapRegion::Outland:
+        return cfg.outlandClassicFog != 0;
+    case MapRegion::Northrend:
+        return cfg.northrendClassicFog != 0;
+    default:
+        return true;
+    }
+}
+
+Config ConfigForMap(const Config& cfg, int mapId)
+{
+    Config regional = cfg;
+    regional.density = cfg.density * RegionDensity(cfg, RegionOfMap(mapId));
+    if (!BorrowsClassicFog(cfg, mapId))
+        regional.dataMode = 0;
+    return regional;
 }
 
 float EnergyNormalisedPhaseScale(float g)
