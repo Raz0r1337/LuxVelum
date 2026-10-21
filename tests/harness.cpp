@@ -805,6 +805,8 @@ void CheckOutlandAndNorthrendHaveTheirOwnLights(const FogData& data)
 
 void CheckRegionalFogSettings()
 {
+    Check(Config().azerothDensity == 1.0f && Config().outlandDensity == 0.15f && Config().northrendDensity == 0.15f,
+          "Outland and Northrend start at density 0.15, as testers found their converted fog too strong");
     Config cfg = {};
     cfg.density = 0.8f;
     cfg.azerothDensity = 1.5f;

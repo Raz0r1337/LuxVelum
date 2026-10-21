@@ -256,7 +256,7 @@ colours out when a test build used it on every map. Recipes shared by several li
 repeatable on its own output and leaves the Classic lights byte for byte. Run it again after `convert_classic_fog.py`,
 which keeps only the kit's light params. 445 lights on 47 maps come from 194 templates (2.3 MB in all).
 
-`OutlandDensity` and `NorthrendDensity` start at 0.5, as the fog read as too dense there in play, and
+`OutlandDensity` and `NorthrendDensity` start at 0.15, as the fog read as too strong there in play, and
 `OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow.
 `AzerothSkyColor`, `OutlandSkyColor` and `NorthrendSkyColor` (0 by default) mix the scene layers' emissive and shadow
 colours at run time toward the hue of the client's current stock fog colour, which blends the scene into its sky and
@@ -783,7 +783,7 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `StockFog` | 1 | 1 replaces the stock fog with the distance fog, 0 keeps it |
 | `TransparentFog` | 0 | 1 fogs see-through effects at their own distance, 0 at the scene behind (see Transparent fog) |
 | `DataMode` | 1 | 1 Classic layers where available, 0 derived layers everywhere |
-| `AzerothDensity`, `OutlandDensity`, `NorthrendDensity` | 1, 0.5, 0.5 | Density per region, on top of `Density` |
+| `AzerothDensity`, `OutlandDensity`, `NorthrendDensity` | 1, 0.15, 0.15 | Density per region, on top of `Density` |
 | `OutlandClassicFog`, `NorthrendClassicFog` | 1, 1 | 1 the converted client lights there, 0 derived layers |
 | `AzerothSkyColor`, `OutlandSkyColor`, `NorthrendSkyColor` | 0, 0, 0 | Share of the client's fog hue in the layers |
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |
