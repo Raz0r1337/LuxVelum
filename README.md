@@ -3,11 +3,10 @@
 Volumetric fog and modern water for the Ascension/CoA 3.3.5a (build 12340) Direct3D 9 client.
 
 It consists of a loader, a D3D9 device wrapper with a readable depth buffer, world-render hooks, a per-pixel
-ray-marching fog renderer and a water renderer. Fog layers come from the Classic client's own
-`LightDataGlobalVolumeFog` data wherever its lights cover the map; Outland, Northrend and the other maps Classic never
-had get lights converted from the 3.3.5 client's own light tables, and the remaining maps use layers derived from the
-3.3.5 day/night lighting. Water is shaded like WoW Forever's PBR water, from its liquid presets, wave spectra and foam
-textures.
+ray-marching fog renderer and a water renderer. Fog lights are the 3.3.5 client's own lights on every map, placed,
+coloured and thinned by its light tables, with the layer structure of the Classic client's
+`LightDataGlobalVolumeFog` data; maps without client lights use layers derived from the 3.3.5 day/night lighting.
+Water is shaded like WoW Forever's PBR water, from its liquid presets, wave spectra and foam textures.
 
 ## About this fork
 
@@ -201,19 +200,21 @@ distance.
 
 `tools/convert_classic_fog.py` converts the WoW Forever fog and lighting kit (build 1.60.1.70009, a folder or its
 zip: the decoded `LightData`, `LightDataGlobalVolumeFog`, `LightParams` and `ZoneLightPoint` tables and the
-colour-grading LUTs, checked against the kit's `SHA256SUMS`) into `data/fogdata.bin`. The kit has no decrypted `Light`
-and `ZoneLight`, so lights and zone lights are carried byte for byte from a previous `fogdata.bin` (the shipped file
+colour-grading LUTs, checked against the kit's `SHA256SUMS`) into `data/classic_fog.bin`, the source from which
+`tools/convert_client_lights.py` builds the shipped `data/fogdata.bin` (below). The kit has no decrypted `Light` and
+`ZoneLight`, so lights and zone lights are carried byte for byte from a previous `classic_fog.bin` (the shipped file
 keeps those of `9bf495a`, from 69876) or read from the Classic client's `Light.csv` and `ZoneLight.csv` exports. It
 checks that the fog table's layout hash is still `24290E20`, which keeps the column numbers valid:
 
 ```powershell
-python tools/convert_classic_fog.py <kit folder or zip> --placements data/fogdata.bin data/fogdata.bin
+python tools/convert_classic_fog.py <kit folder or zip> --placements data/classic_fog.bin data/classic_fog.bin
 ```
 
 The converter keeps the fog rows the Classic client selects (flag bit 3) at their layer index (0–2). At run
-time the DLL blends the Classic lights around the camera: spheres at full weight inside the falloff start and
-linear to the falloff end, the rest to the zone light whose outline holds the camera (fading in over 100 yd,
-innermost outline on top), and otherwise to the map's global light. Each light uses the condition slot the
+time the DLL blends the lights of `fogdata.bin` around the camera: spheres at full weight inside the falloff start
+and linear to the falloff end, the rest to the zone light whose outline holds the camera (fading in over 100 yd,
+innermost outline on top; the shipped file has none, as the 3.3.5 client has no zone lights), and otherwise to the
+map's global light. Each light uses the condition slot the
 client uses for its stock lighting: the slot a screen effect forces (the ghost effect forces slot 4, death),
 otherwise clear weather (slot 0) blended toward storm (slot 2) by the client's storm weight. The two time keys
 around the current time are interpolated and layers are paired by their Classic layer index. Storm light params
@@ -230,30 +231,33 @@ Classic data applies on maps where any Classic light has fog, wherever Classic l
 blend weight. A light without fog in the active slot counts with zero density, so the fog thins smoothly into it
 and the distance fog hides the far clip there. Other maps use the derived layers.
 
-Classic never had Outland (map 530), Northrend (map 571) or the Burning Crusade and Wrath dungeons, so the kit holds
-no fog for them. `tools/convert_client_lights.py` adds them to `fogdata.bin` from the 3.3.5 client's `Light`,
-`LightParams`, `LightIntBand` and `LightFloatBand` tables (the Reforged HD client's `DBFilesClient`, folder or zip):
+`tools/convert_client_lights.py` builds `data/fogdata.bin` from `classic_fog.bin` and the 3.3.5 client's `Light`,
+`LightParams`, `LightIntBand` and `LightFloatBand` tables (the Reforged HD client's `DBFilesClient`, folder or zip), so
+that every map, the old continents included, takes the positions, colours, fog distances and glow of the client the
+game runs, which is also what its sky shows:
 
 ```powershell
-python tools/convert_client_lights.py data/fogdata.bin <DBFilesClient folder or zip> data/fogdata.bin
+python tools/convert_client_lights.py data/classic_fog.bin <DBFilesClient folder or zip> data/fogdata.bin
 ```
 
-Every client light on a map without Classic lights becomes a light of its own (id + 1000000), placed as the client
-places it: world X = 17066.666 − z/36, Y = 17066.666 − x/36, Z = y/36, falloff /36, a light at the origin without
-falloff stays map-wide. 257 Classic lights have a twin with the same id and position in the client table (light 77 at
-the Stormwind harbour: (593586, 0, 931236)/36 → (−8801.0, 578.2), as in the Classic placement). Those with fog in
-their clear slot are the templates: each new light takes the layers of the template whose 3.3.5 lighting is most
-alike, compared every hour over the fog, sky top, sky middle, direct and ambient bands (linear) and the log of the
-fog distance. Per condition slot and template key the layers keep their shape, heights, noise and grading curve; the
-emissive, shadow and noise colours take the hue of the new light's fog band (band 7) at the template's luminance
-scaled by the ratio of the two lights' fog-band luminance (0.5–2), the sun scattering and the direct light likewise
-from the direct band (band 0), and the density follows the ratio of the fog distances (float band 0, 0.5–2, median
-0.87 over Outland and Northrend). The glow is the client's own `LightParams` glow. Recipes shared by several lights
-are written once; the run is repeatable on its own output and leaves the Classic lights byte for byte. Run it again
-after `convert_classic_fog.py`, which keeps only the kit's light params. 445 lights on 47 maps come from 194
-templates (2.3 MB in all).
+Every client light with clear-weather params becomes a fog light with the client's id, placed as the client places
+it: world X = 17066.666 − z/36, Y = 17066.666 − x/36, Z = y/36, falloff /36, a light at the origin without falloff
+stays map-wide. 274 client lights have a Classic twin on the same map within 5 yd (light 77 in Stormwind:
+(593586, 0, 931236)/36 → (−8801.0, 578.2), as in the Classic placement) and keep that light's own layers; the client's
+falloff replaces Classic's (light 77: 862–938 yd, Classic 418–495). The twins with fog in their clear slot are the
+templates for the rest: each other light takes the layers of the template whose 3.3.5 lighting is most alike, compared
+every hour over the fog, sky top, sky middle, direct and ambient bands (linear) and the log of the fog distance (the
+Classic Elwynn zone light, for one, gives way to the client's sphere light 5000). Per condition slot and template key
+the layers keep their shape, heights, noise and grading curve; the emissive, shadow and noise colours take the hue of
+the light's own fog band (band 7) at the template's luminance scaled by the ratio of the two lights' fog-band
+luminance (0.5–2), the sun scattering and the direct light likewise from the direct band (band 0), and the density
+follows the ratio of the fog distances (float band 0, 0.5–2). A twin is its own template, so it keeps its Classic
+brightness and density and takes only the hue of its client colours. The glow is the client's own `LightParams` glow.
+Recipes shared by several lights are written once and the run is repeatable. 827 lights on 73 maps (3.3 MB); maps
+the client has no light for, such as the Stockade (map 34) and the Classic-only maps above 2700, use the derived
+layers.
 
-`OutlandDensity` and `NorthrendDensity` start at 0.5, as a stand-in light read as too dense there in play, and
+`OutlandDensity` and `NorthrendDensity` start at 0.5, as the fog read as too dense there in play, and
 `OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow.
 `AzerothSkyColor`, `OutlandSkyColor` and `NorthrendSkyColor` (0 by default) mix the scene layers' emissive and shadow
 colours at run time toward the hue of the client's current stock fog colour, which blends the scene into its sky and

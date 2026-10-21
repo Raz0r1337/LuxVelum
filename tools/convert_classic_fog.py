@@ -9,8 +9,8 @@ import sys
 import zipfile
 
 DESCRIPTION = ("Convert the Forever fog and lighting kit's volumetric fog, glow and colour-grading data into "
-               "data/fogdata.bin, placed by the Light and ZoneLight records of a previous fogdata.bin or of the "
-               "Classic client's CSV exports.")
+               "data/classic_fog.bin, placed by the Light and ZoneLight records of a previous classic_fog.bin or of "
+               "the Classic client's CSV exports; convert_client_lights.py builds data/fogdata.bin from it.")
 KIT_ROOT = "coa-forever-fog-lighting-kit/"
 KIT_CHECKSUMS = "SHA256SUMS"
 LIGHT_DATA_TABLE = "data/decoded/LightData.json"
@@ -442,9 +442,9 @@ def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("kit", help="the Forever fog and lighting kit folder or its zip archive")
     parser.add_argument("--placements", required=True,
-                        help="a previous fogdata.bin, or a folder or zip archive with the Classic client's Light.csv "
-                             "and ZoneLight.csv exports")
-    parser.add_argument("output", help="output path, normally data/fogdata.bin")
+                        help="a previous classic_fog.bin, or a folder or zip archive with the Classic client's "
+                             "Light.csv and ZoneLight.csv exports")
+    parser.add_argument("output", help="output path, normally data/classic_fog.bin")
     args = parser.parse_args()
     placements = read_placements(args.placements)
     with Kit(args.kit) as kit:

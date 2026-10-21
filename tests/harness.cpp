@@ -736,49 +736,40 @@ constexpr float kDayFraction1845 = 2250.0f / 2880.0f;
 
 void CheckClassicData(const FogData& data)
 {
-    const float harbourAtStormwindLightEdge[3] = {-8565.21f, 993.46f, 104.96f};
+    const float stormwindLightEdge[3] = {-8900.0f, 1507.0f, 20.0f};
     AuthoredFog fog = {};
-    bool ok = data.Resolve(kEasternKingdoms, harbourAtStormwindLightEdge, kDayFraction1800, kClearWeather, fog);
+    bool ok = data.Resolve(kEasternKingdoms, stormwindLightEdge, kDayFraction1800, kClearWeather, fog);
     float globalWeight = WeightOf(fog, kEasternKingdomsGlobalLight);
     float stormwindWeight = WeightOf(fog, kStormwindLight);
     const AuthoredLayer* wall = FarWall(fog);
     const AuthoredLayer* haze = MidHaze(fog);
-    std::printf("     harbour at 18:00: lights 1:%.3f 77:%.3f, %d layers, far wall density %.4f, haze density %.4f\n",
+    std::printf("     Stormwind light edge at 18:00: lights 1:%.3f 77:%.3f, %d layers, far wall density %.4f, haze "
+                "density %.4f\n",
                 globalWeight, stormwindWeight, fog.layerCount, wall ? wall->density : -1.0f,
                 haze ? haze->density : -1.0f);
     Check(ok && fog.layerCount == 3 && std::fabs(globalWeight + stormwindWeight - 1.0f) < 1e-4f &&
               stormwindWeight > 0.05f && stormwindWeight < 0.1f,
-          "Classic light blend at the harbour (light 77 falloff edge)");
+          "light blend north of Stormwind at the falloff edge of the client's light 77");
     Check(wall && haze && std::fabs(wall->start - 3000.0f) < 0.5f &&
               std::fabs(wall->density - (globalWeight * 0.6f + stormwindWeight * 1.0f)) < 1e-4f &&
               std::fabs(haze->density - (globalWeight * 0.12f + stormwindWeight * 0.125f)) < 1e-4f,
           "Classic layers blended by light weight at a key time");
 
     AuthoredFog mid = {};
-    data.Resolve(kEasternKingdoms, harbourAtStormwindLightEdge, kDayFraction1845, kClearWeather, mid);
+    data.Resolve(kEasternKingdoms, stormwindLightEdge, kDayFraction1845, kClearWeather, mid);
     float expected = WeightOf(mid, kEasternKingdomsGlobalLight) * 0.8f + WeightOf(mid, kStormwindLight) * 0.75f;
     const AuthoredLayer* midWall = FarWall(mid);
-    std::printf("     harbour at 18:45: far wall density %.4f (expected %.4f)\n", midWall ? midWall->density : -1.0f,
-                expected);
+    std::printf("     Stormwind light edge at 18:45: far wall density %.4f (expected %.4f)\n",
+                midWall ? midWall->density : -1.0f, expected);
     Check(midWall && std::fabs(midWall->density - expected) < 1e-4f,
           "Classic keys interpolated between 18:00 and 19:30");
 
     AuthoredFog none = {};
-    Check(!data.Resolve(kMapWithoutClassicLights, harbourAtStormwindLightEdge, kDayFraction1800, kClearWeather,
-                        none),
+    Check(!data.Resolve(kMapWithoutClassicLights, stormwindLightEdge, kDayFraction1800, kClearWeather, none),
           "maps without Classic lights fall back to derived layers");
 }
 
-constexpr uint32_t kFirstClientLight = 1000000;
-constexpr uint32_t kNorthrendGlobalClientLight = kFirstClientLight + 1406;
-
-bool OnlyClientLights(const AuthoredFog& fog)
-{
-    for (int i = 0; i < fog.lightCount; ++i)
-        if (fog.lightIds[i] < kFirstClientLight)
-            return false;
-    return fog.lightCount > 0;
-}
+constexpr uint32_t kNorthrendGlobalLight = 1406;
 
 void CheckOutlandAndNorthrendHaveTheirOwnLights(const FogData& data)
 {
@@ -792,12 +783,11 @@ void CheckOutlandAndNorthrendHaveTheirOwnLights(const FogData& data)
                 "%u weight %.2f, %d layers\n",
                 outland.lightCount, outland.lightCount ? outland.lightIds[0] : 0u, outland.coverage,
                 outland.layerCount, northrend.lightCount ? northrend.lightIds[0] : 0u,
-                WeightOf(northrend, kNorthrendGlobalClientLight), northrend.layerCount);
-    Check(outlandFog && OnlyClientLights(outland) && outland.lightCount > 1 &&
-              std::fabs(outland.coverage - 1.0f) < 1e-4f && outland.layerCount > 0,
+                WeightOf(northrend, kNorthrendGlobalLight), northrend.layerCount);
+    Check(outlandFog && outland.lightCount > 1 && std::fabs(outland.coverage - 1.0f) < 1e-4f && outland.layerCount > 0,
           "Hellfire Peninsula blends its own client lights, converted from the 3.3.5 Light table");
-    Check(northrendFog && OnlyClientLights(northrend) &&
-              std::fabs(WeightOf(northrend, kNorthrendGlobalClientLight) - 1.0f) < 1e-4f && northrend.layerCount > 0,
+    Check(northrendFog && std::fabs(WeightOf(northrend, kNorthrendGlobalLight) - 1.0f) < 1e-4f &&
+              northrend.layerCount > 0,
           "Northrend's global client light covers Howling Fjord away from its sphere lights");
 }
 
@@ -835,9 +825,7 @@ void CheckRegionalFogSettings()
 }
 
 constexpr float kNoon = 0.5f;
-constexpr uint32_t kElwynnZoneLight = 16849;
-constexpr uint32_t kOrgrimmarDragZoneLight = 16845;
-constexpr uint32_t kOrgrimmarZoneLight = 239;
+constexpr uint32_t kElwynnClientLight = 5000;
 constexpr int kUnusedLightParamsSlot = 6;
 const float kOpenSeaWestOfElwynn[3] = {-10500.0f, 2500.0f, 50.0f};
 
@@ -906,30 +894,17 @@ void CheckScreenEffectLightSlot(const FogData& data)
           "a screen effect slot the light leaves empty keeps its weather layers");
 }
 
-void CheckZoneLights(const FogData& data)
+void CheckElwynnTakesTheClientsOwnLight(const FogData& data)
 {
     const float elwynnInterior[3] = {-9847.0f, 49.0f, 50.0f};
-    const float elwynnFiftyYardsInsideWestEdge[3] = {-9847.0f, 664.0f, 50.0f};
-    const float orgrimmarDragInsideOrgrimmar[3] = {1847.0f, -4499.0f, 20.0f};
     AuthoredFog inside = {};
-    AuthoredFog edge = {};
-    AuthoredFog drag = {};
-    bool resolved = data.Resolve(kEasternKingdoms, elwynnInterior, kNoon, kClearWeather, inside) &&
-                    data.Resolve(kEasternKingdoms, elwynnFiftyYardsInsideWestEdge, kNoon, kClearWeather, edge) &&
-                    data.Resolve(kKalimdor, orgrimmarDragInsideOrgrimmar, kNoon, kClearWeather, drag);
-    const float edgeZoneWeight = WeightOf(edge, kElwynnZoneLight);
-    std::printf("     Elwynn zone light: interior %.2f (far wall %.2f), 50 yd inside the edge %.2f; Drag %.2f, "
-                "Orgrimmar %.2f\n",
-                WeightOf(inside, kElwynnZoneLight), inside.layers[1].density, edgeZoneWeight,
-                WeightOf(drag, kOrgrimmarDragZoneLight), WeightOf(drag, kOrgrimmarZoneLight));
-    Check(resolved && Near(WeightOf(inside, kElwynnZoneLight), 1.0f) &&
-              WeightOf(inside, kEasternKingdomsGlobalLight) == 0.0f && Near(inside.layers[1].density, 0.2f),
-          "inside its outline the Elwynn zone light replaces the Eastern Kingdoms light");
-    Check(edgeZoneWeight > 0.4f && edgeZoneWeight < 0.6f &&
-              Near(edgeZoneWeight + WeightOf(edge, kEasternKingdomsGlobalLight), 1.0f),
-          "a zone light fades in over 100 yd inside its outline");
-    Check(Near(WeightOf(drag, kOrgrimmarDragZoneLight), 1.0f) && WeightOf(drag, kOrgrimmarZoneLight) == 0.0f,
-          "the innermost of nested zone outlines wins");
+    const bool resolved = data.Resolve(kEasternKingdoms, elwynnInterior, kNoon, kClearWeather, inside);
+    std::printf("     Elwynn interior at noon: light %u weight %.2f, far wall density %.2f\n",
+                inside.lightCount ? inside.lightIds[0] : 0u, WeightOf(inside, kElwynnClientLight),
+                inside.layerCount > 1 ? inside.layers[1].density : -1.0f);
+    Check(resolved && inside.lightCount == 1 && Near(WeightOf(inside, kElwynnClientLight), 1.0f) &&
+              WeightOf(inside, kEasternKingdomsGlobalLight) == 0.0f,
+          "inside Elwynn the client's own sphere light replaces the Classic zone light and the Eastern Kingdoms light");
 }
 
 float SunlitLevelRayOpacity(const FogParams& fog, float camZ, float distance)
@@ -1059,7 +1034,7 @@ void CheckAuthoredFogFollowsClientDirectLight(const FogData& data)
     std::printf("     Darkshire clear 18:00: direct light match %.5f, Classic RGB %.4f %.4f %.4f\n",
                 duskwood.directLightMatch, duskwoodFog.classicDirectLight[0], duskwoodFog.classicDirectLight[1],
                 duskwoodFog.classicDirectLight[2]);
-    Check(duskwoodResolved && std::fabs(duskwood.directLightMatch - 0.342745f) < 0.00001f,
+    Check(duskwoodResolved && std::fabs(duskwood.directLightMatch - 0.343004f) < 0.00001f,
           "clear Darkshire fog follows the client's dimmer direct light in linear colour space");
 
     AuthoredFog missingDirectLight = duskwoodFog;
@@ -1099,7 +1074,7 @@ void CheckAuthoredFogFollowsClientDirectLight(const FogData& data)
     Config gamma = cfg;
     gamma.colorSpace = 0;
     const FogParams gammaDuskwood = BuildFogParams(clearDuskwood, gamma, &duskwoodFog);
-    Check(std::fabs(gammaDuskwood.directLightMatch - 0.647823f) < 0.00001f,
+    Check(std::fabs(gammaDuskwood.directLightMatch - 0.615981f) < 0.00001f,
           "clear direct-light matching uses the selected gamma colour space consistently");
 
     FrameInputs clearWhite = clearDuskwood;
@@ -2021,7 +1996,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckOutlandSkyColourTintsTheConvertedFog(classic);
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
-    CheckZoneLights(classic);
+    CheckElwynnTakesTheClientsOwnLight(classic);
     CheckAuthoredFogFollowsClientDirectLight(classic);
     CheckDenseClassicFogAtHarbourSunset(classic);
     CheckThinClassicFogAtHyjalMidnight(classic);
