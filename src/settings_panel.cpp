@@ -184,6 +184,17 @@ bool DrawDensity(Config& c)
     return changed;
 }
 
+bool SkyColour(const char* label, float& value, const char* region)
+{
+    char help[kStatusTextSize];
+    std::snprintf(help, sizeof(help),
+                  "How much the fog in %s takes the hue of the client's current fog colour, which blends the land "
+                  "into the sky and follows the weather, at the fog's own brightness: 1 = that hue, 0 = the colours "
+                  "in fogdata.bin",
+                  region);
+    return Slider(label, value, 0.0f, 1.0f, "%.2f", help);
+}
+
 bool DrawRegions(Config& c)
 {
     const Section section("Regions", ImGuiTreeNodeFlags_DefaultOpen);
@@ -192,21 +203,19 @@ bool DrawRegions(Config& c)
     bool changed = Multiplier("Azeroth density", c.azerothDensity,
                               "Fog thickness on the old continents, in their dungeons and on every other map, on top "
                               "of Density");
+    changed |= SkyColour("Azeroth sky colour", c.azerothSkyColor, "Azeroth and on every other map");
     changed |= Multiplier("Outland density", c.outlandDensity, "Fog thickness in Outland, on top of Density");
-    changed |= Toggle("Outland Classic fog", c.outlandClassicFog,
-                      "Classic never had Outland. On: its fog, glow and colour grading come from Kalimdor's global "
-                      "light. Off: derived layers, with the client's glow and no colour grading");
-    changed |= Slider("Outland sky colour", c.outlandSkyColor, 0.0f, 1.0f, "%.2f",
-                      "How much the borrowed Classic fog takes the hue of Outland's own stock fog, which blends into "
-                      "its sky, at the fog's own brightness: 1 = the client's hue, 0 = Kalimdor's colours");
+    changed |= Toggle("Outland fog data", c.outlandClassicFog,
+                      "On: Outland's fog layers come from its own client lights, converted into fogdata.bin with the "
+                      "layers of the most alike Classic light. Off: derived layers, with the client's glow and no "
+                      "colour grading");
+    changed |= SkyColour("Outland sky colour", c.outlandSkyColor, "Outland");
     changed |= Multiplier("Northrend density", c.northrendDensity, "Fog thickness in Northrend, on top of Density");
-    changed |= Toggle("Northrend Classic fog", c.northrendClassicFog,
-                      "Classic never had Northrend. On: its fog, glow and colour grading come from the Eastern "
-                      "Kingdoms' global light. Off: derived layers, with the client's glow and no colour grading");
-    changed |= Slider("Northrend sky colour", c.northrendSkyColor, 0.0f, 1.0f, "%.2f",
-                      "How much the borrowed Classic fog takes the hue of Northrend's own stock fog, which blends "
-                      "into its sky, at the fog's own brightness: 1 = the client's hue, 0 = the Eastern Kingdoms' "
-                      "colours");
+    changed |= Toggle("Northrend fog data", c.northrendClassicFog,
+                      "On: Northrend's fog layers come from its own client lights, converted into fogdata.bin with "
+                      "the layers of the most alike Classic light. Off: derived layers, with the client's glow and no "
+                      "colour grading");
+    changed |= SkyColour("Northrend sky colour", c.northrendSkyColor, "Northrend");
     return changed;
 }
 

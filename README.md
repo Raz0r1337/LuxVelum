@@ -4,9 +4,10 @@ Volumetric fog and modern water for the Ascension/CoA 3.3.5a (build 12340) Direc
 
 It consists of a loader, a D3D9 device wrapper with a readable depth buffer, world-render hooks, a per-pixel
 ray-marching fog renderer and a water renderer. Fog layers come from the Classic client's own
-`LightDataGlobalVolumeFog` data wherever its lights cover the map (Outland and Northrend borrow a Classic continent's
-global light), and are derived from the 3.3.5 day/night lighting elsewhere (custom maps). Water is shaded like WoW
-Forever's PBR water, from its liquid presets, wave spectra and foam textures.
+`LightDataGlobalVolumeFog` data wherever its lights cover the map; Outland, Northrend and the other maps Classic never
+had get lights converted from the 3.3.5 client's own light tables, and the remaining maps use layers derived from the
+3.3.5 day/night lighting. Water is shaded like WoW Forever's PBR water, from its liquid presets, wave spectra and foam
+textures.
 
 ## About this fork
 
@@ -229,18 +230,35 @@ Classic data applies on maps where any Classic light has fog, wherever Classic l
 blend weight. A light without fog in the active slot counts with zero density, so the fog thins smoothly into it
 and the distance fog hides the far clip there. Other maps use the derived layers.
 
-Classic never had Outland (map 530) or Northrend (map 571), so the kit and the shipped `fogdata.bin` hold no light
-for either; their fog, glow and colour grading come from a stand-in global light instead: Kalimdor's (light 191, dry
-and warm) for Outland and the Eastern Kingdoms' (light 1) for Northrend. Their haze and far-wall layers sit
-relative to the player's height (flag bit 1), so the terrain heights there do not move them. Without a stand-in both
-maps fell back to the derived layers, which players noticed as much weaker fog than on the old continents. The
-borrowed fog read as too dense there in play, so `OutlandDensity` and `NorthrendDensity` start at 0.5, and
-`OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow. The borrowed
-layers also kept Kalimdor's or the Eastern Kingdoms' ambient colours, which stood out against Outland's own sky, so
-`OutlandSkyColor` and `NorthrendSkyColor` (1 by default) mix their emissive and shadow colours toward the hue of the
-client's stock fog colour, the colour the client fades the scene into its sky with, at each colour's own luminance:
-the stock fog colour is far darker than the Classic emissive (0x282A2A against about 0.5 at dusk in Hellfire
-Peninsula), so taking it whole would blacken the fog. The sun scattering keeps the borrowed light's colours.
+Classic never had Outland (map 530), Northrend (map 571) or the Burning Crusade and Wrath dungeons, so the kit holds
+no fog for them. `tools/convert_client_lights.py` adds them to `fogdata.bin` from the 3.3.5 client's `Light`,
+`LightParams`, `LightIntBand` and `LightFloatBand` tables (the Reforged HD client's `DBFilesClient`, folder or zip):
+
+```powershell
+python tools/convert_client_lights.py data/fogdata.bin <DBFilesClient folder or zip> data/fogdata.bin
+```
+
+Every client light on a map without Classic lights becomes a light of its own (id + 1000000), placed as the client
+places it: world X = 17066.666 − z/36, Y = 17066.666 − x/36, Z = y/36, falloff /36, a light at the origin without
+falloff stays map-wide. 257 Classic lights have a twin with the same id and position in the client table (light 77 at
+the Stormwind harbour: (593586, 0, 931236)/36 → (−8801.0, 578.2), as in the Classic placement). Those with fog in
+their clear slot are the templates: each new light takes the layers of the template whose 3.3.5 lighting is most
+alike, compared every hour over the fog, sky top, sky middle, direct and ambient bands (linear) and the log of the
+fog distance. Per condition slot and template key the layers keep their shape, heights, noise and grading curve; the
+emissive, shadow and noise colours take the hue of the new light's fog band (band 7) at the template's luminance
+scaled by the ratio of the two lights' fog-band luminance (0.5–2), the sun scattering and the direct light likewise
+from the direct band (band 0), and the density follows the ratio of the fog distances (float band 0, 0.5–2, median
+0.87 over Outland and Northrend). The glow is the client's own `LightParams` glow. Recipes shared by several lights
+are written once; the run is repeatable on its own output and leaves the Classic lights byte for byte. Run it again
+after `convert_classic_fog.py`, which keeps only the kit's light params. 445 lights on 47 maps come from 194
+templates (2.3 MB in all).
+
+`OutlandDensity` and `NorthrendDensity` start at 0.5, as a stand-in light read as too dense there in play, and
+`OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow.
+`AzerothSkyColor`, `OutlandSkyColor` and `NorthrendSkyColor` (0 by default) mix the scene layers' emissive and shadow
+colours at run time toward the hue of the client's current stock fog colour, which blends the scene into its sky and
+follows the weather, at each colour's own luminance: the stock colour itself is far darker than the Classic emissive
+(0x282A2A against about 0.5 at dusk in Hellfire Peninsula), so taking it whole would blacken the fog.
 
 The phase of the Classic sun and moon scattering peaks at 1 toward the light. The authored intensities rise as g
 falls, to about 4π for evenly scattering rows, which suggests that the modern lookup is energy-normalised (inferred;
@@ -763,8 +781,8 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `TransparentFog` | 0 | 1 fogs see-through effects at their own distance, 0 at the scene behind (see Transparent fog) |
 | `DataMode` | 1 | 1 Classic layers where available, 0 derived layers everywhere |
 | `AzerothDensity`, `OutlandDensity`, `NorthrendDensity` | 1, 0.5, 0.5 | Density per region, on top of `Density` |
-| `OutlandClassicFog`, `NorthrendClassicFog` | 1, 1 | 1 borrows a Classic global light there, 0 derived layers |
-| `OutlandSkyColor`, `NorthrendSkyColor` | 1, 1 | Share of the client's fog hue in the borrowed layers' ambient |
+| `OutlandClassicFog`, `NorthrendClassicFog` | 1, 1 | 1 the converted client lights there, 0 derived layers |
+| `AzerothSkyColor`, `OutlandSkyColor`, `NorthrendSkyColor` | 0, 0, 0 | Share of the client's fog hue in the layers |
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |
 | `SunScatter`, `Ambient`, `Exposure` | 1, 1, 1 | Light in the fog |
 | `ClassicExposure` | 1 | Brightness of the Classic layers (1 = as authored) |

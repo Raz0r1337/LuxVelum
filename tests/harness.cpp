@@ -730,7 +730,6 @@ constexpr int kNorthrend = 571;
 constexpr int kMapWithoutClassicLights = 9999;
 const LightParamsSelection kClearWeather = {};
 constexpr uint32_t kEasternKingdomsGlobalLight = 1;
-constexpr uint32_t kKalimdorGlobalLight = 191;
 constexpr uint32_t kStormwindLight = 77;
 constexpr float kDayFraction1800 = 0.75f;
 constexpr float kDayFraction1845 = 2250.0f / 2880.0f;
@@ -770,22 +769,36 @@ void CheckClassicData(const FogData& data)
           "maps without Classic lights fall back to derived layers");
 }
 
-void CheckOutlandAndNorthrendBorrowAContinentLight(const FogData& data)
+constexpr uint32_t kFirstClientLight = 1000000;
+constexpr uint32_t kNorthrendGlobalClientLight = kFirstClientLight + 1406;
+
+bool OnlyClientLights(const AuthoredFog& fog)
 {
-    const float hellfirePeninsula[3] = {-248.0f, 950.0f, 85.0f};
+    for (int i = 0; i < fog.lightCount; ++i)
+        if (fog.lightIds[i] < kFirstClientLight)
+            return false;
+    return fog.lightCount > 0;
+}
+
+void CheckOutlandAndNorthrendHaveTheirOwnLights(const FogData& data)
+{
+    const float hellfirePeninsula[3] = {-3005.0f, 4469.0f, -18.0f};
     const float howlingFjord[3] = {1350.0f, -5000.0f, 210.0f};
     AuthoredFog outland = {};
     AuthoredFog northrend = {};
     const bool outlandFog = data.Resolve(kOutland, hellfirePeninsula, kDayFraction1800, kClearWeather, outland);
     const bool northrendFog = data.Resolve(kNorthrend, howlingFjord, kDayFraction1800, kClearWeather, northrend);
-    std::printf("     Outland: light 191 weight %.2f, %d layers; Northrend: light 1 weight %.2f, %d layers\n",
-                WeightOf(outland, kKalimdorGlobalLight), outland.layerCount,
-                WeightOf(northrend, kEasternKingdomsGlobalLight), northrend.layerCount);
-    Check(outlandFog && std::fabs(WeightOf(outland, kKalimdorGlobalLight) - 1.0f) < 1e-4f && outland.layerCount > 0,
-          "Outland takes the Classic fog of Kalimdor's global light");
-    Check(northrendFog && std::fabs(WeightOf(northrend, kEasternKingdomsGlobalLight) - 1.0f) < 1e-4f &&
-              northrend.layerCount > 0,
-          "Northrend takes the Classic fog of the Eastern Kingdoms' global light");
+    std::printf("     Hellfire Peninsula: %d client lights (first %u), coverage %.2f, %d layers; Howling Fjord: light "
+                "%u weight %.2f, %d layers\n",
+                outland.lightCount, outland.lightCount ? outland.lightIds[0] : 0u, outland.coverage,
+                outland.layerCount, northrend.lightCount ? northrend.lightIds[0] : 0u,
+                WeightOf(northrend, kNorthrendGlobalClientLight), northrend.layerCount);
+    Check(outlandFog && OnlyClientLights(outland) && outland.lightCount > 1 &&
+              std::fabs(outland.coverage - 1.0f) < 1e-4f && outland.layerCount > 0,
+          "Hellfire Peninsula blends its own client lights, converted from the 3.3.5 Light table");
+    Check(northrendFog && OnlyClientLights(northrend) &&
+              std::fabs(WeightOf(northrend, kNorthrendGlobalClientLight) - 1.0f) < 1e-4f && northrend.layerCount > 0,
+          "Northrend's global client light covers Howling Fjord away from its sphere lights");
 }
 
 void CheckRegionalFogSettings()
@@ -804,18 +817,18 @@ void CheckRegionalFogSettings()
     Check(std::fabs(azeroth.density - 1.2f) < 1e-5f && std::fabs(dungeon.density - 1.2f) < 1e-5f &&
               std::fabs(outland.density - 0.4f) < 1e-5f && std::fabs(northrend.density - 0.2f) < 1e-5f,
           "each region scales Density by its own density: Azeroth on every map but Outland and Northrend");
-    Check(outland.dataMode == 1 && northrend.dataMode == 1 && BorrowsClassicFog(cfg, kOutland) &&
-              BorrowsClassicFog(cfg, kNorthrend),
+    Check(outland.dataMode == 1 && northrend.dataMode == 1 && UsesFogData(cfg, kOutland) &&
+              UsesFogData(cfg, kNorthrend),
           "Outland and Northrend borrow the Classic fog by default");
 
     cfg.outlandClassicFog = 0;
-    Check(ConfigForMap(cfg, kOutland).dataMode == 0 && !BorrowsClassicFog(cfg, kOutland) &&
+    Check(ConfigForMap(cfg, kOutland).dataMode == 0 && !UsesFogData(cfg, kOutland) &&
               ConfigForMap(cfg, kNorthrend).dataMode == 1 && ConfigForMap(cfg, kEasternKingdoms).dataMode == 1,
           "OutlandClassicFog=0 gives Outland the derived layers and leaves Northrend and Azeroth alone");
     cfg.outlandClassicFog = 1;
     cfg.northrendClassicFog = 0;
-    Check(ConfigForMap(cfg, kNorthrend).dataMode == 0 && !BorrowsClassicFog(cfg, kNorthrend) &&
-              ConfigForMap(cfg, kOutland).dataMode == 1 && BorrowsClassicFog(cfg, kEasternKingdoms),
+    Check(ConfigForMap(cfg, kNorthrend).dataMode == 0 && !UsesFogData(cfg, kNorthrend) &&
+              ConfigForMap(cfg, kOutland).dataMode == 1 && UsesFogData(cfg, kEasternKingdoms),
           "NorthrendClassicFog=0 gives Northrend the derived layers and leaves Outland and Azeroth alone");
     cfg.dataMode = 0;
     Check(ConfigForMap(cfg, kOutland).dataMode == 0, "DataMode=0 keeps the derived layers in every region");
@@ -1197,7 +1210,7 @@ void CheckFogThinsIntoFoglessClassicLight(const FogData& data)
           "inside a Classic light without fog only the distance fog hides the far clip");
 }
 
-void CheckOutlandDensityThinsTheBorrowedFog(const FogData& data)
+void CheckOutlandDensityThinsTheConvertedFog(const FogData& data)
 {
     const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
     const Vec3 toSun = {0.607f, 0.607f, 0.513f};
@@ -1216,25 +1229,25 @@ void CheckOutlandDensityThinsTheBorrowedFog(const FogData& data)
     std::printf("     Hellfire Peninsula at dusk: scene layer density %.6f at OutlandDensity 1, %.6f at 0.5\n",
                 fullDensity, halvedDensity);
     Check(resolved && fullDensity > 0.0f && std::fabs(halvedDensity - 0.5f * fullDensity) < 1e-6f,
-          "OutlandDensity 0.5 halves the borrowed Classic layers in Hellfire Peninsula");
+          "OutlandDensity 0.5 halves the converted layers in Hellfire Peninsula");
 }
 
-void CheckOutlandSkyColourTintsTheBorrowedFog(const FogData& data)
+void CheckOutlandSkyColourTintsTheConvertedFog(const FogData& data)
 {
     const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
     const Vec3 toSun = {0.607f, 0.607f, 0.513f};
     const float evening = 0.7279f;
     FrameInputs frame = ContinentFrame(kOutland, hellfirePeninsula, evening, toSun, false);
-    frame.fogColor = 0xFF282A2Au;
+    frame.fogColor = 0xFF7A3A2Au;
     AuthoredFog fog = {};
     const bool resolved = data.Resolve(kOutland, frame.camPos, evening, kClearWeather, fog);
-    Config borrowed = {};
-    borrowed.outlandSkyColor = 0.0f;
-    Config sky = borrowed;
+    Config asConverted = {};
+    asConverted.outlandSkyColor = 0.0f;
+    Config sky = asConverted;
     sky.outlandSkyColor = 1.0f;
-    Config half = borrowed;
+    Config half = asConverted;
     half.outlandSkyColor = 0.5f;
-    const FogParams kalimdor = BuildFogParams(frame, ConfigForMap(borrowed, kOutland), &fog);
+    const FogParams converted = BuildFogParams(frame, ConfigForMap(asConverted, kOutland), &fog);
     const FogParams own = BuildFogParams(frame, ConfigForMap(sky, kOutland), &fog);
     const FogParams mixed = BuildFogParams(frame, ConfigForMap(half, kOutland), &fog);
     float clientFog[3];
@@ -1253,24 +1266,24 @@ void CheckOutlandSkyColourTintsTheBorrowedFog(const FogData& data)
     {
         takesClientFog = takesClientFog && hasClientHue(own.layers[i].emissive) &&
                          hasClientHue(own.layers[i].shadowEmissive) &&
-                         std::fabs(luminance(own.layers[i].emissive) - luminance(kalimdor.layers[i].emissive)) < 1e-4f;
+                         std::fabs(luminance(own.layers[i].emissive) - luminance(converted.layers[i].emissive)) < 1e-4f;
         for (int c = 0; c < 3; ++c)
-            halfway = halfway && std::fabs(mixed.layers[i].emissive[c] - 0.5f * (kalimdor.layers[i].emissive[c] +
+            halfway = halfway && std::fabs(mixed.layers[i].emissive[c] - 0.5f * (converted.layers[i].emissive[c] +
                                                                                     own.layers[i].emissive[c])) < 1e-5f;
     }
-    std::printf("     Hellfire Peninsula layer 1 emissive: Kalimdor %.3f %.3f %.3f, client fog %.3f %.3f %.3f\n",
-                kalimdor.layers[1].emissive[0], kalimdor.layers[1].emissive[1], kalimdor.layers[1].emissive[2],
+    std::printf("     Hellfire Peninsula layer 1 emissive: converted %.3f %.3f %.3f, client fog hue %.3f %.3f %.3f\n",
+                converted.layers[1].emissive[0], converted.layers[1].emissive[1], converted.layers[1].emissive[2],
                 own.layers[1].emissive[0], own.layers[1].emissive[1], own.layers[1].emissive[2]);
     Check(resolved && fog.layerCount > 0 && takesClientFog && halfway &&
-              std::fabs(kalimdor.layers[1].emissive[0] - own.layers[1].emissive[0]) > 0.01f,
-          "OutlandSkyColor mixes the borrowed layers' ambient colours toward the hue of the client's fog colour at "
-          "their own brightness: 1 takes that hue, 0.5 lands halfway, 0 keeps Kalimdor's colours");
+              std::fabs(converted.layers[1].emissive[0] - own.layers[1].emissive[0]) > 0.01f,
+          "OutlandSkyColor mixes the layers' ambient colours toward the hue of the client's fog colour at their own "
+          "brightness: 1 takes that hue, 0.5 lands halfway, 0 keeps the converted colours");
 
     FrameInputs stormwind = ContinentFrame(kEasternKingdoms, {-8565.21f, 993.46f, 104.96f}, evening, toSun, false);
     stormwind.fogColor = frame.fogColor;
     AuthoredFog classic = {};
     data.Resolve(kEasternKingdoms, stormwind.camPos, evening, kClearWeather, classic);
-    const FogParams plain = BuildFogParams(stormwind, ConfigForMap(borrowed, kEasternKingdoms), &classic);
+    const FogParams plain = BuildFogParams(stormwind, ConfigForMap(asConverted, kEasternKingdoms), &classic);
     const FogParams tinted = BuildFogParams(stormwind, ConfigForMap(sky, kEasternKingdoms), &classic);
     Check(std::memcmp(plain.layers, tinted.layers, sizeof(plain.layers)) == 0,
           "the sky colour settings leave the Classic fog of the old continents as authored");
@@ -2002,10 +2015,10 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     FogData classic;
     Check(classic.Load(dataPath), "Classic fog data loads");
     CheckClassicData(classic);
-    CheckOutlandAndNorthrendBorrowAContinentLight(classic);
+    CheckOutlandAndNorthrendHaveTheirOwnLights(classic);
     CheckRegionalFogSettings();
-    CheckOutlandDensityThinsTheBorrowedFog(classic);
-    CheckOutlandSkyColourTintsTheBorrowedFog(classic);
+    CheckOutlandDensityThinsTheConvertedFog(classic);
+    CheckOutlandSkyColourTintsTheConvertedFog(classic);
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
     CheckZoneLights(classic);

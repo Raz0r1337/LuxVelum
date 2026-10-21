@@ -338,7 +338,7 @@ float RegionSkyColorShare(const Config& cfg, MapRegion region)
     case MapRegion::Northrend:
         return cfg.northrendSkyColor;
     default:
-        return 0.0f;
+        return cfg.azerothSkyColor;
     }
 }
 
@@ -440,7 +440,7 @@ MapRegion RegionOfMap(int mapId)
     return MapRegion::Azeroth;
 }
 
-bool BorrowsClassicFog(const Config& cfg, int mapId)
+bool UsesFogData(const Config& cfg, int mapId)
 {
     switch (RegionOfMap(mapId))
     {
@@ -457,7 +457,7 @@ Config ConfigForMap(const Config& cfg, int mapId)
 {
     Config regional = cfg;
     regional.density = cfg.density * RegionDensity(cfg, RegionOfMap(mapId));
-    if (!BorrowsClassicFog(cfg, mapId))
+    if (!UsesFogData(cfg, mapId))
         regional.dataMode = 0;
     return regional;
 }

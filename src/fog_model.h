@@ -87,7 +87,7 @@ enum class MapRegion
 };
 
 MapRegion RegionOfMap(int mapId);
-bool BorrowsClassicFog(const Config& cfg, int mapId);
+bool UsesFogData(const Config& cfg, int mapId);
 Config ConfigForMap(const Config& cfg, int mapId);
 PointLightUpload LocalLightUpload(const Config& cfg);
 bool AnyLayerNoise(const FogParams& fog);

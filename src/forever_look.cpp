@@ -84,7 +84,7 @@ ForeverLook ResolveForeverLook(const Config& cfg)
     if (!GlobalFogData().Loaded() || !engine::ReadClassicLightInputs(light))
         return look;
     AuthoredFog fog = {};
-    const int lightMap = BorrowsClassicFog(cfg, light.mapId) ? light.mapId : kNoClassicLightMap;
+    const int lightMap = UsesFogData(cfg, light.mapId) ? light.mapId : kNoClassicLightMap;
     GlobalFogData().Resolve(lightMap, light.camPos, light.dayFraction, light.lightParams, fog);
     look.valid = std::isfinite(fog.coverage) && std::isfinite(fog.glow);
     look.coverage = fog.coverage;

@@ -64,6 +64,7 @@ const FloatSetting kFloatSettings[] = {
     {"AzerothDensity", &Config::azerothDensity, 0.0f, 10.0f},
     {"OutlandDensity", &Config::outlandDensity, 0.0f, 10.0f},
     {"NorthrendDensity", &Config::northrendDensity, 0.0f, 10.0f},
+    {"AzerothSkyColor", &Config::azerothSkyColor, 0.0f, 1.0f},
     {"OutlandSkyColor", &Config::outlandSkyColor, 0.0f, 1.0f},
     {"NorthrendSkyColor", &Config::northrendSkyColor, 0.0f, 1.0f},
     {"Haze", &Config::haze, 0.0f, 10.0f},
