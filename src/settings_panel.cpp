@@ -161,9 +161,11 @@ bool DrawDensity(Config& c)
         return false;
     bool changed = Multiplier("Density", c.density,
                               "Fog thickness affects visibility and scattered light. Use Sun scatter for the halo.");
-    changed |= Multiplier("Haze", c.haze, "Distance haze where no Classic data exists");
-    changed |= Multiplier("Ground fog", c.groundFog, "Low ground mist where no Classic data exists");
-    changed |= Multiplier("Distance fog", c.farFog, "The distance fog that replaces the stock fog");
+    changed |= Multiplier("Haze", c.haze, "Distance haze; with Classic data its first layer, the haze");
+    changed |= Multiplier("Ground fog", c.groundFog,
+                          "Low ground mist; with Classic data its third layer, the ground fog (0.6 keeps it as authored)");
+    changed |= Multiplier("Distance fog", c.farFog,
+                          "The distance fog that replaces the stock fog; with Classic data also its far wall layer");
     changed |= Toggle("Replace the stock fog", c.stockFog,
                       "On: the volumetric distance fog replaces the client's linear fog. Off: keep the stock fog");
     changed |= Toggle("Classic fog layers", c.dataMode,

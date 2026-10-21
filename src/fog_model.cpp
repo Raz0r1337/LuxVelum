@@ -32,6 +32,8 @@ constexpr float kFarSkyFalloff = 10.0f;
 constexpr float kFarExponent = 2.0f;
 
 constexpr float kClassicUnits = 0.01f;
+constexpr int kClassicHazeLayer = 0;
+constexpr int kClassicFarWallLayer = 1;
 constexpr float kFogRangeMargin = 300.0f;
 constexpr uint32_t kFlagShadowed = 0x1;
 constexpr uint32_t kFlagRelativeHeights = 0x2;
@@ -162,6 +164,20 @@ LayerNoise AuthoredLayerNoise(const AuthoredNoise& authored, const Config& cfg, 
     return noise;
 }
 
+float ClassicLayerSetting(int classicLayer, const Config& cfg)
+{
+    const Config defaults;
+    switch (classicLayer)
+    {
+    case kClassicHazeLayer:
+        return cfg.haze / defaults.haze;
+    case kClassicFarWallLayer:
+        return cfg.farFog / defaults.farFog;
+    default:
+        return cfg.groundFog / defaults.groundFog;
+    }
+}
+
 void AuthoredLayers(const AuthoredFog& fog, const Config& cfg, const FogParams& p, float sunScatter, FogLayer* out,
                     LayerNoise* noise)
 {
@@ -178,7 +194,7 @@ void AuthoredLayers(const AuthoredFog& fog, const Config& cfg, const FogParams& 
         l.densityVariation = 1.0f - noise[i].alpha;
         const float heightBase = a.flags & kFlagRelativeHeights ? p.referenceZ : 0.0f;
         l.start = std::clamp(a.start, 0.0f, std::max(p.maxDistance - kFogRangeMargin, 0.0f));
-        l.density = a.density * kClassicUnits * cfg.density;
+        l.density = a.density * kClassicUnits * cfg.density * ClassicLayerSetting(i, cfg);
         l.g = std::clamp(a.g, -0.99f, 0.99f);
         l.isotropic = 0.0f;
         Scale(a.emissive, cfg.ambient, l.emissive);

@@ -1236,6 +1236,34 @@ void CheckOutlandDensityThinsTheConvertedFog(const FogData& data)
           "OutlandDensity 0.5 halves the converted layers in Hellfire Peninsula");
 }
 
+void CheckLayerSlidersScaleTheClassicLayers(const FogData& data)
+{
+    const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
+    const Vec3 toSun = {0.607f, 0.607f, 0.513f};
+    const float evening = 0.7279f;
+    const FrameInputs frame = ContinentFrame(kOutland, hellfirePeninsula, evening, toSun, false);
+    AuthoredFog fog = {};
+    const bool resolved = data.Resolve(kOutland, frame.camPos, evening, kClearWeather, fog);
+    const Config defaults;
+    Config moved = defaults;
+    moved.haze = 2.0f * defaults.haze;
+    moved.farFog = 0.0f;
+    moved.groundFog = 0.5f * defaults.groundFog;
+    const FogParams authored = BuildFogParams(frame, defaults, &fog);
+    const FogParams changed = BuildFogParams(frame, moved, &fog);
+    std::printf("     Hellfire Peninsula layers haze/far wall/ground: %.6f %.6f %.6f by default, %.6f %.6f %.6f with "
+                "Haze x2, Distance fog 0, Ground fog x0.5\n",
+                authored.layers[0].density, authored.layers[1].density, authored.layers[2].density,
+                changed.layers[0].density, changed.layers[1].density, changed.layers[2].density);
+    Check(resolved && fog.layerCount == kSceneLayers &&
+              Near(authored.layers[0].density, fog.layers[0].density * 0.01f * defaults.density) &&
+              Near(changed.layers[0].density, 2.0f * authored.layers[0].density) &&
+              changed.layers[1].density == 0.0f && authored.layers[1].density > 0.0f &&
+              Near(changed.layers[2].density, 0.5f * authored.layers[2].density),
+          "Haze, Distance fog and Ground fog scale the Classic haze, far wall and ground layers relative to their "
+          "defaults, which keep the layers as authored");
+}
+
 void CheckOutlandSkyColourTintsTheConvertedFog(const FogData& data)
 {
     const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
@@ -2057,6 +2085,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckRegionalFogSettings();
     CheckOutlandDensityThinsTheConvertedFog(classic);
     CheckOutlandSkyColourTintsTheConvertedFog(classic);
+    CheckLayerSlidersScaleTheClassicLayers(classic);
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
     CheckZoneLights(classic);
