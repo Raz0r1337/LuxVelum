@@ -34,8 +34,8 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
 - **Fog in the rain**: where the Forever kit has no storm fog for a light, the clear fog stays when it rains.
 - **Releases**: every push to `st0ny-main` publishes the install zip and keeps only the newest build:
   [CoAVolFog-Win32.zip](https://github.com/Raz0r1337/coa-vfog/releases/latest/download/CoAVolFog-Win32.zip).
-  A push to `st0ny-dev` that `st0ny-main` does not contain yet publishes a pre-release `build-<next>-test` for
-  testing the next version.
+  A push to `st0ny-dev` that `st0ny-main` does not contain yet publishes a pre-release `build-<next>-<k>-test` for
+  testing the next version, `<k>` counting the test builds since the last release.
 
 ## What it draws
 
@@ -665,11 +665,12 @@ files as a GitHub release `build-<n>` titled `CoAVolFog Build-<n> (st0ny-main <c
 `CoAVolFog-Win32.zip`, which needs no login to download, and then deletes every other release with its tag, test
 releases included, so the fork keeps only the newest build at `releases/latest/download/CoAVolFog-Win32.zip`. `<n>`
 counts on from the highest `build-<n>` release; a rerun of a commit that already has one refreshes it. On a push to
-the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every `build-<n>-test` release
-and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes `build-<n+1>-test` as a pre-release titled
-`CoAVolFog TEST Build-<n+1> (st0ny-dev <commit>)`, which never becomes `releases/latest`. A build whose branch has
-already moved on to a newer commit gets no release and deletes nothing; other branches and pull requests publish
-none.
+the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every test release
+(`build-<n>-test` or `build-<n>-<k>-test`) and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes
+`build-<n+1>-<k>-test` as a pre-release titled `CoAVolFog TEST Build-<n+1>-<k> (st0ny-dev <commit>)`, which never
+becomes `releases/latest`. `<k>` is one more than the successful runs of the workflow on `st0ny-dev` since `build-<n>`
+was published, so testers can tell the test builds of one candidate apart. A build whose branch has already moved on
+to a newer commit gets no release and deletes nothing; other branches and pull requests publish none.
 
 CI uses Windows Server 2022, MSVC 2022 and `fxc` to build Win32 Release, then runs the comment check and the CPU
 harness. The CPU harness exercises the existing data, fog model, local-light/interior, settings persistence,
