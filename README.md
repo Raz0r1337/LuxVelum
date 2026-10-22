@@ -102,7 +102,9 @@ Every full-screen pass draws one triangle whose edges lie outside the viewport (
 brighter than 1 carries it in the colour. In linear light a colour whose brightest channel is above 1 decodes only
 its chromaticity, `(c/peak)^2.2 · peak`, as the modern client scales light colours linearly (a choice; the kit lacks
 its CPU packing). Every point light scatters with one Henyey–Greenstein phase normalised to 1 toward the light,
-g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights.
+g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. The lights scatter
+with a gain of one over the region's density (`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, at least 0.05),
+here and in the fitted stock fog of see-through models, so a region thinned to 0.15 keeps the glow of its lamps.
 
 The eight uploaded lights are chosen by a stabiliser rather than re-ranked from scratch every frame. Every capture ranks
 the lights whose sphere meets the view frustum, at any distance, by their irradiance at the camera into a pool of up to
@@ -243,18 +245,23 @@ python tools/convert_client_lights.py data/fogdata.bin <DBFilesClient folder or 
 Every client light on a map without Classic lights becomes a light of its own (id + 1000000), placed as the client
 places it: world X = 17066.666 − z/36, Y = 17066.666 − x/36, Z = y/36, falloff /36, a light at the origin without
 falloff stays map-wide. 257 Classic lights have a twin with the same id and position in the client table (light 77 at
-the Stormwind harbour: (593586, 0, 931236)/36 → (−8801.0, 578.2), as in the Classic placement). Those with fog in
-their clear slot are the templates: each new light takes the layers of the template whose 3.3.5 lighting is most
-alike, compared every hour over the fog, sky top, sky middle, direct and ambient bands (linear) and the log of the
-fog distance. Per condition slot and template key the layers keep their shape, heights, noise and grading curve; the
-emissive, shadow and noise colours take the hue of the new light's fog band (band 7) at the template's luminance
-scaled by the ratio of the two lights' fog-band luminance (0.5–2), the sun scattering and the direct light likewise
-from the direct band (band 0), and the density follows the ratio of the fog distances (float band 0, 0.5–2, median
-0.87 over Outland and Northrend). The glow is the Forever glow of the template's params in the same slot: the 3.3.5
-`LightParams` glow drives the old client's bloom, is far higher (1.0 in Ashenvale where Forever has 0) and washed the
-colours out when a test build used it on every map. Recipes shared by several lights are written once; the run is
-repeatable on its own output and leaves the Classic lights byte for byte. Run it again after `convert_classic_fog.py`,
-which keeps only the kit's light params. 445 lights on 47 maps come from 194 templates (2.3 MB in all).
+the Stormwind harbour: (593586, 0, 931236)/36 → (−8801.0, 578.2), as in the Classic placement). Those with fog in their
+clear slot are the templates: each new light takes the layers of the template whose 3.3.5 lighting is most alike,
+compared every hour over the fog, sky top, sky middle, direct and ambient bands (linear) and the log of the fog
+distance. Per condition slot and template key the layers keep their shape and grading curve; absolute heights move by
+the new light's height above the template light, in 25 yd steps, so the ground fog of Hellfire Peninsula (its lights 170
+to 250 yd below their template) stays below the ground as the template's does instead of filling the valley. Map-wide
+lights and lights at Z 0 keep the template's heights, as Z 0 marks a light placed without a height (234 Classic lights,
+light 77 at the harbour among them). The Classic noise is left out, as `ClassicNoise=0` draws it: it showed nowhere in
+Outland or Northrend and made Netherstorm look worse. The emissive, shadow and noise colours take the hue of the new
+light's fog band (band 7) at the template's luminance scaled by the ratio of the two lights' fog-band luminance (0.5–2),
+the sun scattering and the direct light likewise from the direct band (band 0), and the density follows the ratio of the
+fog distances (float band 0, 0.5–2, median 0.87 over Outland and Northrend). The glow is the Forever glow of the
+template's params in the same slot: the 3.3.5 `LightParams` glow drives the old client's bloom, is far higher (1.0 in
+Ashenvale where Forever has 0) and washed the colours out when a test build used it on every map. Recipes shared by
+several lights are written once; the run is repeatable on its own output and leaves the Classic lights byte for byte.
+Run it again after `convert_classic_fog.py`, which keeps only the kit's light params. 445 lights on 47 maps come from
+194 templates (3.2 MB in all).
 
 `OutlandDensity` and `NorthrendDensity` start at 0.15, as the fog read as too strong there in play, and
 `OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow.
@@ -788,6 +795,7 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `AzerothSkyColor`, `OutlandSkyColor`, `NorthrendSkyColor` | 0, 0, 0 | Share of the client's fog hue in the layers |
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |
 | `SunScatter`, `Ambient`, `Exposure` | 1, 1, 1 | Light in the fog |
+| `MoonScatter` | 0.2 | Share of `SunScatter` the moon scatters at night, in Classic and derived layers |
 | `ClassicExposure` | 1 | Brightness of the Classic layers (1 = as authored) |
 | `ClassicPhase` | 0 | Classic sun and moon scattering: 0 phase peaks at 1 toward the light, 1 energy-normalised |
 | `LocalLights`, `LocalLightIntensity` | 1, 1 | Scatter up to eight world point lights in view; intensity 0..8 |

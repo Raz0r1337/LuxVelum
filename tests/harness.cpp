@@ -1264,6 +1264,130 @@ void CheckLayerSlidersScaleTheClassicLayers(const FogData& data)
           "defaults, which keep the layers as authored");
 }
 
+void CheckConvertedGroundFogFollowsTheHeightOfItsLight(const FogData& data)
+{
+    const float hellfirePeninsula[3] = {-3005.0f, 4469.0f, -18.0f};
+    const float groundFogBelowTheGround = 150.0f;
+    AuthoredFog fog = {};
+    const bool resolved = data.Resolve(kOutland, hellfirePeninsula, kDayFraction1800, kClearWeather, fog);
+    const AuthoredLayer& ground = fog.layers[kSceneLayers - 1];
+    std::printf("     Hellfire Peninsula at %.0f yd: converted ground fog from %.0f yd up to %.0f yd\n",
+                hellfirePeninsula[2], ground.lowerHeight, ground.upperHeight);
+    Check(resolved && fog.layerCount == kSceneLayers &&
+              ground.upperHeight < hellfirePeninsula[2] - groundFogBelowTheGround,
+          "a converted light lifts or lowers the absolute heights of its Classic layers by its height above the "
+          "Classic light, so Hellfire Peninsula's ground fog stays below its ground as the Classic ground fog stays "
+          "below its own light");
+
+    const float netherstormLight[3] = {3519.1f, 6896.3f, 142.1f};
+    const float azsharaLightAtNoHeight[3] = {3551.2f, -6765.3f, 0.0f};
+    const uint32_t netherstormLightId = kFirstClientLight + 500;
+    const uint32_t azsharaLightId = 238;
+    AuthoredFog converted = {};
+    AuthoredFog classic = {};
+    const bool bothResolved =
+        data.Resolve(kOutland, netherstormLight, kDayFraction1800, kClearWeather, converted) &&
+        data.Resolve(kKalimdor, azsharaLightAtNoHeight, kDayFraction1800, kClearWeather, classic);
+    std::printf("     Netherstorm light 500 (weight %.2f) haze from %.0f to %.0f yd; its Classic light 238 at Z 0 "
+                "(weight %.2f) from %.0f to %.0f yd\n",
+                WeightOf(converted, netherstormLightId), converted.layers[0].upperHeight,
+                converted.layers[0].lowerHeight, WeightOf(classic, azsharaLightId), classic.layers[0].upperHeight,
+                classic.layers[0].lowerHeight);
+    Check(bothResolved && WeightOf(converted, netherstormLightId) > 0.0f &&
+              Near(WeightOf(classic, azsharaLightId), 1.0f) &&
+              converted.layers[0].upperHeight == classic.layers[0].upperHeight &&
+              converted.layers[0].lowerHeight == classic.layers[0].lowerHeight,
+          "a converted light keeps the absolute heights of its Classic layers when either light has no height (Z 0, "
+          "as 234 Classic lights have), so Netherstorm keeps the haze of Azshara's light 238");
+}
+
+void CheckConvertedLightsCarryNoClassicNoise(const FogData& data)
+{
+    const float places[][3] = {{-3005.0f, 4469.0f, -18.0f}, {3054.0f, 3654.0f, 142.0f}, {1350.0f, -5000.0f, 210.0f}};
+    const int maps[] = {kOutland, kOutland, kNorthrend};
+    int layers = 0;
+    int noisy = 0;
+    for (int place = 0; place < static_cast<int>(std::size(maps)); ++place)
+    {
+        AuthoredFog fog = {};
+        if (!data.Resolve(maps[place], places[place], kDayFraction1800, kClearWeather, fog))
+            continue;
+        for (int i = 0; i < fog.layerCount; ++i)
+            noisy += fog.layers[i].noise.presence > 0.0f ? 1 : 0;
+        layers += fog.layerCount;
+    }
+    std::printf("     Hellfire Peninsula, Netherstorm, Howling Fjord: %d of %d converted layers carry noise\n", noisy,
+                layers);
+    Check(layers == 3 * kSceneLayers && noisy == 0,
+          "the converted lights of Outland and Northrend carry no Classic noise, which showed nowhere there but made "
+          "Netherstorm look worse");
+}
+
+void CheckMoonScattersAShareOfTheSun(const FogData& data)
+{
+    const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
+    const Vec3 toLight = {0.607f, 0.607f, 0.513f};
+    const float evening = 0.7279f;
+    const FrameInputs sunLit = ContinentFrame(kOutland, hellfirePeninsula, evening, toLight, false);
+    const FrameInputs moonLit = ContinentFrame(kOutland, hellfirePeninsula, evening, toLight, true);
+    AuthoredFog fog = {};
+    const bool resolved = data.Resolve(kOutland, sunLit.camPos, evening, kClearWeather, fog);
+    const Config defaults;
+    Config bright = defaults;
+    bright.moonScatter = 1.0f;
+    const FogParams sun = BuildFogParams(sunLit, defaults, &fog);
+    const FogParams moon = BuildFogParams(moonLit, defaults, &fog);
+    const FogParams brightMoon = BuildFogParams(moonLit, bright, &fog);
+    bool share = resolved && sun.authored;
+    bool full = share;
+    int lit = 0;
+    for (int i = 0; i < kFogLayers; ++i)
+        for (int c = 0; c < 3; ++c)
+        {
+            if (sun.layers[i].diffuse[c] <= 0.0f)
+                continue;
+            ++lit;
+            share = share && Near(moon.layers[i].diffuse[c], defaults.moonScatter * sun.layers[i].diffuse[c]);
+            full = full && Near(brightMoon.layers[i].diffuse[c], sun.layers[i].diffuse[c]);
+        }
+    std::printf("     Hellfire Peninsula haze diffuse red: sun %.6f, moon %.6f at MoonScatter %.2f, %.6f at 1\n",
+                sun.layers[0].diffuse[0], moon.layers[0].diffuse[0], defaults.moonScatter,
+                brightMoon.layers[0].diffuse[0]);
+    Check(defaults.moonScatter == 0.2f && lit > 0 && share && full,
+          "the moon scatters MoonScatter (0.2 by default) of the sun's light in the Classic and distance layers, so "
+          "its halo no longer looks like the sun's; MoonScatter 1 scatters it like the sun");
+}
+
+void CheckLocalLightsKeepTheirGlowAtEveryRegionDensity()
+{
+    const Vec3 eye = {-3005.0f, 4469.0f, -18.0f};
+    const Vec3 toLight = {0.607f, 0.607f, 0.513f};
+    const float evening = 0.7279f;
+    bool kept = true;
+    for (float density : {0.15f, 0.5f, 1.0f, 2.0f})
+    {
+        Config cfg;
+        cfg.outlandDensity = density;
+        cfg.azerothDensity = density;
+        for (int map : {kOutland, kEasternKingdoms})
+        {
+            const FrameInputs frame = ContinentFrame(map, eye, evening, toLight, false);
+            const FogParams fog = BuildFogParams(frame, ConfigForMap(cfg, map), nullptr);
+            kept = kept && Near(fog.localLightDensityGain * density, 1.0f);
+        }
+    }
+    const Config defaults;
+    const FogParams outland = BuildFogParams(ContinentFrame(kOutland, eye, evening, toLight, false),
+                                             ConfigForMap(defaults, kOutland), nullptr);
+    const FogParams azeroth = BuildFogParams(ContinentFrame(kEasternKingdoms, eye, evening, toLight, false),
+                                             ConfigForMap(defaults, kEasternKingdoms), nullptr);
+    std::printf("     local light density gain by default: Outland %.3f, Azeroth %.3f\n",
+                outland.localLightDensityGain, azeroth.localLightDensityGain);
+    Check(kept && Near(azeroth.localLightDensityGain, 1.0f),
+          "the local lights scatter with a gain of one over the region's density, so they glow at Outland's and "
+          "Northrend's density 0.15 as at density 1, and as before in Azeroth by default");
+}
+
 void CheckOutlandSkyColourTintsTheConvertedFog(const FogData& data)
 {
     const Vec3 hellfirePeninsula = {-3005.0f, 4469.0f, -18.0f};
@@ -2086,6 +2210,10 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckOutlandDensityThinsTheConvertedFog(classic);
     CheckOutlandSkyColourTintsTheConvertedFog(classic);
     CheckLayerSlidersScaleTheClassicLayers(classic);
+    CheckConvertedGroundFogFollowsTheHeightOfItsLight(classic);
+    CheckConvertedLightsCarryNoClassicNoise(classic);
+    CheckMoonScattersAShareOfTheSun(classic);
+    CheckLocalLightsKeepTheirGlowAtEveryRegionDensity();
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
     CheckZoneLights(classic);

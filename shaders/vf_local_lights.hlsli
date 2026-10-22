@@ -36,6 +36,11 @@ float LocalLightPhaseG()
     return cLocalLightControl.z;
 }
 
+float LocalLightDensityGain()
+{
+    return cLocalLightControl.w;
+}
+
 float4 LocalLightParameter(int index)
 {
     float texel = (index + 0.5) / 32.0;
@@ -103,7 +108,8 @@ bool StepMeetsLocalLights(ChordCoverage coverage, float stepEnd)
 
 float LayerLightDensityScale(FogLayer layer, float skyMask, float upward)
 {
-    return layer.density * SkyDensityScale(layer, skyMask, upward) * ShadowDensityScale(layer);
+    return layer.density * LocalLightDensityGain() * SkyDensityScale(layer, skyMask, upward) *
+           ShadowDensityScale(layer);
 }
 
 float4 LayerLightDensityScales(float skyMask, float upward)
