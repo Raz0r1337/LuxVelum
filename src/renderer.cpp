@@ -1431,7 +1431,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     }
     LogUploadedLocalLights(in, cfg, pointLightCount);
     const Float4 localControl = {static_cast<float>(pointLightCount), marchLightLimit, cfg.localLightPhase,
-                                 fog.localLightDensityGain};
+                                 fog.localLightGain};
     const bool marchesLocalLights = pointLightCount > 0;
     IDirect3DPixelShader9* const* marches = marchesLocalLights ? (samplesNoise ? m_litNoisyMarch : m_litMarch)
                                                                : (samplesNoise ? m_noisyMarch : m_march);

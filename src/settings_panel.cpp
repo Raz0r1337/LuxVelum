@@ -11,6 +11,7 @@ namespace
 {
 constexpr float kMultiplierSliderMax = 4.0f;
 constexpr float kLayerSliderMax = 2.0f;
+constexpr float kLocalLightSliderMax = 8.0f;
 constexpr float kPanelWidthInLines = 30.0f;
 constexpr float kPanelHeightInLines = 42.0f;
 constexpr float kMinPanelWidthInLines = 20.0f;
@@ -205,6 +206,16 @@ bool SkyColour(const char* label, float& value, const char* region)
     return Slider(label, value, 0.0f, 1.0f, "%.2f", help);
 }
 
+bool RegionLocalLights(const char* label, float& value, const char* region)
+{
+    char help[kStatusTextSize];
+    std::snprintf(help, sizeof(help),
+                  "Local light intensity in %s, on top of Local light intensity; the region's density does not "
+                  "change the lamps' glow",
+                  region);
+    return Slider(label, value, 0.0f, kLocalLightSliderMax, "%.2f", help);
+}
+
 bool DrawRegions(Config& c)
 {
     const Section section("Regions", ImGuiTreeNodeFlags_DefaultOpen);
@@ -222,10 +233,13 @@ bool DrawRegions(Config& c)
                           "Fog thickness on the old continents, in their dungeons and on every other map, on top "
                           "of Density");
     changed |= SkyColour("Azeroth sky colour", c.azerothSkyColor, "Azeroth and on every other map");
+    changed |= RegionLocalLights("Azeroth local lights", c.azerothLocalLights, "Azeroth and on every other map");
     changed |= Multiplier("Outland density", c.outlandDensity, "Fog thickness in Outland, on top of Density");
     changed |= SkyColour("Outland sky colour", c.outlandSkyColor, "Outland");
+    changed |= RegionLocalLights("Outland local lights", c.outlandLocalLights, "Outland");
     changed |= Multiplier("Northrend density", c.northrendDensity, "Fog thickness in Northrend, on top of Density");
     changed |= SkyColour("Northrend sky colour", c.northrendSkyColor, "Northrend");
+    changed |= RegionLocalLights("Northrend local lights", c.northrendLocalLights, "Northrend");
     return changed;
 }
 
@@ -234,9 +248,10 @@ bool DrawLight(Config& c)
     const Section section("Light", ImGuiTreeNodeFlags_DefaultOpen);
     if (!section)
         return false;
-    bool changed = Multiplier("Sun scatter", c.sunScatter, "In-scattered sun or moon light: the halo around it");
-    changed |= Slider("Moon scatter", c.moonScatter, 0.0f, 1.0f, "%.2f",
-                      "Share of Sun scatter the moon scatters at night, 1 = as bright as the sun");
+    bool changed = Multiplier("Sun scatter", c.sunScatter, "In-scattered sun light by day: the halo around it");
+    changed |= Multiplier("Moon scatter", c.moonScatter,
+                          "In-scattered moon light at night, on its own: Sun scatter does not change it. 1 = as "
+                          "bright as the sun's halo");
     changed |= Multiplier("Ambient", c.ambient, "Ambient fog brightness");
     changed |= Multiplier("Exposure", c.exposure, "Brightness of the layers used where no Classic data exists");
     changed |= Multiplier("Classic exposure", c.classicExposure, "Brightness of the Classic layers, 1 = default");
@@ -248,7 +263,7 @@ bool DrawLight(Config& c)
                       "Scatter and blend in linear light like the modern client, with a soft highlight roll-off. "
                       "Off: gamma");
     changed |= Toggle("Local lights", c.localLights, "Scatter point lights in view from the world into the fog");
-    changed |= Slider("Local light intensity", c.localLightIntensity, 0.0f, 8.0f, "%.2f",
+    changed |= Slider("Local light intensity", c.localLightIntensity, 0.0f, kLocalLightSliderMax, "%.2f",
                       "Brightness of the point lights in the fog");
     changed |= Slider("Local light phase", c.localLightPhase, -0.9f, 0.9f, "%.2f",
                       "How every point light scatters in the fog: 0 evenly in all directions; toward 0.9 mostly in "
