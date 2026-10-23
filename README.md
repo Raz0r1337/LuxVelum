@@ -49,6 +49,9 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
   the fog of the sky mirrored above it; levelled to the horizon, its rays crossed the whole fog range and showed a
   white wall.
 - **Forward scattering** around the visible sun or moon sprite (Henyey–Greenstein phase).
+- **Halo occlusion**: terrain, trees and buildings on screen in front of the sun or moon shadow its halo and the
+  light it scatters into the fog behind them, while that fog keeps its ambient light and the glow of local lights
+  (`HaloOcclusion`).
 - **Local lights**: up to eight native point lights in view scatter into the medium with the client's constant,
   linear and quadratic attenuation. Light/ray intersections preserve small light volumes between march samples.
   Every light scatters with one shared phase (`LocalLightPhase`), and one brighter than 1 keeps its intensity.
@@ -98,6 +101,60 @@ pixel's plane, lights and curvature aside, because its own march takes the noise
 Every full-screen pass draws one triangle whose edges lie outside the viewport (NDC −1.5 and 4.5), so it covers every
 4x sample of the edge columns; Direct3D 9 maps NDC −1 onto the first column's centres.
 
+**Halo occlusion.** The sun's and moon's in-scatter is shadowed by what the depth buffer holds between a pixel and the
+light. The light path from a fog point at view depth z on the pixel's ray projects onto the screen segment from the
+pixel to the light's projected position, and at the fraction s of that segment it lies at view depth z/(1−s): a surface
+the depth buffer holds there at view depth z_S hides it once z ≥ z_S(1−s), and a surface of thickness T only while z ≤
+(z_S + T)(1−s). Each march ray takes 12, 16 or 24 depth taps along the segment (`Quality` 1, 2, 3), clipped to the
+viewport, starting one pixel out so that a pixel never shadows itself through its own texel, and offset by the march's
+step jitter (fixed midpoints with `Temporal=0`); it keeps where its solid shadow starts and where its shadow behind thin
+casters starts and ends. A tap at least half as deep as the pixel's own surface is solid, as a cliff or a hill hides the
+light path behind it; a nearer one, a trunk or a character in front of a cliff, is a slab max(2 yd, 0.25·z_S) thick,
+behind which the last solid tap's shadow continues so a near object does not punch the cliff's shadow open. Sky pixels
+have no surface, so every caster in front of the sky is a slab. The solid and continued shadow ends at the pixel's
+surface, and the slabs' shadow ends where the solid one begins. For a surface in the horizon blend (from 0.85 of the far
+clip) or beyond the far clip the march extends the ray toward `MaxDistance`, fog for which the depth buffer holds no
+casters, and that extension stays lit: the quantised taps of the ground just behind the surface cannot shadow it, and a
+face inside the blend is shadowed alike in every row, as before the blend. Sky taps are open. Distant terrain (WDL),
+whose depth decodes as `MaxDistance`, occludes there for every pixel that is not distant terrain itself, so a ridge
+beyond the far clip shadows the sky above it and the ground's fog before the blend, and in the blend up to the ground's
+surface, beyond which the extension stays lit. A distant-terrain pixel's own depth is unknown, so it is shadowed as the
+sky is: its distant-terrain taps are open, since the terrain they hold may lie in front of or behind the pixel's own,
+and every nearer caster is a slab, with no shadow continuing behind it. A trunk in front of a distant-terrain skyline
+beside the sun thus shadows the terrain's fog as it does the sky's above it; continuing the terrain's surface behind the
+trunk left a hard step along the skyline (320×180 port, camera 3 yd up, a 1 yd trunk 30 yd away, sun 3° up beside it:
+the distant terrain lost up to 0.69 of its direct light at σ 0.00013/yd and 0.19 at 0.0015/yd, while the sky lost at
+most 0.008 and 0.041; now the terrain loses at most 0.007 and 0.038). Flat ground cannot shadow the fog in front of
+itself: a light path above the ground lies in front of the ground the depth buffer holds at every tap, up to the depth
+texels' quantisation. The line left to the light is kept above 10⁻⁶ of the segment, so a tap that rounds onto the light
+(a step jitter a few ulps below 1) cannot start a shadow at the camera. Each step's lit share is its overlap with these
+intervals, computed analytically, and scales only the direct-light term of every layer (Classic, derived and the
+distance fog); the emissive and ambient light, the opacity and the local lights are unchanged. The strength is
+`HaloOcclusion` times a smoothstep of the light direction's view-space z from 0.05 to 0.2 (87° to 78° off the view
+axis), so it fades out before the light's projection runs off to infinity and is 0 while the light is behind the camera;
+it is also 0, and the taps are skipped, while no layer scatters direct light (sunless light or a full interior blend).
+The light pixel, the strength and the thickness share sit in `c10`, uploaded before the march and again before the
+composite, whose full-resolution fallback marches, since the temporal pass overwrites `c9` to `c12` in between. To stay
+within 32 temporary registers the composites with authored noise keep only the solid shadow in that fallback march; the
+low-resolution march keeps both. The taps add 89 to 124 instruction slots per variant (the plain march 537 → 657) and up
+to four temporaries, at most 32 (the lit noisy march and the lit and noisy composites). At strength 0 a branch also
+skips each step's lit share: the plain march's step loop runs 217 instructions at `Quality=2`, against 207 before halo
+occlusion, the rest being the per-layer split of direct and emissive light. A CPU port of the march on synthetic scenes
+(320×180, 50° vertical field of view, σ 0.0015/yd, 24 steps, 16 taps), compared with ray-traced visibility of the light
+from each step, lowers the mean in-scatter error within 80 px of the light from 0.077 to 0.004 of its peak in front of a
+cliff, from 0.023 to 0.004 between trees and from 0.056 to 0.006 with a character in front of the cliff, and the rules
+for the surface and the distant terrain leave these figures unchanged. With the sun behind a ridge beyond the far clip
+the error falls from 0.19 to 0.023 on the sky (occluding at the far clip instead gives 0.10) and from 0.024 to 0.018 on
+the ground. The ridge's own fog keeps its direct light, an error of 0.70 against a ray trace that shadows the fog the
+march extends behind the ridge's unknown depth; letting the distant terrain occlude its own fog lowers that to 0.12, but
+over flat ground at sunset (camera 30 or 100 yd up, far clip 800 yd, σ 0.00013/yd, sun 3°) its taps, all at
+`MaxDistance`, shadow one another's fog, taking up to 0.59 of the distant terrain's direct light, and a shadow running
+on past the surface took up to 0.75 of the blend's; now the distant terrain loses none and the blend at most 0.002. Over
+flat ground (σ 0.0015/yd, sun 2° above the horizon) the quantisation costs a pixel at most 5.0% of its direct in-scatter
+with the camera 2 yd up, 4.1% at 5 yd, 3.2% at 10 yd and 0.7% at 30 yd, 0.18% to 0.05% on average, and at most 2.7% in
+the blend, which lost up to 0.83 at 0.5° (σ 0.00013/yd, camera 2 yd) while a shadow could start in front of the blend
+and run on past the surface; Limits gives the lower suns.
+
 **Local lights.** The captured diffuse includes the M2 light's animated intensity (see World lights), so a light
 brighter than 1 carries it in the colour. In linear light a colour whose brightest channel is above 1 decodes only
 its chromaticity, `(c/peak)^2.2 · peak`, as the modern client scales light colours linearly (a choice; the kit lacks
@@ -105,9 +162,10 @@ its CPU packing). Every point light scatters with one Henyey–Greenstein phase 
 g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. The lights scatter
 with a gain of the region's intensity (`AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`) over its
 density (`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, at least 0.05), here and in the fitted stock fog of
-see-through models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 3: their
-converted layers are far thinner than the old world's (Borean Tundra at night 0.00013/yd of ground fog against
-Tirisfal's 0.0045 in a tester's log), and the tester needed three to four times the intensity there.
+see-through models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 8 (0..32,
+the overlay's sliders reach 24): their converted layers are far thinner than the old world's (Borean Tundra at night
+0.00013/yd of ground fog against Tirisfal's 0.0045 in a tester's log), and the tester needed the slider's former
+maximum of 8 there to match the old world's lamps.
 
 The eight uploaded lights are chosen by a stabiliser rather than re-ranked from scratch every frame. Every capture ranks
 the lights whose sphere meets the view frustum, at any distance, by their irradiance at the camera into a pool of up to
@@ -145,14 +203,40 @@ next frame. The client's glow (`screen + g·blur²`, with `g` from the day/night
 bleach bright fog to white, so fogged pixels are pre-compensated with the live glow amount. God rays use the
 remaining display highlight range after the glow and need a scene copy; without one they are omitted.
 
+**Display dither.** The fog is marched and filtered in 16-bit float and blended in 32-bit float, but the composite
+writes 8-bit codes into the client's back buffer. Where a gradient falls slowly, as in the dark outer halo of the sun
+and the moon, one code spans many pixels (about 11 px at code 40 and 18 px at code 33 in a tester's moon screenshot), so
+an undithered write draws rings, and red, green and blue cross their codes at different radii. The composite's final
+colour (over the scene copy and for the fixed-function blend, after the glow compensation and the god rays) and the late
+god-ray composite therefore add an interleaved-gradient-noise offset keyed to the pixel before the write rounds: 0.99 of
+a code peak to peak, one value for R, G and B. The offset is static, so a still frame stays identical and the temporal
+history never sees it, and every sample of a multisampled pixel and both sides of a split silhouette take the same
+offset. It stays 0.005 code inside the rounding edges, so a pixel without fog keeps its exact code through the gamma
+round trip. The debug views and the sun marker are not dithered while `ColorGrading=0`; with grading on, the grade runs
+over them too and dithers its own output. Without a scene copy the dither is added to the fog's own colour, the source
+of the fixed-function blend, and the blend unit adds and rounds the scene's share `dest·(1−a)`: a blender that rounds
+the source to 8 bits first leaves that share undithered (Wine's Direct3D on llvmpipe does: thin black fog over code 200
+keeps 0.36 codes rms of column-mean error with the dither and without it, against 0.013 over the scene copy), and since
+the target clamps the source at 0, a float blender dithers it only in part where the fog adds less than about half a
+code. On the tester's halo profile (simulated, high-passed column means) the coherent banding falls from 0.29 to 0.008
+codes rms without the client's glow, with no coherent edge left of 21 in the outer halo below code 50, and from 0.37 to
+0.22 codes rms at a glow of 0.5, with 2 such edges left of 18. The glow pass that runs afterwards
+(`lerp(screen, blur, z) + g·blur²`) rounds to 8 bits again without a dither, so where the day/night glow is above 0
+weaker steps from that rounding remain, mostly in the brighter inner halo, and a colour transform after `Present` (a
+driver filter or the capture) can stretch the dithered steps again. The dither adds 14 instruction slots to each
+composite (both blend paths) and 6 to the late god-ray composite and to the grading, and no temporary register.
+
 **Glow and colour grading.** With `ForeverGlow=1` the DLL rewrites the glow byte the client hands the glow composite
 (see Glow feed) once per frame, before the fog composite, to `lerp(client byte/255, Forever glow, t)` with `t =
 saturate((coverage − 0.5)/0.5)` from the Classic lights' share of the blend, and restores it at the frame end; it never
 writes the day/night glow, and writes nothing under the ghost effect or an unexpected effect graph. `GlowCompensation`
 uses the byte the composite receives, so a glow above 1, which wraps, is compensated as drawn.
 `ColorGrading` passes a copy of the world viewport through the blended 32-entry curve per channel at the end of the
-world render, before names and the interface, writing `lerp(scene, curve(scene), ColorGrading·t)`; the ghost view,
-the view under water and a view without a grading key are left alone.
+world render, before names and the interface, writing `lerp(scene, curve(scene), ColorGrading·t)` with the display
+dither; the ghost view, the view under water and a view without a grading key are left alone. The grading rereads
+the 8-bit frame, and its curve (0.97 to 1.22 codes per code between codes 25 and 60 in all eight shipped curves)
+would round the dithered fog into steps again: on the halo profile without the client's glow, grading at strength 1
+without a dither of its own left 0.155 codes rms and about 7 coherent edges per curve, with it 0.046 and none.
 
 **Transparent fog.** Fog drawn once after the world gives every see-through effect the fog of the surface behind
 it, where the stock client fogs it by its own distance. With `TransparentFog=1`, above water, the glare and the fog
@@ -263,22 +347,51 @@ the new light's fog band (band 7) at the template's luminance scaled by the rati
 ratio of the fog distances (float band 0, 0.5–2, median 0.87 over Outland and Northrend). The glow is the Forever glow
 of the template's params in the same slot: the 3.3.5 `LightParams` glow drives the old client's bloom, is far higher
 (1.0 in Ashenvale where Forever has 0) and washed the colours out when a test build used it on every map. Recipes shared
-by several lights are written once; the run is repeatable on its own output and leaves the Classic lights byte for byte.
-Run it again after `convert_classic_fog.py`, which keeps only the kit's light params. 445 lights on 47 maps come from
-194 templates (3.2 MB in all).
+by several lights are written once; the run first drops the lights, params and zone lights it generated (ids from
+1000000 up), so it is repeatable on its own output and leaves the Classic lights and zone lights byte for byte. Run it
+again after `convert_classic_fog.py`, which keeps only the kit's light params and the zone lights the kit has points
+for. 445 lights on 47 maps come from 194 templates, and one more light is a copy for Northrend's zone outlines (below;
+3.2 MB in all).
 
 The converted layers carry flag bit 4 where the client draws its sky without sun and moon: the light params' skybox
 (`LightParams` column 2) lacks `LightSkybox` flag 0x2, which adds the procedural sky to the skybox model, or the sun
 colour (`LightIntBand` band 9) is black all day. That holds for Hellfire Peninsula, Netherstorm, Shadowmoon Valley,
 Zangarmarsh (`shadowmoon_sky_forest01.mdx` in the Reforged HD client), Blade's Edge, the Bone Wastes, Icecrown, the
-Storm Peaks, Wintergrasp, Sholazar Basin, Zul'Drak and much of Dragonblight and the Howling Fjord; Shattrath City,
-Terokkar Forest, Eversong Woods, the Netherstorm eco-domes and Northrend's global light keep the sun. There the scene
-layers and the distance fog scatter neither sun nor moon and no god rays are drawn. The 17 lights with Hellfire
-Peninsula's skybox (`hellfireskybox.mdx`) keep only the ground fog, at 0.3 of the template's density, and carry flag bit
-5: testers found the template's haze and far wall too strong there and its fog on the sky out of place. Under that clear
-sky the distance fog is off and the scene layers fall off on sky pixels by `exp(−upward·falloff)` with
-`falloff=−ln(1−clear)/0.005` (1842 fully clear, so the ground fog is gone from the sky a tenth of a degree above the
-horizon; at a light's edge the share fades with the blend).
+Storm Peaks, Wintergrasp, Zul'Drak, Dragonblight, the Howling Fjord, Crystalsong Forest and Northrend's global light;
+Shattrath City, Terokkar Forest, Eversong Woods and the Netherstorm eco-domes keep the sun, and Grizzly Hills, Sholazar
+Basin and Borean Tundra keep it by the exceptions below. There the scene layers and the distance fog scatter neither sun
+nor moon and no god rays are drawn. The 17 lights with Hellfire Peninsula's skybox (`hellfireskybox.mdx`) keep only the
+ground fog, at 0.3 of the template's density, and carry flag bit 5: testers found the template's haze and far wall too
+strong there and its fog on the sky out of place. Under that clear sky the distance fog is off and the scene layers fall
+off on sky pixels by `exp(−upward·falloff)` with `falloff=−ln(1−clear)/0.005` (1842 fully clear, so the ground fog is
+gone from the sky a tenth of a degree above the horizon; at a light's edge the share fades with the blend).
+
+Northrend's global light is 1406. Four client lights on map 571 sit at the origin, which wowdev.wiki's `Light` page
+calls the fallback where no other light applies, but 752 among them has a falloff (32.6 to 46.1 client units). The
+converter and the DLL take only an origin light without falloff for map-wide, so 752 becomes a sphere of about 1 yd at
+(17066.7, 17066.7), the corner of the map grid, that reaches no reachable position, and the DLL's background is the
+first map-wide light in file order, 1406 (1407 and 1408 repeat it; which origin light the client itself shows is not
+known). 1406 borrows the Howling Fjord's sky, `fiord.mdx`, whose sun band is black, and is the only light over 90% of
+Grizzly Hills, 63% of Sholazar Basin and 88% of Borean Tundra, so the rule above took the sun from those zones, which
+testers missed. Two exceptions on map 571 give it back. The skyboxes `shalozar.mdx`, `shalozar(red).mdx`,
+`ashrand_sky01.mdx`, `8riv_stormsongsky01.mdx` and `10drg_sky01.mdx` (Coldarra, part of Borean Tundra) keep the sun in
+every slot that uses them, ahead of both tests; the 32 lights with them have their centres in those three zones
+(`10drg_sky01.mdx` also serves the Oculus, map 578, which keeps the rule), but Borean Tundra's light 1386
+(`ashrand_sky01.mdx`, falloff 247 to 347 yd) reaches about 240 yd into Wintergrasp and Dragonblight and causes most of
+their change below. And two zone outlines, Borean Tundra with Sholazar Basin as one, so that no sunless seam opens at
+their shared border, and Grizzly Hills, hold light 2001406, a copy of 1406 whose clear and storm slots keep the sun: the
+same layers, colours, densities, glow and grading, only flag bit 4 dropped, while its other slots, the ghost's spirit
+sky among them, are 1406's own. The copy sits at the client origin's world position without falloff, so it is not
+map-wide and its sphere reaches no reachable position; it acts only through the outlines (zone lights 1000000 and
+1000001, heights −64000 to 64000 as the Classic outlines have, vertices traced from the 3.3.5 `WorldMapOverlay` subzone
+boxes and simplified to 150 yd, good to about 150–300 yd at the inner borders). `fiord.mdx` stays sunless, as the
+Howling Fjord's own sky, and so does light 1411, the Howling Fjord's 611 yd highland light over Camp Winterhoof. Sampled
+every 50 yd at an estimated ground height (+5 yd), at 18:00 in clear weather, the DLL's blend now leaves Grizzly Hills
+12.6% sunless (99.0% before: 1411 on the southern rim, the 100 yd fade inside the outline and the Zul'Drak cliff
+lights), Sholazar Basin 7.5% (100%) and Borean Tundra 4.7% (99.3%), while Icecrown (96.4%, from 96.6%), the Storm Peaks
+(99.8%), Dragonblight (99.7%, from 100%), the Howling Fjord (96.2%, from 96.4%) and Wintergrasp (98.7%, from 100%) stay
+sunless and Outland is unchanged. These shares are an offline estimate over zones labelled by the overlay boxes, not a
+measurement in the game.
 
 `OutlandDensity` and `NorthrendDensity` start at 0.15, as the fog read as too strong there in play, and
 `OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow.
@@ -714,8 +827,47 @@ optics against a CPU reference, fault recovery) and the water settings. They do 
 performance. It writes `before.png`, `after.png`,
 `overlay.png` and the debug views to `build/harness-out`.
 
-Further suites check the authored noise and `ClassicPhase`, the transparent fog, glow and grading through the hooks,
-a 4x device (`SKIP` without a copy method), and the ripples.
+Further suites check the authored noise and `ClassicPhase`, the transparent fog, glow and grading through the hooks, a
+4x device (`SKIP` without a copy method), and the ripples. The display dither checks draw an opaque fog ramp from code
+30 to 38 through each composite, both fixed-function blends and the late god-ray composite: every column must average to
+the continuous code (0.1 rms, 0.2 at most), while exact codes without fog and the debug views stay unchanged. The
+grading checks compare stripe means over 32 rows with the curve (0.2 at most) and allow each pixel the dither. The halo
+occlusion checks compute the shadow constant (light pixel, strength, fade, fog without direct light) and the
+`HaloOcclusion` key on the CPU, march synthetic depth at every quality (a cliff hiding the light, a character in front
+of it, a gap between two trunks, flat ground, a ridge beyond the far clip whose own fog keeps the direct light, a step
+jitter a few ulps below 1; half strength, a light behind the camera, the jittered march repeated, the per-layer loop)
+and march flat ground up to and beyond the far clip in thin fog under a 3° sun (camera 30 and 100 yd up, at most 0.05 of
+the direct light lost below the blend, in it and on the distant terrain, none on the sky). At every quality they march a
+wall inside the blend (950 yd, its top 110 yd above a camera 30 yd up) with the sun 10° above its top on screen, whose
+face must lose its direct light without a step (adjacent rows within 0.1 of it) from the row below its top (at least
+0.01 of it there on average), and distant terrain 3° high hiding a sun 2° up over ground to the far clip (camera 100 yd
+up, σ 0.0015/yd), whose shadow on the ground's fog must not step at the start of the blend (within 0.1), with at most
+half the direct light left before the blend and on the sky above the ridge and none lost in the ridge's own fog, and a
+trunk 30 yd away in front of a distant-terrain skyline 2° high with the sun 3° up beside it (camera 3 yd up, σ 0.00013
+and 0.0015/yd), whose distant terrain must keep the direct light of the sky above it (within 0.1). They compare the
+composites' full-resolution fallback at strength 1 with the march at the same pixel (plain, with local lights and split,
+to 10⁻⁴): every low-resolution tap reads the last pixel, whose distant terrain matches no other pixel's depth, so every
+other pixel takes the fallback. They compare the march with authored noise with the plain march (10⁻⁴, no noisy layer),
+and the noisy composites, which keep only the solid shadow, with the plain fallback: equal where every caster is solid,
+the cliff's shadow kept behind the character and the sky beside a trunk unshadowed, where the plain fallback takes 0.055
+to 0.096 of its direct light. Last, they render the harness street behind a wall that hides the sun, and again with
+`Temporal` at its default and two one-pixel posts at 400 yd below the wall, in columns no low-resolution tap reads
+(multiples of 4), whose fog only the composite's full-resolution march computes: it must keep at most half its sunlight
+and match the frame with `Temporal=0` exactly. Run on Wine's Direct3D 9 over llvmpipe, the march and composite checks
+pass, and so do the renderer checks, built with MinGW against `renderer.cpp` and a stand-in for the device wrapper (the
+posts keep 0.01 of their sunlight). The cliff, character, trunk and ridge checks fail with the shaders from before halo
+occlusion. The ridge's own fog fails when distant terrain occludes its own pixels (0.73 to 0.85 of its direct light
+lost), the far-clip check when the shadow runs on past the surface (0.71 lost in the blend) or distant terrain occludes
+its own pixels (0.57 on it), the wall check when a shadow must start in front of the blend (adjacent rows up to 0.76
+apart, where they are 0.03 apart now) or one starting in the blend is dropped (0.003 at most lost on average in the row
+below the top, against 0.022 to 0.025), the distant-terrain check when its taps are open for surfaces in the blend (0.63
+to 0.80 apart at the start of the blend, against 0.04 to 0.06), the skyline check when the distant terrain's surface
+continues behind the trunk (steps of 0.67 to 0.69 in thin fog and 0.14 to 0.15 at σ 0.0015/yd, against 0.001 at most),
+and the jitter check without the floor on the line left to the light. The composite checks fail when they hand the
+composite the temporal pass's `c10`, and the noisy march check when that march drops the shadow behind thin casters. The
+composite checks set the registers themselves, so the renderer's upload after the temporal pass is guarded by the posts'
+check, which fails without the upload of `c10` before the composite (the posts keep all their sunlight, 76/255 off the
+frame with `Temporal=0`) and without that of `c9` or `c11` (1/255 and 10/255 off).
 
 `vfog_harness --scene harbour <dir> --data data/fogdata.bin` renders the logged in-game frame at the
 Stormwind harbour (sunset, far clip 791.6 yd) with ideal depth and with the client's depth range, and
@@ -769,6 +921,9 @@ The time covers the fog passes alone, god rays included, without the client's ow
 compare it with the frame time to see the fog's share of a GPU-bound frame. `skipped` counts frames whose timing
 was lost, and `fog gpu no samples` means none finished in the interval. Without timestamp queries the log says
 so once and the summaries omit the time; at `LogLevel=0` no queries are issued.
+The summary's `day` line ends with `halo occlusion strength`, the strength the march applies (see Halo occlusion):
+`HaloOcclusion` times the fade by the light's view-space z, so it reads 0.00 with any `HaloOcclusion` while the light
+is beside or behind the camera or no layer scatters direct light (a sunless sky, a full interior blend).
 With Classic data the summary adds the resolved glow, three points of the grading curve and each noisy layer.
 
 Every 60 s the water adds `water gpu 1.24 ms (median of 3500 frames, 0 skipped), classes lake+ocean, waves 256
@@ -809,12 +964,13 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `TransparentFog` | 0 | 1 fogs see-through effects at their own distance, 0 at the scene behind (see Transparent fog) |
 | `DataMode` | 1 | 1 Classic layers where available, 0 derived layers everywhere |
 | `AzerothDensity`, `OutlandDensity`, `NorthrendDensity` | 1, 0.15, 0.15 | Density per region, on top of `Density` |
-| `AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights` | 1, 3, 3 | Local light intensity per region |
+| `AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights` | 1, 8, 8 | Local light intensity, 0..32 |
 | `OutlandClassicFog`, `NorthrendClassicFog` | 1, 1 | 1 the converted client lights there, 0 derived layers |
 | `AzerothSkyColor`, `OutlandSkyColor`, `NorthrendSkyColor` | 0, 0, 0 | Share of the client's fog hue in the layers |
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |
 | `SunScatter`, `Ambient`, `Exposure` | 1, 1, 1 | Light in the fog |
 | `MoonScatter` | 0.2 | Moon light in the fog at night, on its own (`SunScatter` is the sun's), Classic and derived |
+| `HaloOcclusion` | 1 | Shadow of terrain, trees and buildings on screen in the sun's or moon's fog light; 0 = off |
 | `ClassicExposure` | 1 | Brightness of the Classic layers (1 = as authored) |
 | `ClassicPhase` | 0 | Classic sun and moon scattering: 0 phase peaks at 1 toward the light, 1 energy-normalised |
 | `LocalLights`, `LocalLightIntensity` | 1, 1 | Scatter up to eight world point lights in view; intensity 0..8 |
@@ -869,12 +1025,32 @@ Forever in the game, so by default colours still differ from Classic.
   an owner test; the offline harness does not establish in-game appearance or performance. Other GPU vendors
   and integrated GPUs are untested except for the Proton/DXVK Steam Deck result above; other Wine
   configurations remain untested.
-- The composite and the lit march need more than the 512 instruction slots guaranteed by
-  [baseline pixel shader 3.0](
+- The march, the composite, the water shading and the ripple step need more than the 512 instruction slots
+  guaranteed by [baseline pixel shader 3.0](
   https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-3-0), and lower
-  quality does not reduce that. An unsupported required shader disables volumetric fog for that device and logs
-  its name, HRESULT and the shader caps; native fog remains the fallback.
-- Scene geometry does not shadow the fog's sunlight.
+  quality does not reduce that (the water shading without its reflection march still takes 1,111 slots). An unsupported
+  required fog shader disables volumetric fog for that device and logs its name, HRESULT and the shader caps; native
+  fog remains the fallback. An unsupported water shading shader leaves the client's own water on that device and logs
+  its name and HRESULT, and an unsupported ripple step logs its HRESULT and leaves the modern water without ripples.
+- Halo occlusion is screen space: casters off screen or off the segment to the light do not block it, what a nearer
+  object hides is taken to be the solid surface seen before it on the segment, thin casters are slabs of an assumed
+  thickness (every caster in front of the sky or of distant terrain, whose depths are unknown), and several of them on
+  one segment merge into one slab from the nearest start to the farthest end. The shadow ends at the pixel's surface, so
+  the fog the march extends beyond a surface in the horizon blend or beyond the far clip stays lit: a mountain beyond
+  the far clip keeps all its own fog's direct light (an error of 0.70 in the 320×180 port), and the shadow of the
+  ground's fog in front of it steps where the mountain's pixels begin (0.21 to 0.24 of the direct light in thin fog and
+  0.50 to 0.63 at σ 0.0015/yd in the 64² GPU fixture, camera 100 yd up, ridge 3° and sun 2° above the horizon). Distant
+  terrain occludes at `MaxDistance` for every other pixel, so flat distant terrain stands as a wall up to the horizon at
+  `MaxDistance`: with the sun less than about camera height/(`MaxDistance` − distance) above the horizon it shadows fog
+  that a ray trace leaves lit (camera 100 yd up, sun 0.5°, σ 0.00013/yd: up to 0.57 of the direct light below the blend
+  and 0.23 in it in the port, 0.31 in it at 1280×720; 0.20 below the blend at 1°, under 0.01 at 2°). The depth texels'
+  quantisation over flat ground costs more the lower the camera and the sun: with the sun 0.5° up in thin fog up to 0.15
+  of the direct light below the blend and 0.054 in it with the camera 2 yd up in the port (at 1280×720 0.052 below it,
+  and 0.026 in it with the camera 5 yd up, where it lost 0.36 while a shadow could run on past the surface), and up to
+  0.30 below the blend and 0.18 in it in the 64² GPU fixture (camera 2 and 10 yd up, 0.44° per texel). It fades out
+  while the light is more than 78° off the view axis and is off while the light is behind the camera. Water reflections
+  and the `TransparentFog` fit stay unshadowed, and the god rays are unchanged. It is harness-checked and simulated
+  only, not tested in game.
 - Local lighting captures the current M2 scene's point-light table. It does not create spotlight cones or local
   shadows, and coverage of WMO-only lights is unverified. A light's sphere is capped at 200 yd and its attenuation
   denominator floored at 1; it is a candidate at any camera distance while its sphere meets the view and the client

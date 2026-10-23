@@ -8,6 +8,7 @@
 #include "fullscreen_triangle.h"
 #include "gpu_timing.h"
 #include "grading_renderer.h"
+#include "light_shadow.h"
 #include "local_light_stabiliser.h"
 #include "log.h"
 #include "msaa_depth.h"
@@ -1371,6 +1372,142 @@ void CheckSunlessSkiesScatterNoSunOrMoon(const FogData& data)
           "Shattrath City, whose sky shows the sun, keeps its sun scatter and god rays");
 }
 
+struct Landmark
+{
+    const char* name;
+    int map;
+    float position[3];
+};
+
+constexpr uint32_t kSunKeepingCopyOfNorthrendGlobalLight = kFirstClientLight + kNorthrendGlobalClientLight;
+constexpr uint32_t kNoSunLayerFlag = 0x10;
+
+template <size_t N>
+bool LandmarksAtSunless(const FogData& data, const Landmark (&landmarks)[N], float sunless, const char* label)
+{
+    bool all = true;
+    std::printf("     %s, sunless at 18:00:", label);
+    for (const Landmark& landmark : landmarks)
+    {
+        AuthoredFog fog = {};
+        const bool resolved = data.Resolve(landmark.map, landmark.position, kDayFraction1800, kClearWeather, fog);
+        std::printf(" %s %.2f (%u)", landmark.name, fog.sunless, fog.lightCount ? fog.lightIds[0] : 0u);
+        all = all && resolved && Near(fog.sunless, sunless);
+    }
+    std::printf("\n");
+    return all;
+}
+
+AuthoredLayer WithoutTheSunFlag(AuthoredLayer layer)
+{
+    layer.sunless = 0.0f;
+    layer.flags &= ~kNoSunLayerFlag;
+    return layer;
+}
+
+bool SameFogApartFromTheSun(const AuthoredFog& a, const AuthoredFog& b)
+{
+    bool same = a.layerCount == b.layerCount && a.layerCount > 0 && a.lightCount == b.lightCount &&
+                std::equal(a.lightWeights, a.lightWeights + a.lightCount, b.lightWeights) &&
+                a.coverage == b.coverage && a.hasClassicDirectLight == b.hasClassicDirectLight &&
+                std::equal(std::begin(a.classicDirectLight), std::end(a.classicDirectLight), b.classicDirectLight) &&
+                a.hasGlow == b.hasGlow && a.glow == b.glow && a.hasGradingCurve == b.hasGradingCurve &&
+                std::equal(std::begin(a.gradingCurve), std::end(a.gradingCurve), b.gradingCurve) &&
+                a.clearSky == b.clearSky;
+    for (int i = 0; same && i < a.layerCount; ++i)
+    {
+        const AuthoredLayer x = WithoutTheSunFlag(a.layers[i]);
+        const AuthoredLayer y = WithoutTheSunFlag(b.layers[i]);
+        same = same && std::memcmp(&x, &y, sizeof(AuthoredLayer)) == 0;
+    }
+    return same;
+}
+
+void CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(const FogData& data)
+{
+    const Landmark sunKept[] = {
+        {"Grizzlemaw", kNorthrend, {4022.6f, -3820.9f, 114.6f}},
+        {"Amberpine Lodge", kNorthrend, {3456.5f, -2778.6f, 200.4f}},
+        {"Warsong Hold", kNorthrend, {2741.3f, 6097.2f, 76.9f}},
+        {"Valiance Keep", kNorthrend, {2213.9f, 5273.1f, 11.3f}},
+        {"Transitus Shield", kNorthrend, {3587.3f, 6661.5f, 195.4f}},
+        {"Nesingwary Base Camp", kNorthrend, {5595.1f, 5831.6f, -67.5f}},
+        {"Rainspeaker Canopy", kNorthrend, {5670.8f, 4561.3f, -136.5f}},
+    };
+    const Landmark sunless[] = {
+        {"Shadow Vault", kNorthrend, {8447.4f, 2698.1f, 656.8f}},
+        {"Balargarde Fortress", kNorthrend, {7060.0f, 4256.8f, 676.9f}},
+        {"The Fleshwerks", kNorthrend, {6490.0f, 3427.7f, 595.7f}},
+        {"Dun Niffelem", kNorthrend, {7201.8f, -2721.2f, 764.2f}},
+        {"K3", kNorthrend, {6122.2f, -1061.5f, 402.6f}},
+        {"Howling Fjord", kNorthrend, {1350.0f, -5000.0f, 210.0f}},
+        {"Wintergrasp", kNorthrend, {5100.0f, 2750.0f, 443.7f}},
+        {"Moonrest Gardens", kNorthrend, {3323.2f, 2717.3f, 36.5f}},
+        {"Naxxramas", kNorthrend, {3668.7f, -1262.5f, 243.6f}},
+        {"Light's Breach", kNorthrend, {5148.5f, -2182.6f, 236.6f}},
+        {"Telredor", kOutland, {278.6f, 6001.3f, 144.7f}},
+    };
+    Check(LandmarksAtSunless(data, sunKept, 0.0f, "Grizzly Hills, Borean Tundra, Coldarra, Sholazar Basin"),
+          "Grizzly Hills, Borean Tundra with Coldarra and Sholazar Basin keep the sun and moon again: their zone "
+          "outlines hold a copy of Northrend's global light that keeps the sun, and their own skies keep it in "
+          "their sphere lights");
+    Check(LandmarksAtSunless(data, sunless, 1.0f,
+                             "Icecrown, Storm Peaks, Howling Fjord, Wintergrasp, Dragonblight, Zul'Drak, Zangarmarsh"),
+          "Icecrown, the Storm Peaks, the Howling Fjord and Zangarmarsh stay sunless, and so do Wintergrasp, "
+          "Dragonblight and Zul'Drak about 300 to 520 yd past the Borean and Grizzly Hills outlines");
+
+    const float* grizzlemaw = sunKept[0].position;
+    const float* warsongHold = sunKept[2].position;
+    const float* howlingFjord = sunless[5].position;
+    AuthoredFog grizzly = {};
+    AuthoredFog borean = {};
+    AuthoredFog fjord = {};
+    const bool resolved = data.Resolve(kNorthrend, grizzlemaw, kDayFraction1800, kClearWeather, grizzly) &&
+                          data.Resolve(kNorthrend, warsongHold, kDayFraction1800, kClearWeather, borean) &&
+                          data.Resolve(kNorthrend, howlingFjord, kDayFraction1800, kClearWeather, fjord);
+    std::printf("     sun-keeping copy %u: weight %.2f at Grizzlemaw, %.2f at Warsong Hold, %.2f at the Howling "
+                "Fjord, where light %u has %.2f\n",
+                kSunKeepingCopyOfNorthrendGlobalLight, WeightOf(grizzly, kSunKeepingCopyOfNorthrendGlobalLight),
+                WeightOf(borean, kSunKeepingCopyOfNorthrendGlobalLight),
+                WeightOf(fjord, kSunKeepingCopyOfNorthrendGlobalLight), kNorthrendGlobalClientLight,
+                WeightOf(fjord, kNorthrendGlobalClientLight));
+    Check(resolved && Near(WeightOf(grizzly, kSunKeepingCopyOfNorthrendGlobalLight), 1.0f) &&
+              Near(WeightOf(borean, kSunKeepingCopyOfNorthrendGlobalLight), 1.0f) &&
+              WeightOf(fjord, kSunKeepingCopyOfNorthrendGlobalLight) == 0.0f &&
+              SameFogApartFromTheSun(grizzly, fjord) && SameFogApartFromTheSun(borean, fjord),
+          "inside the Grizzly Hills and Borean Tundra outlines the copy replaces Northrend's global light with the "
+          "same layers, glow, direct light and grading; outside them, as at the Howling Fjord, the global light "
+          "stays");
+
+    AuthoredFog grizzlyGhost = {};
+    AuthoredFog fjordGhost = {};
+    AuthoredFog grizzlyHalfStorm = {};
+    const LightParamsSelection ghost = ScreenEffectSlot(FogData::kDeathSlot, 0.0f);
+    const bool resolvedSlots =
+        data.Resolve(kNorthrend, grizzlemaw, kDayFraction1800, ghost, grizzlyGhost) &&
+        data.Resolve(kNorthrend, howlingFjord, kDayFraction1800, ghost, fjordGhost) &&
+        data.Resolve(kNorthrend, grizzlemaw, kDayFraction1800, Storm(0.5f), grizzlyHalfStorm);
+    std::printf("     Grizzlemaw: sunless %.2f as a ghost (Howling Fjord %.2f), %.2f at half storm\n",
+                grizzlyGhost.sunless, fjordGhost.sunless, grizzlyHalfStorm.sunless);
+    Check(resolvedSlots && Near(grizzlyGhost.sunless, 1.0f) && Near(fjordGhost.sunless, 1.0f) &&
+              SameFogApartFromTheSun(grizzlyGhost, fjordGhost) && Near(grizzlyHalfStorm.sunless, 0.0f),
+          "the copy keeps the sun in its clear and storm slots alike, so Grizzlemaw stays sunlit at half storm, "
+          "while its ghost slot is 1406's own: the spirit sky over Grizzlemaw stays sunless as at the Howling Fjord");
+
+    const Vec3 toLight = {0.607f, 0.607f, 0.513f};
+    const Vec3 eye = {grizzlemaw[0], grizzlemaw[1], grizzlemaw[2]};
+    const Config cfg = ConfigForMap(Config{}, kNorthrend);
+    const FogParams sun = BuildFogParams(ContinentFrame(kNorthrend, eye, kDayFraction1800, toLight, false), cfg,
+                                         &grizzly);
+    const FogParams moon = BuildFogParams(ContinentFrame(kNorthrend, eye, kDayFraction1800, toLight, true), cfg,
+                                          &grizzly);
+    std::printf("     Grizzlemaw: scene diffuse red %.5f by the sun, %.5f by the moon, rays %.2f\n",
+                SceneLayersRedDiffuse(sun), SceneLayersRedDiffuse(moon), sun.lightVisibility);
+    Check(resolved && sun.authored && SceneLayersRedDiffuse(sun) > 0.0f && SceneLayersRedDiffuse(moon) > 0.0f &&
+              sun.lightVisibility > 0.0f,
+          "Grizzlemaw in Grizzly Hills scatters the sun and the moon in its converted layers and casts god rays");
+}
+
 AuthoredFog WithoutClearSky(AuthoredFog fog)
 {
     fog.clearSky = 0.0f;
@@ -1499,11 +1636,11 @@ void CheckLocalLightsGlowByRegion()
                                              ConfigForMap(defaults, kEasternKingdoms), nullptr);
     std::printf("     local light gain by default: Outland %.3f, Azeroth %.3f\n", outland.localLightGain,
                 azeroth.localLightGain);
-    Check(followsRegion && Near(azeroth.localLightGain, 1.0f) && defaults.outlandLocalLights == 3.0f &&
-              defaults.northrendLocalLights == 3.0f && Near(outland.localLightGain, 3.0f / 0.15f),
+    Check(followsRegion && Near(azeroth.localLightGain, 1.0f) && defaults.outlandLocalLights == 8.0f &&
+              defaults.northrendLocalLights == 8.0f && Near(outland.localLightGain, 8.0f / 0.15f),
           "the local lights scatter with their region's intensity over the region's density, so the density "
-          "sliders leave the lamps' glow alone; Outland and Northrend start at 3, as testers needed about three "
-          "times the old world's intensity there, and Azeroth stays as before by default");
+          "sliders leave the lamps' glow alone; Outland and Northrend start at 8, the most the testers' slider "
+          "reached when they matched the old world's lamps there, and Azeroth stays as before by default");
 }
 
 void CheckOutlandSkyColourTintsTheConvertedFog(const FogData& data)
@@ -1853,6 +1990,32 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
     Check(store.Get().haze == afterMerge.Get().haze && !store.HasUnsavedChanges() &&
               ReadText(savedIni).find("\nHaze=1.235") != std::string::npos,
           "Save records the value it wrote, rounded like the INI");
+}
+
+void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstring& shippedIni)
+{
+    ConfigStore shipped;
+    shipped.Load(NarrowPath(shippedIni));
+    const Config& s = shipped.Get();
+    std::printf("     shipped region local lights: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", s.azerothLocalLights,
+                s.outlandLocalLights, s.northrendLocalLights);
+    Check(s.azerothLocalLights == 1.0f && s.outlandLocalLights == 8.0f && s.northrendLocalLights == 8.0f &&
+              ReadText(shippedIni).find("; Local light intensity per region, 0..32,") != std::string::npos,
+          "the shipped INI starts Outland's and Northrend's local lights at 8 and Azeroth's at 1, and documents "
+          "their range 0..32");
+
+    const std::wstring savedIni = FullPath(outDir + L"\\region-local-lights.ini");
+    CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE);
+    WritePrivateProfileStringW(L"CoAVolFog", L"AzerothLocalLights", L"12", savedIni.c_str());
+    WritePrivateProfileStringW(L"CoAVolFog", L"OutlandLocalLights", L"24", savedIni.c_str());
+    WritePrivateProfileStringW(L"CoAVolFog", L"NorthrendLocalLights", L"40", savedIni.c_str());
+    ConfigStore written;
+    written.Load(NarrowPath(savedIni));
+    const Config& w = written.Get();
+    std::printf("     written 12, 24 and 40: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", w.azerothLocalLights,
+                w.outlandLocalLights, w.northrendLocalLights);
+    Check(w.azerothLocalLights == 12.0f && w.outlandLocalLights == 24.0f && w.northrendLocalLights == 32.0f,
+          "region local lights read from the INI up to 32 and clamp to 32 above it");
 }
 
 struct ClientInput
@@ -2218,6 +2381,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "authored_noise_checks.h"
 #include "grazing_upsample_checks.h"
 #include "god_ray_quality_checks.h"
+#include "display_dither_checks.h"
 #include "temporal_quality_checks.h"
 #include "runtime_quality_checks.h"
 #include "lighting_history_checks.h"
@@ -2237,6 +2401,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "transparent_fog_checks.h"
 #include "early_composite_look_checks.h"
 #include "multisampling_checks.h"
+#include "halo_occlusion_checks.h"
 
 void CheckFirstColumnIsFogged(const Image& transmittance, const D3DVIEWPORT9& world)
 {
@@ -2331,6 +2496,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckConvertedGroundFogFollowsTheHeightOfItsLight(classic);
     CheckConvertedLightsCarryNoClassicNoise(classic);
     CheckSunlessSkiesScatterNoSunOrMoon(classic);
+    CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(classic);
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
     CheckLocalLightsGlowByRegion();
@@ -2352,12 +2518,15 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     CheckOverlayKeyNames();
     CheckSettingsSaveKeepsTheIni(outDir, FullPath(iniPath));
+    CheckRegionLocalLightsSetting(outDir, FullPath(iniPath));
     CheckFogDataBounds(outDir, dataPath);
     forever_look_checks::CheckForeverGlow();
     forever_look_checks::CheckLookSettings(outDir, FullPath(iniPath));
     water_data_checks::CheckWaterData(outDir, waterDataPath);
     water_settings_checks::CheckWaterSettings(outDir, FullPath(iniPath));
     transparent_fog_checks::CheckTransparentFogSetting(outDir, FullPath(iniPath));
+    halo_occlusion::CheckLightShadowConstants();
+    halo_occlusion::CheckHaloOcclusionSetting(outDir, FullPath(iniPath));
 
     if (cpuOnly)
     {
@@ -2455,14 +2624,20 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     authored_noise::CheckAuthoredNoiseOnTheGpu(h.dev);
     classic_phase::CheckIsotropicSlabSaturation(h.dev);
     march_layers::CheckUnrolledMarchMatchesLoopedMarch(h.dev);
+    halo_occlusion::CheckHaloOcclusionMarch(h.dev);
+    halo_occlusion::CheckHaloOcclusionNearTheFarClip(h.dev);
+    halo_occlusion::CheckHaloOcclusionInTheComposites(h.dev);
     local_light_gpu::CheckLocalLightIntegration(h.dev);
     silhouette_quality::CheckSilhouettes(h.dev);
     grazing_upsample::CheckGrazingGroundUpsample(h.dev);
     god_ray_quality::CheckGodRays(h.dev);
+    display_dither::CheckDisplayDither(h.dev);
     CheckTemporalQuality(h.dev);
     CheckTemporalFallbackNoise(h.dev);
     CheckLightDisappearanceHistory(h);
     CheckSunOccluderLeavesFogLit(h);
+    halo_occlusion::CheckHaloOcclusionInTheRenderer(h);
+    halo_occlusion::CheckHaloOcclusionAtFullResolutionWithTemporal(h);
     classic_phase::CheckSunsetHaloKeepsItsHue(h, FullPath(iniPath));
     water_fft_checks::CheckWaterFft(h.dev);
     water_mask_packing_checks::CheckWaveFoamMaskPacking(h.dev);

@@ -12,6 +12,7 @@ namespace
 constexpr float kMultiplierSliderMax = 4.0f;
 constexpr float kLayerSliderMax = 2.0f;
 constexpr float kLocalLightSliderMax = 8.0f;
+constexpr float kRegionLocalLightSliderMax = 24.0f;
 constexpr float kPanelWidthInLines = 30.0f;
 constexpr float kPanelHeightInLines = 42.0f;
 constexpr float kMinPanelWidthInLines = 20.0f;
@@ -213,7 +214,7 @@ bool RegionLocalLights(const char* label, float& value, const char* region)
                   "Local light intensity in %s, on top of Local light intensity; the region's density does not "
                   "change the lamps' glow",
                   region);
-    return Slider(label, value, 0.0f, kLocalLightSliderMax, "%.2f", help);
+    return Slider(label, value, 0.0f, kRegionLocalLightSliderMax, "%.2f", help);
 }
 
 bool DrawRegions(Config& c)
@@ -252,6 +253,11 @@ bool DrawLight(Config& c)
     changed |= Multiplier("Moon scatter", c.moonScatter,
                           "In-scattered moon light at night, on its own: Sun scatter does not change it. 1 = as "
                           "bright as the sun's halo");
+    changed |= Slider("Halo occlusion", c.haloOcclusion, 0.0f, 1.0f, "%.2f",
+                      "How far terrain, trees and buildings in front of the sun or moon stop its halo and the light "
+                      "it scatters into the fog around them: the fog in their shadow keeps its ambient light and the "
+                      "glow of lamps. Only what is on screen can block the light, and it fades out as the light moves "
+                      "beside you and is off behind you. 0 = off: the light shines through them as before");
     changed |= Multiplier("Ambient", c.ambient, "Ambient fog brightness");
     changed |= Multiplier("Exposure", c.exposure, "Brightness of the layers used where no Classic data exists");
     changed |= Multiplier("Classic exposure", c.classicExposure, "Brightness of the Classic layers, 1 = default");

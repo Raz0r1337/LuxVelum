@@ -3,6 +3,7 @@
 #include "fog_data.h"
 #include "fog_model.h"
 #include "fullscreen_triangle.h"
+#include "light_shadow.h"
 #include "noise_volume.h"
 #include "log.h"
 
@@ -56,6 +57,7 @@ namespace
 {
 constexpr UINT kPixelConstants = 100;
 constexpr UINT kSampleSideRegister = 99;
+constexpr UINT kLightShadowRegister = 10;
 constexpr int kQualityLevels = 3;
 constexpr DWORD kAllStencilBits = 0xFF;
 constexpr DWORD kUnmarkedSamples = 0;
@@ -1025,7 +1027,7 @@ IDirect3DTexture9* Renderer::FilterWithHistory(IDirect3DDevice9* dev, IDirect3DT
 void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const FrameInputs& in, const Config& cfg,
                                const FogParams& fog, const AuthoredFog& authored, const D3DSURFACE_DESC& depthDesc,
                                const float* viewToWorld, const float* toLightInView, const float* sunPx,
-                               float rayStrength)
+                               float rayStrength, float haloOcclusionStrength)
 {
     const D3DVIEWPORT9& vp = in.viewport;
     const bool viewChanged = std::fabs(in.farClip - m_loggedFarClip) > 1.0f || vp.Width != m_loggedViewport.Width ||
@@ -1052,10 +1054,10 @@ void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const Frame
                 in.camPos[0], in.camPos[1], in.camPos[2], viewToWorld[12], viewToWorld[13], viewToWorld[14],
                 in.camTarget[0], in.camTarget[1], in.camTarget[2]);
     VF_LOG_INFO("  day %.4f %s toLight (%.3f %.3f %.3f) view (%.3f %.3f %.3f) vis %.2f above %.2f "
-                "sunPx (%.0f %.0f) rays %.2f",
+                "sunPx (%.0f %.0f) rays %.2f halo occlusion strength %.2f",
                 in.dayFraction, in.lightIsMoon ? "moon" : "sun", in.toLight[0], in.toLight[1], in.toLight[2],
                 toLightInView[0], toLightInView[1], toLightInView[2], fog.lightVisibility, fog.lightAboveHorizon,
-                sunPx[0], sunPx[1], rayStrength);
+                sunPx[0], sunPx[1], rayStrength, haloOcclusionStrength);
     VF_LOG_INFO("  map %d fog %08X start %.1f end %.1f zone %.1f sun %08X direct %08X ambient %08X refZ %.1f "
                 "glow %.2f, direct light vs Classic %.2f",
                 in.mapId, in.fogColor, in.fogStart, in.fogEnd, in.zoneFogDistance, in.sunColor, in.directColor,
@@ -1349,17 +1351,12 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     Mul4x4(m_prevWorldToView, m_prevProj, prevViewProj);
     Mul4x4(viewToWorld, prevViewProj, reproj);
 
-    float sunPx[2] = {};
-    bool sunInFront = toLightInView[2] > 0.05f;
-    float sunScreenFade = 0.0f;
-    if (sunInFront)
-    {
-        float ndcX = toLightInView[0] / toLightInView[2] * proj[0] + proj[8];
-        float ndcY = toLightInView[1] / toLightInView[2] * proj[5] + proj[9];
-        sunPx[0] = vp.X + (ndcX * 0.5f + 0.5f) * vp.Width;
-        sunPx[1] = vp.Y + (0.5f - ndcY * 0.5f) * vp.Height;
-        sunScreenFade = std::clamp(1.6f - std::max(std::fabs(ndcX), std::fabs(ndcY)), 0.0f, 1.0f);
-    }
+    const LightOnScreen celestialOnScreen = ProjectLightOntoViewport(toLightInView, proj, vp);
+    const float sunPx[2] = {celestialOnScreen.pixel[0], celestialOnScreen.pixel[1]};
+    const bool sunInFront = celestialOnScreen.inFront;
+    const float sunNdcExtent = std::max(std::fabs(celestialOnScreen.ndc[0]), std::fabs(celestialOnScreen.ndc[1]));
+    const float sunScreenFade = sunInFront ? std::clamp(1.6f - sunNdcExtent, 0.0f, 1.0f) : 0.0f;
+    const LightShadowConstants lightShadow = LightShadowFor(celestialOnScreen, cfg, fog);
     const float rayStrength = cfg.godRays * fog.lightVisibility * sunScreenFade;
     const bool rays = rayStrength > kMinGodRayStrength;
     const bool raysAfterWorld = rays && pass == FogPass::BeforeTransparents;
@@ -1373,7 +1370,8 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     std::memcpy(godRays.colour, fog.rayColor, sizeof(godRays.colour));
     godRays.glowToCompensate = cfg.glowCompensation ? in.clientGlowAmount : 0.0f;
 
-    LogFrameSummary(dev, now, in, cfg, fog, authored, depthDesc, viewToWorld, toLightInView, sunPx, rayStrength);
+    LogFrameSummary(dev, now, in, cfg, fog, authored, depthDesc, viewToWorld, toLightInView, sunPx, rayStrength,
+                    lightShadow.strength);
 
     if (LogEnabled(LogLevel::Info))
         m_gpuTimer.Begin(dev);
@@ -1390,6 +1388,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     const Float4 celestialLight = {toLightInView[0], toLightInView[1], toLightInView[2], fog.lightAboveHorizon};
     const Float4 march = {cfg.temporal > 0.0f ? 1.0f : 0.0f, fog.maxDistance, fog.horizonStart, fog.farClip};
     dev->SetPixelShaderConstantF(9, &celestialLight.x, 1);
+    dev->SetPixelShaderConstantF(kLightShadowRegister, lightShadow.lightPixel, 1);
     dev->SetPixelShaderConstantF(11, &march.x, 1);
     static_assert(sizeof(FogLayer) == 6 * sizeof(Float4), "FogLayer is six shader registers");
     dev->SetPixelShaderConstantF(12, &fog.layers[0].start, 6 * kFogLayers);
@@ -1491,6 +1490,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     m_drawnSplitComposite = splitSamples ? CompositeShader(compositeChoice, true) : nullptr;
     dev->SetPixelShader(m_drawnComposite);
     dev->SetPixelShaderConstantF(9, &celestialLight.x, 1);
+    dev->SetPixelShaderConstantF(kLightShadowRegister, lightShadow.lightPixel, 1);
     dev->SetPixelShaderConstantF(11, &march.x, 1);
     const FogParams compositeMarchFog = marchesLocalLights ? WithMeanNoise(fog) : fog;
     dev->SetPixelShaderConstantF(12, &compositeMarchFog.layers[0].start, 6 * kFogLayers);

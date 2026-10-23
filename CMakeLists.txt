@@ -21,13 +21,14 @@ set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set(SHADER_OUT ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 file(MAKE_DIRECTORY ${SHADER_OUT})
 
-set(VF_INCLUDES ${SHADER_DIR}/vf_common.hlsli ${SHADER_DIR}/vf_integrate.hlsli
-                ${SHADER_DIR}/vf_local_lights.hlsli ${SHADER_DIR}/vf_density_variation.hlsli
+set(VF_INCLUDES ${SHADER_DIR}/vf_pixel_noise.hlsli ${SHADER_DIR}/vf_common.hlsli ${SHADER_DIR}/vf_integrate.hlsli
+                ${SHADER_DIR}/vf_light_shadow.hlsli ${SHADER_DIR}/vf_local_lights.hlsli
+                ${SHADER_DIR}/vf_density_variation.hlsli
                 ${SHADER_DIR}/vf_authored_noise.hlsli ${SHADER_DIR}/vf_composite.hlsli
                 ${SHADER_DIR}/vf_sample_split.hlsli)
 set(VW_FFT_INCLUDES ${SHADER_DIR}/vw_fft_common.hlsli)
-set(VW_INCLUDES ${SHADER_DIR}/vf_common.hlsli ${SHADER_DIR}/vw_constants.hlsli ${SHADER_DIR}/vw_surface.hlsli
-                ${SHADER_DIR}/vw_optics.hlsli ${SHADER_DIR}/vw_reflection.hlsli)
+set(VW_INCLUDES ${SHADER_DIR}/vf_pixel_noise.hlsli ${SHADER_DIR}/vf_common.hlsli ${SHADER_DIR}/vw_constants.hlsli
+                ${SHADER_DIR}/vw_surface.hlsli ${SHADER_DIR}/vw_optics.hlsli ${SHADER_DIR}/vw_reflection.hlsli)
 
 set(SHADER_HEADERS)
 function(vf_shader name source profile)
@@ -50,42 +51,51 @@ function(vf_shader name source profile)
 endfunction()
 
 vf_shader(vs_fullscreen vf_fullscreen_vs.hlsl vs_3_0)
-vf_shader(ps_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0)
-vf_shader(ps_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0)
-vf_shader(ps_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0)
-vf_shader(ps_lit_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=1)
-vf_shader(ps_lit_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=1)
-vf_shader(ps_lit_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=1)
-vf_shader(ps_noisy_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_lit_noisy_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=1 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_lit_noisy_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=1 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_lit_noisy_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=1 /DSAMPLES_AUTHORED_NOISE=1)
+vf_shader(ps_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=0)
+vf_shader(ps_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=0)
+vf_shader(ps_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=0)
+vf_shader(ps_lit_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=1)
+vf_shader(ps_lit_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=1)
+vf_shader(ps_lit_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=1)
+vf_shader(ps_noisy_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1)
+vf_shader(ps_noisy_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1)
+vf_shader(ps_noisy_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1)
+vf_shader(ps_lit_noisy_march_low vf_march.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=1
+          /DSAMPLES_AUTHORED_NOISE=1)
+vf_shader(ps_lit_noisy_march_mid vf_march.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=1
+          /DSAMPLES_AUTHORED_NOISE=1)
+vf_shader(ps_lit_noisy_march_high vf_march.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=1
+          /DSAMPLES_AUTHORED_NOISE=1)
 vf_shader(ps_density_probe vf_density_probe.hlsl ps_3_0)
 vf_shader(ps_temporal vf_temporal.hlsl ps_3_0)
 vf_shader(ps_history_depth vf_history_depth.hlsl ps_3_0)
-vf_shader(ps_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0)
-vf_shader(ps_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0)
-vf_shader(ps_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0)
-vf_shader(ps_noisy_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_lit_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=1)
-vf_shader(ps_lit_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=1)
-vf_shader(ps_lit_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=1)
-vf_shader(ps_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0)
-vf_shader(ps_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0)
-vf_shader(ps_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0)
-vf_shader(ps_noisy_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0
-          /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0
-          /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0
-          /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_lit_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=1)
-vf_shader(ps_lit_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=1)
-vf_shader(ps_lit_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=1)
+vf_shader(ps_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=0)
+vf_shader(ps_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=0)
+vf_shader(ps_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=0)
+vf_shader(ps_noisy_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1 /DTHIN_OCCLUDER_SHADOWS=0)
+vf_shader(ps_noisy_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1 /DTHIN_OCCLUDER_SHADOWS=0)
+vf_shader(ps_noisy_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1 /DTHIN_OCCLUDER_SHADOWS=0)
+vf_shader(ps_lit_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=1)
+vf_shader(ps_lit_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=1)
+vf_shader(ps_lit_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=1)
+vf_shader(ps_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=0)
+vf_shader(ps_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=0)
+vf_shader(ps_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=0)
+vf_shader(ps_noisy_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1 /DTHIN_OCCLUDER_SHADOWS=0)
+vf_shader(ps_noisy_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1 /DTHIN_OCCLUDER_SHADOWS=0)
+vf_shader(ps_noisy_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=0
+          /DSAMPLES_AUTHORED_NOISE=1 /DTHIN_OCCLUDER_SHADOWS=0)
+vf_shader(ps_lit_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DSHADOW_TAPS=12 /DLOCAL_LIGHTS=1)
+vf_shader(ps_lit_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DSHADOW_TAPS=16 /DLOCAL_LIGHTS=1)
+vf_shader(ps_lit_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DSHADOW_TAPS=24 /DLOCAL_LIGHTS=1)
 vf_shader(ps_silhouette_mask vf_silhouette_mask.hlsl ps_3_0 /DLOCAL_LIGHTS=0)
 vf_shader(ps_ray_mask vf_ray_mask.hlsl ps_3_0)
 vf_shader(ps_ray_blur vf_ray_blur.hlsl ps_3_0)
@@ -138,6 +148,7 @@ add_library(CoAVolFog SHARED
     src/gpu_timing.cpp
     src/grading_renderer.cpp
     src/hooks.cpp
+    src/light_shadow.cpp
     src/local_light_stabiliser.cpp
     src/log.cpp
     src/msaa_depth.cpp
@@ -166,7 +177,7 @@ target_compile_definitions(version PRIVATE WIN32_LEAN_AND_MEAN)
 
 add_executable(vfog_harness tests/harness.cpp src/client_code.cpp src/client_light_stay.cpp
                src/client_ripple_sprites.cpp src/config.cpp src/engine_actors.cpp
-               src/engine_lights.cpp src/local_light_stabiliser.cpp
+               src/engine_lights.cpp src/light_shadow.cpp src/local_light_stabiliser.cpp
                src/fog_data.cpp src/fog_model.cpp src/gpu_timing.cpp src/log.cpp src/noise_volume.cpp
                src/transparent_fog.cpp src/water_contacts.cpp src/water_data.cpp src/water_spectrum.cpp
                src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)

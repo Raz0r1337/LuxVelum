@@ -120,6 +120,7 @@ void CheckSunOccluderLeavesFogLit(Harness& h)
     config.noiseAmount = 0.0f;
     config.godRays = 0.0f;
     config.debugView = 1;
+    config.haloOcclusion = 0.0f;
     vf_test_set_config(&config);
     const D3DVIEWPORT9 world = {0, 0, 1280, 688, 0, 1};
     const Vec3 eye = Add({0, 0, 9}, kGameLikeWorldOffset);
@@ -169,7 +170,7 @@ void CheckSunOccluderLeavesFogLit(Harness& h)
                 "changes by at most %d/255, dimmest sample %d/255\n",
                 occluderDistance, occluderBottom, sunRow, horizonRow, worstChange, dimmestFog);
     Check(rendered && sunRow < occluderBottom && occluderBottom < horizonRow && dimmestFog > 8 && worstChange <= 1,
-          "a sun occluder leaves the in-scattered sunlight of the fog behind it unshadowed");
+          "with HaloOcclusion=0 a sun occluder leaves the in-scattered sunlight of the fog behind it unshadowed");
     vf_test_set_config(&saved);
 }
 

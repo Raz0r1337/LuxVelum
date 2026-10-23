@@ -306,19 +306,19 @@ float3 FogSceneColour(float3 scene, float4 fog)
     return colour;
 }
 
-float4 BlendOverSceneCopy(float2 viewportUv, float4 fog, float3 godRays)
+float4 BlendOverSceneCopy(float2 pixel, float2 viewportUv, float4 fog, float3 godRays)
 {
     float3 scene = tex2Dlod(sSceneBeforeFog, float4(viewportUv, 0, 0)).rgb;
-    return float4(BlendGodRays(FogSceneColour(scene, fog), godRays), 1);
+    return float4(DitheredForDisplay(BlendGodRays(FogSceneColour(scene, fog), godRays), pixel), 1);
 }
 
-float4 PremultipliedForFixedFunctionBlend(float4 fog, float3 godRays, bool linearLight)
+float4 PremultipliedForFixedFunctionBlend(float2 pixel, float4 fog, float3 godRays, bool linearLight)
 {
     float opacity = max(fog.a, 1e-4);
     float3 unpremultiplied = RollOffHighlights(fog.rgb / opacity, kHighlightKnee);
     if (linearLight)
         unpremultiplied = LinearToGamma(unpremultiplied);
-    return float4(unpremultiplied * fog.a + godRays, fog.a);
+    return float4(DitheredForDisplay(unpremultiplied * fog.a + godRays, pixel), fog.a);
 }
 
 float4 CompositeAtDepth(float2 pixel, float depth)
@@ -344,6 +344,6 @@ float4 CompositeAtDepth(float2 pixel, float depth)
         return kSunMarkerColour;
 
     [branch] if (BlendsOverSceneCopy())
-        return BlendOverSceneCopy(viewportUv, fog, godRays);
-    return PremultipliedForFixedFunctionBlend(fog, godRays, linearLight);
+        return BlendOverSceneCopy(pixel, viewportUv, fog, godRays);
+    return PremultipliedForFixedFunctionBlend(pixel, fog, godRays, linearLight);
 }

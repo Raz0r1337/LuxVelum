@@ -47,6 +47,9 @@ constexpr UINT kStandInGlowBottom = 680;
 constexpr UINT kStandInGlowSampleRow = 650;
 constexpr int kStandInGlowCode = 128;
 constexpr float kUnormConversionTolerance = 0.6f;
+constexpr float kMaxDitheredMeanError = 0.2f;
+constexpr UINT kStripeBlockRows = 32;
+constexpr UINT kStandInGlowBlock = 32;
 constexpr float kDeliveredGlowTolerance = 1e-6f;
 constexpr float kClampedDayNightGlow = 1.0f;
 constexpr float kPrimedGlowCompensation = 0.5f;
@@ -550,52 +553,91 @@ float ReferenceGraded(int code, const float* curve, float strength)
     return kGlowByteScale * (x + (graded - x) * strength);
 }
 
-struct CurveMatch
-{
-    int compared = 0;
-    int nearest = 0;
-    float largestError = 0.0f;
-
-    void Add(int got, float expected)
-    {
-        ++compared;
-        nearest += got == static_cast<int>(std::lround(expected)) ? 1 : 0;
-        largestError = std::max(largestError, std::fabs(static_cast<float>(got) - expected));
-    }
-    bool WithinConversion() const { return compared > 0 && largestError <= kUnormConversionTolerance; }
-};
-
 int ChannelOf(const unsigned char* bgra, int channel)
 {
     return bgra[2 - channel];
 }
 
+struct CurveMatch
+{
+    int compared = 0;
+    int nearest = 0;
+    float largestError = 0.0f;
+    double signedErrorSum = 0.0;
+    float largestBlockMeanError = 0.0f;
+
+    void Add(int got, float expected)
+    {
+        ++compared;
+        nearest += got == static_cast<int>(std::lround(expected)) ? 1 : 0;
+        const float error = static_cast<float>(got) - expected;
+        largestError = std::max(largestError, std::fabs(error));
+        signedErrorSum += error;
+    }
+    void AddBlock(const Image& image, UINT left, UINT top, UINT width, UINT rows, int channel, float expected)
+    {
+        double sum = 0.0;
+        for (UINT y = top; y < top + rows; ++y)
+            for (UINT x = left; x < left + width; ++x)
+            {
+                const int got = ChannelOf(image.At(x, y), channel);
+                Add(got, expected);
+                sum += got;
+            }
+        const float mean = static_cast<float>(sum / (width * rows));
+        largestBlockMeanError = std::max(largestBlockMeanError, std::fabs(mean - expected));
+    }
+    float MeanError() const { return compared > 0 ? static_cast<float>(signedErrorSum / compared) : 0.0f; }
+    bool WithinDitheredConversion() const
+    {
+        return compared > 0 && largestError <= kUnormConversionTolerance + display_dither::kDitherHalfSpan &&
+               largestBlockMeanError <= kMaxDitheredMeanError && std::fabs(MeanError()) <= kMaxDitheredMeanError;
+    }
+};
+
+bool StripeBlockWithin(const D3DVIEWPORT9& area, int code, UINT row, const D3DVIEWPORT9& rect)
+{
+    const UINT width = StripeWidth(area);
+    const UINT left = area.X + code * width;
+    const UINT top = row - kStripeBlockRows / 2;
+    return left >= rect.X && left + width <= rect.X + rect.Width && top >= rect.Y &&
+           top + kStripeBlockRows <= rect.Y + rect.Height;
+}
+
+void AddStripeBlocks(CurveMatch& match, const Image& image, const D3DVIEWPORT9& area, UINT row, const float* curve,
+                     float strength, const D3DVIEWPORT9& within)
+{
+    const UINT width = StripeWidth(area);
+    for (int code = 0; code < kCodes; ++code)
+        if (StripeBlockWithin(area, code, row, within))
+            for (int channel = 0; channel < 3; ++channel)
+                match.AddBlock(image, area.X + code * width, row - kStripeBlockRows / 2, width, kStripeBlockRows,
+                               channel, ReferenceGraded(StripeCode(code, channel), curve, strength));
+}
+
 CurveMatch CompareStripes(const Image& image, const D3DVIEWPORT9& area, UINT row, const float* curve, float strength)
 {
     CurveMatch match;
-    const UINT width = StripeWidth(area);
-    for (int code = 0; code < kCodes; ++code)
-    {
-        const unsigned char* pixel = image.At(area.X + code * width + width / 2, row);
-        for (int channel = 0; channel < 3; ++channel)
-            match.Add(ChannelOf(pixel, channel), ReferenceGraded(StripeCode(code, channel), curve, strength));
-    }
+    AddStripeBlocks(match, image, area, row, curve, strength, area);
     return match;
 }
 
 CurveMatch CompareStandInGlow(const Image& image, const D3DVIEWPORT9& area, const float* curve, float strength)
 {
     CurveMatch match;
-    const unsigned char* pixel = image.At(area.X + area.Width / 2, kStandInGlowSampleRow);
     for (int channel = 0; channel < 3; ++channel)
-        match.Add(ChannelOf(pixel, channel), ReferenceGraded(kStandInGlowCode, curve, strength));
+        match.AddBlock(image, area.X + (area.Width - kStandInGlowBlock) / 2,
+                       kStandInGlowSampleRow - kStandInGlowBlock / 2, kStandInGlowBlock, kStandInGlowBlock, channel,
+                       ReferenceGraded(kStandInGlowCode, curve, strength));
     return match;
 }
 
 void PrintCurveMatch(const char* what, const CurveMatch& m)
 {
-    std::printf("     %s: %d of %d channel codes round to the nearest, largest error %.3f LSB (D3D allows %.1f)\n",
-                what, m.nearest, m.compared, m.largestError, kUnormConversionTolerance);
+    std::printf("     %s: %d of %d channel codes round to the nearest, largest error %.3f LSB (the dither's %.3f and "
+                "D3D's %.1f allowed), largest block mean error %.3f LSB, mean error %+.3f LSB (%.2f allowed)\n",
+                what, m.nearest, m.compared, m.largestError, display_dither::kDitherHalfSpan,
+                kUnormConversionTolerance, m.largestBlockMeanError, m.MeanError(), kMaxDitheredMeanError);
 }
 
 struct GradedFrame
@@ -717,7 +759,7 @@ bool StripesUngraded(const Image& image, const D3DVIEWPORT9& area, UINT row)
 {
     float identity[kGradingCurveEntries];
     IdentityCurve(identity);
-    return CompareStripes(image, area, row, identity, 0.0f).WithinConversion();
+    return CompareStripes(image, area, row, identity, 0.0f).WithinDitheredConversion();
 }
 
 void CheckIdentityAndShippedCurves(Harness& h, const D3DVIEWPORT9& world, const float* shipped)
@@ -735,11 +777,12 @@ void CheckIdentityAndShippedCurves(Harness& h, const D3DVIEWPORT9& world, const 
     const GradedFrame full = RenderGradedFrame(h, shippedRequest);
     const CurveMatch fullMatch = CompareStripes(full.image, world, kStripeSampleRow, shipped, 1.0f);
     PrintCurveMatch("Stormwind noon curve (8286666) at strength 1", fullMatch);
-    Check(full.Draws() == 1 && fullMatch.WithinConversion(),
-          "the Stormwind noon curve is applied per channel with the LUT's linear interpolation, within D3D's float "
-          "to 8-bit conversion tolerance");
+    Check(full.Draws() == 1 && fullMatch.WithinDitheredConversion(),
+          "the Stormwind noon curve is applied per channel with the LUT's linear interpolation: its dithered codes "
+          "average to the curve over each stripe, and no pixel is off by more than the dither and D3D's float to "
+          "8-bit conversion tolerance");
     const CurveMatch standIn = CompareStandInGlow(full.image, world, shipped, 1.0f);
-    Check(standIn.WithinConversion(),
+    Check(standIn.WithinDitheredConversion(),
           "grading reads the frame at the frame end: what the glow drew after the world is done is graded");
     Check(full.statesKept,
           "grading restores render, sampler, texture, shader, pixel constant c0/c1, stream, viewport, scissor, "
@@ -753,7 +796,7 @@ void CheckIdentityAndShippedCurves(Harness& h, const D3DVIEWPORT9& world, const 
     fadedRequest.frame.look.coverage = kThreeQuarterCoverage;
     const GradedFrame faded = RenderGradedFrame(h, fadedRequest);
     const CurveMatch fadedMatch = CompareStripes(faded.image, world, kStripeSampleRow, shipped, kHalfStrength);
-    Check(halfMatch.WithinConversion() && fadedMatch.WithinConversion(),
+    Check(halfMatch.WithinDitheredConversion() && fadedMatch.WithinDitheredConversion(),
           "ColorGrading=0.5 blends halfway to the curve, as ColorGrading=1 does at 0.75 Classic coverage");
 }
 
@@ -833,8 +876,9 @@ void CheckGradedSubRect(Harness& h, const D3DVIEWPORT9& world, const float* ship
                     inside.Add(ChannelOf(pixel, channel), ReferenceGraded(input, shipped, 1.0f));
             }
         }
+    AddStripeBlocks(inside, graded.image, world, kStripeSampleRow, shipped, 1.0f, kGradedSubRect);
     PrintCurveMatch("inside a 800x400 world viewport at 100,50", inside);
-    Check(graded.Draws() == 1 && outsideKept && inside.WithinConversion(),
+    Check(graded.Draws() == 1 && outsideKept && inside.WithinDitheredConversion(),
           "grading covers the saved world viewport only; pixels outside it stay bit-exact");
 }
 
@@ -878,7 +922,7 @@ void CheckGradingAfterAFogException(Harness& h, const D3DVIEWPORT9& world)
     PrintCurveMatch("the second hooked frame after a fog exception", match);
     std::printf("     grading after the fog stopped: %u and %u draws, state \"%s\"\n", first.Draws(), second.Draws(),
                 second.status.grading);
-    Check(first.Draws() == 1 && second.Draws() == 1 && match.WithinConversion(),
+    Check(first.Draws() == 1 && second.Draws() == 1 && match.WithinDitheredConversion(),
           "after a fog exception the opaque hook still captures the world viewport every frame, so the grading "
           "still draws through the world-done and frame-end hooks");
 }
@@ -969,7 +1013,7 @@ void CheckColourGradingAfterReset(Harness& h, const D3DVIEWPORT9& world, unsigne
     const GradedFrame graded = RenderGradedFrame(h, Request(world, 1.0f, g_shippedCurve));
     const CurveMatch match = CompareStripes(graded.image, world, kStripeSampleRow, g_shippedCurve, 1.0f);
     PrintCurveMatch("after Reset to 1024x600", match);
-    Check(graded.Draws() == 1 && match.WithinConversion() && graded.before.holdsCurve &&
+    Check(graded.Draws() == 1 && match.WithinDitheredConversion() && graded.before.holdsCurve &&
               graded.after.curveUploads == uploadsBeforeReset,
           "grading draws after Reset with the managed curve texture it kept, without uploading it again");
     Config defaults = {};
