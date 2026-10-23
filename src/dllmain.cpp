@@ -83,6 +83,7 @@ void Attach(HMODULE module)
         VF_LOG_INFO("EngineHooks=0; the client runs unmodified");
         return;
     }
+    engine::ChooseCurrentMap();
     const bool engineHooks = InstallEngineHooks();
     AllowFogOnNewDevices(engineHooks);
     if (cfg.lightStay)

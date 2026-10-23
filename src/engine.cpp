@@ -1,5 +1,6 @@
 #include "engine.h"
 
+#include "client_map.h"
 #include "local_light_stabiliser.h"
 
 #include "log.h"
@@ -49,7 +50,6 @@ constexpr uintptr_t kProjectionGlobal = 0x00ADF628;
 constexpr uintptr_t kCameraPosition = 0x00CD8F5C;
 constexpr uintptr_t kCameraTarget = 0x00CD8F68;
 constexpr uintptr_t kCameraInLiquid = 0x00CD8794;
-constexpr uintptr_t kCurrentMap = 0x00AB63BC;
 constexpr uintptr_t kWorldFrame = 0x00B7436C;
 constexpr uintptr_t kWorldFrameFarClip = 0xB14;
 
@@ -224,6 +224,10 @@ struct OpaqueState
 OpaqueState g_opaque = {};
 uint32_t g_opaqueCaptures = 0;
 
+constexpr int32_t kUnreadableMap = -1;
+
+uintptr_t g_currentMap = kLoadingScreenMap;
+
 template <typename T>
 T Read(uintptr_t address)
 {
@@ -369,7 +373,7 @@ LightParamsSelection ReadLightParamsSelection()
 
 bool ReadClassicLightInputsUnsafe(ClassicLightInputs& out)
 {
-    out.mapId = Read<int32_t>(kCurrentMap);
+    out.mapId = Read<int32_t>(g_currentMap);
     ReadFloats(kCameraPosition, out.camPos, 3);
     out.dayFraction = Read<float>(kDayFraction);
     out.lightParams = ReadLightParamsSelection();
@@ -431,7 +435,7 @@ bool BuildFrameInputsUnsafe(FrameInputs& out, bool withPointLights, const PointL
     out.directColor = Read<uint32_t>(kDirectColor);
     out.ambientColor = Read<uint32_t>(kAmbientColor);
     out.inLiquid = CameraInLiquid();
-    out.mapId = Read<int32_t>(kCurrentMap);
+    out.mapId = Read<int32_t>(g_currentMap);
     out.lightParams = ReadLightParamsSelection();
     const LocalLightCamera lightCamera = FrameLightCamera(out);
     CaptureLocalLightInputs(lightCamera, withPointLights, upload, out.localLights);
@@ -737,6 +741,30 @@ void LogNewLiquid(const void* settings, bool read, const LiquidDescription& d, W
         VF_LOG_INFO("water: liquid type %u -> %s (sound bank %u, material %u, flags 0x%X, texture %s)", d.id,
                     WaterClassLabel(waterClass), d.soundBank, d.materialId, d.flags, d.texture0);
 }
+}
+
+void ChooseCurrentMap()
+{
+    g_currentMap = CurrentMapAddress({});
+    if (g_currentMap == kWorldMap)
+        VF_LOG_INFO("map id read from 0x%08X, the map the far clip setter 0x%08X reads",
+                    static_cast<unsigned>(kWorldMap), static_cast<unsigned>(kFarClipSetterMapRead));
+    else
+        VF_LOG_ERROR("the far clip setter's map read at 0x%08X differs from the 12340 client; the map id is read from "
+                     "the loading screen's 0x%08X, which holds -1 after a ship or zeppelin trip",
+                     static_cast<unsigned>(kFarClipSetterMapRead), static_cast<unsigned>(kLoadingScreenMap));
+}
+
+int CurrentMapId()
+{
+    __try
+    {
+        return Read<int32_t>(g_currentMap);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return kUnreadableMap;
+    }
 }
 
 bool IsSupportedClient()

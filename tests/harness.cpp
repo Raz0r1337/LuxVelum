@@ -1,4 +1,5 @@
 #include "client_light_stay.h"
+#include "client_map.h"
 #include "client_ripple_sprites.h"
 #include "config.h"
 #include "engine.h"
@@ -2000,22 +2001,24 @@ void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstrin
     std::printf("     shipped region local lights: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", s.azerothLocalLights,
                 s.outlandLocalLights, s.northrendLocalLights);
     Check(s.azerothLocalLights == 1.0f && s.outlandLocalLights == 8.0f && s.northrendLocalLights == 8.0f &&
-              ReadText(shippedIni).find("; Local light intensity per region, 0..32,") != std::string::npos,
+              ReadText(shippedIni).find("; Local light intensity per region, 0..128 (the settings window's sliders "
+                                        "reach 96),") != std::string::npos &&
+              kRegionLocalLightsSliderMax == 96.0f && kRegionLocalLightsMax == 128.0f,
           "the shipped INI starts Outland's and Northrend's local lights at 8 and Azeroth's at 1, and documents "
-          "their range 0..32");
+          "their range 0..128 and the sliders' 96");
 
     const std::wstring savedIni = FullPath(outDir + L"\\region-local-lights.ini");
     CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE);
     WritePrivateProfileStringW(L"Luxveil", L"AzerothLocalLights", L"12", savedIni.c_str());
-    WritePrivateProfileStringW(L"Luxveil", L"OutlandLocalLights", L"24", savedIni.c_str());
-    WritePrivateProfileStringW(L"Luxveil", L"NorthrendLocalLights", L"40", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxveil", L"OutlandLocalLights", L"96", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxveil", L"NorthrendLocalLights", L"200", savedIni.c_str());
     ConfigStore written;
     written.Load(NarrowPath(savedIni));
     const Config& w = written.Get();
-    std::printf("     written 12, 24 and 40: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", w.azerothLocalLights,
+    std::printf("     written 12, 96 and 200: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", w.azerothLocalLights,
                 w.outlandLocalLights, w.northrendLocalLights);
-    Check(w.azerothLocalLights == 12.0f && w.outlandLocalLights == 24.0f && w.northrendLocalLights == 32.0f,
-          "region local lights read from the INI up to 32 and clamp to 32 above it");
+    Check(w.azerothLocalLights == 12.0f && w.outlandLocalLights == 96.0f && w.northrendLocalLights == 128.0f,
+          "region local lights read from the INI up to 128 and clamp to 128 above it");
 }
 
 bool WriteText(const std::wstring& path, const std::string& text)
@@ -2425,6 +2428,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "local_lights_checks.h"
 #include "local_light_stabiliser_checks.h"
 #include "client_light_stay_checks.h"
+#include "client_map_checks.h"
 #include "noise_variation_checks.h"
 #include "classic_phase_checks.h"
 #include "march_layer_checks.h"
@@ -2552,6 +2556,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
     CheckLocalLightsGlowByRegion();
+    CheckLocalLightReachFollowsRegion();
     CheckStormBlendsLayersByClassicIndex(classic);
     CheckScreenEffectLightSlot(classic);
     CheckZoneLights(classic);
@@ -2589,6 +2594,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         CheckHdrLocalLightColours();
         local_light_stabiliser_checks::CheckLocalLightStabiliser();
         client_light_stay_checks::CheckClientLightStay();
+        client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
         CheckInteriorFogInputs();
         water_contact_checks::CheckWaterContacts();
         CoUninitialize();
@@ -2672,6 +2678,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckHdrLocalLightColours();
     local_light_stabiliser_checks::CheckLocalLightStabiliser();
     client_light_stay_checks::CheckClientLightStay();
+    client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
     CheckInteriorFogInputs();
     CheckNoiseVariation(h.dev);
     authored_noise::CheckAuthoredNoiseOnTheGpu(h.dev);

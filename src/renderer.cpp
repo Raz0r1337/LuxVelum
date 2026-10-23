@@ -524,8 +524,9 @@ void Renderer::LogUploadedLocalLights(const FrameInputs& in, const Config& cfg, 
     const float* colour = lights[brightest].uploadedColor;
     char pool[kCaptureRejectionText];
     DescribeLightPool(in.localLights, uploaded, pool, sizeof(pool));
-    VF_LOG_INFO("local lights: %u uploaded, brightest %s (%.4g %.4g %.4g), nearest %.1f yd%s", uploaded,
-                LocalLightUpload(cfg).linear ? "linear" : "gamma", colour[0], colour[1], colour[2], nearest, pool);
+    const PointLightUpload upload = LocalLightUpload(cfg, in.mapId);
+    VF_LOG_INFO("local lights: %u uploaded, brightest %s (%.4g %.4g %.4g), nearest %.1f yd, reach x%.3g%s", uploaded,
+                upload.linear ? "linear" : "gamma", colour[0], colour[1], colour[2], nearest, upload.reach, pool);
     if (detailed)
         for (uint32_t i = 0; i < uploaded; ++i)
             LogUploadedLight(i, lights[i], in.camPos);

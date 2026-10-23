@@ -12,7 +12,6 @@ namespace
 constexpr float kMultiplierSliderMax = 4.0f;
 constexpr float kLayerSliderMax = 2.0f;
 constexpr float kLocalLightSliderMax = 8.0f;
-constexpr float kRegionLocalLightSliderMax = 24.0f;
 constexpr float kPanelWidthInLines = 30.0f;
 constexpr float kPanelHeightInLines = 42.0f;
 constexpr float kMinPanelWidthInLines = 20.0f;
@@ -214,7 +213,7 @@ bool RegionLocalLights(const char* label, float& value, const char* region)
                   "Local light intensity in %s, on top of Local light intensity; the region's density does not "
                   "change the lamps' glow",
                   region);
-    return Slider(label, value, 0.0f, kRegionLocalLightSliderMax, "%.2f", help);
+    return Slider(label, value, 0.0f, kRegionLocalLightsSliderMax, "%.2f", help, ImGuiSliderFlags_Logarithmic);
 }
 
 bool DrawRegions(Config& c)

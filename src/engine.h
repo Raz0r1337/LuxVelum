@@ -111,6 +111,8 @@ struct CodeRange
 };
 
 bool IsSupportedClient();
+void ChooseCurrentMap();
+int CurrentMapId();
 void* GameD3DDevice();
 bool CameraInLiquid();
 

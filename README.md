@@ -170,13 +170,17 @@ surface; Limits gives the lower suns.
 brighter than 1 carries it in the colour. In linear light a colour whose brightest channel is above 1 decodes only
 its chromaticity, `(c/peak)^2.2 · peak`, as the modern client scales light colours linearly (a choice; the kit lacks
 its CPU packing). Every point light scatters with one Henyey–Greenstein phase normalised to 1 toward the light,
-g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. The lights scatter
-with a gain of the region's intensity (`AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`) over its
-density (`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, at least 0.05), here and in the fitted stock fog of
-see-through models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 8 (0..32,
-the overlay's sliders reach 24): their converted layers are far thinner than the old world's (Borean Tundra at night
-0.00013/yd of ground fog against Tirisfal's 0.0045 in a tester's log), and the tester needed the slider's former
-maximum of 8 there to match the old world's lamps.
+g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. The lights scatter with
+a gain of the region's intensity (`AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`) over its density
+(`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, at least 0.05), here and in the fitted stock fog of see-through
+models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 8 (0..128, the overlay's
+logarithmic sliders reach 96): their converted layers are far thinner than the old world's (Borean Tundra at night
+0.00013/yd of ground fog against Tirisfal's 0.0045 in a tester's log), and the tester needed the slider's former maximum
+of 8 there to match the old world's lamps. Each light's cutoff radius, where its glow fades out, is that of its colour
+times the region's intensity, as for a lamp that much brighter; Azeroth at 1 keeps its radius. A tester found 24 barely
+stronger than 8 in TEST Build-24-10: in Wine's Direct3D on llvmpipe at Amberpine Lodge the march's glow at a lamp grew
+3× from 8 to 24 but the displayed glow above the scene only 1.85× (one orange lamp at 20 yd, core 55 → 89 in 8-bit
+codes, 167 at 96), and the halo of a dim lamp at 50 yd stopped at the cutoff of its unscaled colour.
 
 The eight uploaded lights are chosen by a stabiliser rather than re-ranked from scratch every frame. Every capture ranks
 the lights whose sphere meets the view frustum, at any distance, by their irradiance at the camera into a pool of up to
@@ -508,7 +512,7 @@ Gx is the graphics device `[0xC5DF88]`.
 | View, projection | Gx `+0x1B00 + 64·[+0x1AF8]`, `+0xF88`; copies at `0xADF5E8`, `0xADF628` |
 | World viewport depth range (MinZ, MaxZ) | Gx `+0xF80` |
 | Camera position / look-at target | `0xCD8F5C`, `0xCD8F68` |
-| Current map | `0xAB63BC` |
+| Current map | `0xADFBC4` (read by the far clip setter), else `0xAB63BC` |
 | Day fraction | `0xD38B04` |
 | Stock fog groups: colour, start, end (read by the render callbacks) | `0xD38B8C`–`0xD38B94`, `0xD38BA0`–`0xD38BA8` |
 | Zone fog distance (light float band 0) | `0xD38C1C` |
@@ -649,8 +653,12 @@ Engine notes behind the code:
   `0x4F712D`; values above 7 become −1) and `0x7ECEE0` clears it. In CoA's `ScreenEffect.dbc` the ghost effect
   (ID 1) and the other death-style effects use slot 4; a few event effects force slots 0, 1, 2, 3 or 5.
 - Current map. The world-transfer loading screen `0x40AD50` (`LoadingScreen.cpp`) stores its map argument in
-  `[0xAB63BC]` (`0x40AD56`, `A3 BC 63 AB 00`); `0x40AE0A` and `0x40AECF` set it to −1. In-game logs show map 0
-  in Elwynn Forest.
+  `[0xAB63BC]` (`0x40AD56`, `A3 BC 63 AB 00`); `0x40AE0A` and `0x40AECF` set it to −1. In-game logs show map 0 in Elwynn
+  Forest. The `farclip` CVar setter `0x780800` reads the map it passes to the clamp from `[0xADFBC4]` (`0x780803`,
+  `A1 C4 FB AD 00`, the 5 bytes whose FNV-1a hash Lumenveil checks as `0xF496B995BC571E34`), so the DLL reads the map
+  from `0xADFBC4` while those bytes match and from `0xAB63BC` otherwise (the log says which). Lumenveil reports −1 at
+  `0xAB63BC` after a ship or zeppelin trip; with −1 the fog took no Classic data and Azeroth's region settings,
+  Northrend's density and lamps included.
 - Far clip. The clamp `0x780770` is cdecl `float(float farclip, int mapId)`, result in ST0, caller pops; it
   bounds the value to `[0xA3E708]` (183.33) .. `[0xA3E710]` (1583.33). Its calls at `0x780810` (in the
   `farclip` CVar setter `0x780800`, also reached from Extensions.dll on zone changes) and `0x781444` (map load
@@ -980,7 +988,7 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `TransparentFog` | 0 | 1 fogs see-through effects at their own distance, 0 at the scene behind (see Transparent fog) |
 | `DataMode` | 1 | 1 Classic layers where available, 0 derived layers everywhere |
 | `AzerothDensity`, `OutlandDensity`, `NorthrendDensity` | 1, 0.15, 0.15 | Density per region, on top of `Density` |
-| `AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights` | 1, 8, 8 | Local light intensity, 0..32 |
+| `AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights` | 1, 8, 8 | Lamp intensity and reach, 0..128 |
 | `OutlandClassicFog`, `NorthrendClassicFog` | 1, 1 | 1 the converted client lights there, 0 derived layers |
 | `AzerothSkyColor`, `OutlandSkyColor`, `NorthrendSkyColor` | 0, 0, 0 | Share of the client's fog hue in the layers |
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |

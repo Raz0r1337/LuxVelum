@@ -511,9 +511,9 @@ float EnergyNormalisedPhaseScale(float g)
     return (1.0f + capped) / (kFourPi * (1.0f - capped) * (1.0f - capped));
 }
 
-PointLightUpload LocalLightUpload(const Config& cfg)
+PointLightUpload LocalLightUpload(const Config& cfg, int mapId)
 {
-    return {ScattersInLinearLight(cfg), cfg.localLightIntensity};
+    return {ScattersInLinearLight(cfg), cfg.localLightIntensity, RegionLocalLights(cfg, RegionOfMap(mapId))};
 }
 
 bool AnyLayerNoise(const FogParams& fog)

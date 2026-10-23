@@ -40,7 +40,8 @@ the reverse-engineering evidence.
   self-test), `hooks` (call-site thunks), `engine` (client addresses and frame inputs), `engine_actors` (unit walk
   for water contacts), `engine_lights` (point-light table walk, view-frustum test, ranked candidate pool),
   `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `client_code` (client
-  code views and byte guards), `client_light_stay` (the in-memory lightstay byte), `fog_data` (Classic fog data),
+  code views and byte guards), `client_light_stay` (the in-memory lightstay byte), `client_map` (the map id the far
+  clip setter reads, the loading screen's as fallback), `fog_data` (Classic fog data),
   `fog_model` (layer parameters), `renderer` (passes), `light_shadow` (halo occlusion: the light's screen position and
   shadow strength in `c10`),
   `fullscreen_triangle` (the triangle every full-screen pass draws, its edges outside the viewport),
