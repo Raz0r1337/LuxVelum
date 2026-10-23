@@ -1421,16 +1421,16 @@ void CheckHaloOcclusionSetting(const std::wstring& outDir, const std::wstring& s
     bool parsed = true;
     for (const WrittenValue& value : values)
     {
-        WritePrivateProfileStringW(L"Luxveil", L"HaloOcclusion", value.text, savedIni.c_str());
+        WritePrivateProfileStringW(L"Luxvelum", L"HaloOcclusion", value.text, savedIni.c_str());
         ConfigStore store;
         store.Load(NarrowPath(savedIni));
         parsed = parsed && store.Get().haloOcclusion == value.expected;
     }
     Check(parsed, "HaloOcclusion parses, clamps to 0..1 and keeps its default for an unreadable value");
 
-    WritePrivateProfileStringW(L"Luxveil", L"HaloOcclusion", L"0.0", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"HaloOcclusion", L"0.0", savedIni.c_str());
     for (const wchar_t* removedKey : {L"LightShafts", L"WorldShadows"})
-        WritePrivateProfileStringW(L"Luxveil", removedKey, L"1", savedIni.c_str());
+        WritePrivateProfileStringW(L"Luxvelum", removedKey, L"1", savedIni.c_str());
     ConfigStore withRemovedKeys;
     withRemovedKeys.Load(NarrowPath(savedIni));
     Check(SameLiveSettings(withRemovedKeys.Get(), shipped.Get()) && withRemovedKeys.Get().haloOcclusion == 0.0f,

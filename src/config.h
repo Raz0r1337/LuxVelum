@@ -125,5 +125,5 @@ private:
     Config m_logged;
 };
 
-bool AdoptCoAVolFogSettings(const std::string& coaVolFogIni, const std::string& luxveilIni);
+const char* AdoptEarlierSettings(const std::string& directory);
 ConfigStore& GlobalConfig();

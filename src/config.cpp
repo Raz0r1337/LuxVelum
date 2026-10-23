@@ -12,9 +12,20 @@
 
 namespace
 {
-constexpr const char* kSection = "Luxveil";
-constexpr const char* kCoAVolFogSection = "[CoAVolFog]";
-constexpr const char* kLuxveilSection = "[Luxveil]";
+constexpr const char* kSection = "Luxvelum";
+constexpr const char* kSectionLine = "[Luxvelum]";
+constexpr const char* kIniName = "Luxvelum.ini";
+
+struct EarlierSettings
+{
+    const char* ini;
+    const char* sectionLine;
+};
+
+constexpr EarlierSettings kEarlierSettings[] = {
+    {"Luxveil.ini", "[Luxveil]"},
+    {"CoAVolFog.ini", "[CoAVolFog]"},
+};
 constexpr unsigned kMaxFunctionKey = 24;
 
 struct IntSetting
@@ -269,7 +280,7 @@ bool ReadWholeFile(const std::string& path, std::string& text)
     return ok;
 }
 
-std::string WithLuxveilSection(const std::string& text)
+std::string WithSectionRenamed(const std::string& text, const char* earlierSectionLine)
 {
     std::string adopted;
     size_t start = 0;
@@ -280,7 +291,7 @@ std::string WithLuxveilSection(const std::string& text)
         const std::string line = text.substr(start, end - start);
         const size_t lastVisible = line.find_last_not_of("\r\n");
         const std::string body = lastVisible == std::string::npos ? std::string() : line.substr(0, lastVisible + 1);
-        adopted += SameText(Trimmed(body), kCoAVolFogSection) ? kLuxveilSection + line.substr(body.size()) : line;
+        adopted += SameText(Trimmed(body), earlierSectionLine) ? kSectionLine + line.substr(body.size()) : line;
         start = end;
     }
     return adopted;
@@ -294,6 +305,18 @@ bool WriteWholeFile(const std::string& path, const std::string& text)
     bool ok = std::fwrite(text.data(), 1, text.size(), file) == text.size();
     ok = std::fclose(file) == 0 && ok;
     return ok;
+}
+
+bool AdoptSettings(const std::string& earlierIni, const char* earlierSectionLine, const std::string& ini)
+{
+    std::string text;
+    if (!ReadWholeFile(earlierIni, text))
+        return false;
+    if (WriteWholeFile(ini, WithSectionRenamed(text, earlierSectionLine)))
+        return true;
+    DeleteFileA(ini.c_str());
+    VF_LOG_ERROR("settings could not be taken over from %s into %s", earlierIni.c_str(), ini.c_str());
+    return false;
 }
 
 bool IsLetterOrDigitKey(unsigned virtualKey)
@@ -467,8 +490,8 @@ bool ConfigStore::ReloadIfChanged()
     m_stamp = stamp;
     LogSettledEdits();
     ReadKeepingStartupSwitches();
-    if (!LogChanges("settings from Luxveil.ini"))
-        VF_LOG_INFO("Luxveil.ini reloaded; no live setting changed");
+    if (!LogChanges("settings from Luxvelum.ini"))
+        VF_LOG_INFO("Luxvelum.ini reloaded; no live setting changed");
     return true;
 }
 
@@ -524,7 +547,7 @@ bool ConfigStore::Save()
     m_saved = merged;
     LogSetLevel(merged.logLevel);
     VF_LOG_INFO("settings saved to %s", m_path.c_str());
-    LogChanges("settings from Luxveil.ini");
+    LogChanges("settings from Luxvelum.ini");
     return true;
 }
 
@@ -533,7 +556,7 @@ void ConfigStore::Revert()
     LogSettledEdits();
     m_stamp = FileStamp(m_path);
     ReadKeepingStartupSwitches();
-    LogChanges("settings reverted to Luxveil.ini");
+    LogChanges("settings reverted to Luxvelum.ini");
 }
 
 void ConfigStore::ReadKeepingStartupSwitches()
@@ -571,18 +594,15 @@ Config ConfigStore::ReadFile() const
     return c;
 }
 
-bool AdoptCoAVolFogSettings(const std::string& coaVolFogIni, const std::string& luxveilIni)
+const char* AdoptEarlierSettings(const std::string& directory)
 {
-    if (GetFileAttributesA(luxveilIni.c_str()) != INVALID_FILE_ATTRIBUTES)
-        return false;
-    std::string text;
-    if (!ReadWholeFile(coaVolFogIni, text))
-        return false;
-    if (WriteWholeFile(luxveilIni, WithLuxveilSection(text)))
-        return true;
-    DeleteFileA(luxveilIni.c_str());
-    VF_LOG_ERROR("settings could not be taken over from %s into %s", coaVolFogIni.c_str(), luxveilIni.c_str());
-    return false;
+    const std::string ini = directory + kIniName;
+    if (GetFileAttributesA(ini.c_str()) != INVALID_FILE_ATTRIBUTES)
+        return nullptr;
+    for (const EarlierSettings& earlier : kEarlierSettings)
+        if (AdoptSettings(directory + earlier.ini, earlier.sectionLine, ini))
+            return earlier.ini;
+    return nullptr;
 }
 
 ConfigStore& GlobalConfig()
