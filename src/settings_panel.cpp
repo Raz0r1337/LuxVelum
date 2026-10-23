@@ -253,11 +253,6 @@ bool DrawLight(Config& c)
     changed |= Multiplier("Moon scatter", c.moonScatter,
                           "In-scattered moon light at night, on its own: Sun scatter does not change it. 1 = as "
                           "bright as the sun's halo");
-    changed |= Slider("Halo occlusion", c.haloOcclusion, 0.0f, 1.0f, "%.2f",
-                      "How far terrain, trees and buildings in front of the sun or moon stop its halo and the light "
-                      "it scatters into the fog around them: the fog in their shadow keeps its ambient light and the "
-                      "glow of lamps. Only what is on screen can block the light, and it fades out as the light moves "
-                      "beside you and is off behind you. 0 = off: the light shines through them as before");
     changed |= Multiplier("Ambient", c.ambient, "Ambient fog brightness");
     changed |= Multiplier("Exposure", c.exposure, "Brightness of the layers used where no Classic data exists");
     changed |= Multiplier("Classic exposure", c.classicExposure, "Brightness of the Classic layers, 1 = default");
@@ -396,7 +391,7 @@ bool DrawDebug(Config& c)
         return false;
     bool changed = Choice("View", c.debugView, 0, kDebugViewNames, "Show one input of the fog instead of the scene");
     changed |= Toggle("Sun marker", c.sunMarker, "Red marker where the sun direction projects on screen");
-    changed |= Choice("Log level", c.logLevel, 0, kLogLevelNames, "Detail written to CoAVolFog.log");
+    changed |= Choice("Log level", c.logLevel, 0, kLogLevelNames, "Detail written to Luxveil.log");
     return changed;
 }
 }
@@ -463,7 +458,7 @@ void SettingsPanel::Draw(ConfigStore& store, const FogFrameStatus& fogStatus, co
 {
     PlaceWindow();
     const bool expanded =
-        ImGui::Begin("CoAVolFog", &open, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNavInputs);
+        ImGui::Begin("Luxveil", &open, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNavInputs);
     if (!expanded)
     {
         ImGui::End();
@@ -487,18 +482,18 @@ void SettingsPanel::DrawSaveRow(ConfigStore& store)
     ImGui::BeginDisabled(!unsaved);
     if (ImGui::Button("Save"))
         m_saveFailed = !store.Save();
-    ImGui::SetItemTooltip("Write the changed settings to CoAVolFog.ini");
+    ImGui::SetItemTooltip("Write the changed settings to Luxveil.ini");
     ImGui::SameLine();
     if (ImGui::Button("Revert"))
     {
         store.Revert();
         m_saveFailed = false;
     }
-    ImGui::SetItemTooltip("Go back to the settings in CoAVolFog.ini");
+    ImGui::SetItemTooltip("Go back to the settings in Luxveil.ini");
     ImGui::EndDisabled();
     ImGui::SameLine();
     if (m_saveFailed)
-        ImGui::TextColored(kErrorColour, "Could not write CoAVolFog.ini");
+        ImGui::TextColored(kErrorColour, "Could not write Luxveil.ini");
     else
-        ImGui::TextDisabled("%s", unsaved ? "Unsaved changes" : "Matches CoAVolFog.ini");
+        ImGui::TextDisabled("%s", unsaved ? "Unsaved changes" : "Matches Luxveil.ini");
 }

@@ -8,6 +8,7 @@
 constexpr float kLightInFrontViewZ = 0.05f;
 constexpr float kLightShadowFullViewZ = 0.2f;
 constexpr float kOccluderThicknessShare = 0.25f;
+constexpr float kLightShadowFadeBeyondPicture = 0.2f;
 
 struct LightOnScreen
 {
@@ -29,4 +30,5 @@ static_assert(sizeof(LightShadowConstants) == 4 * sizeof(float), "LightShadowCon
 LightOnScreen ProjectLightOntoViewport(const float* toLightInView, const float* glProjection, const D3DVIEWPORT9& vp);
 bool FogScattersDirectLight(const FogParams& fog);
 float LightShadowStrength(float haloOcclusion, float toLightViewZ, const FogParams& fog);
+float LightInPictureShare(const LightOnScreen& light);
 LightShadowConstants LightShadowFor(const LightOnScreen& light, const Config& cfg, const FogParams& fog);

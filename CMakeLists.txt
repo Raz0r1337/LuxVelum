@@ -132,7 +132,7 @@ target_compile_definitions(imgui
     PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS
             IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS WIN32_LEAN_AND_MEAN NOMINMAX)
 
-add_library(CoAVolFog SHARED
+add_library(Luxveil SHARED
     src/client_code.cpp
     src/client_light_stay.cpp
     src/client_ripple_sprites.cpp
@@ -164,15 +164,15 @@ add_library(CoAVolFog SHARED
     src/water_renderer.cpp
     src/water_ripples.cpp
     src/water_spectrum.cpp
-    src/CoAVolFog.def)
-add_dependencies(CoAVolFog vf_shaders)
-target_include_directories(CoAVolFog PRIVATE src ${SHADER_OUT})
-target_compile_definitions(CoAVolFog PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
-target_compile_options(CoAVolFog PRIVATE /W4 /wd4100 /arch:SSE2 /fp:fast /GS)
-target_link_libraries(CoAVolFog PRIVATE kernel32 user32 imgui)
+    src/Luxveil.def)
+add_dependencies(Luxveil vf_shaders)
+target_include_directories(Luxveil PRIVATE src ${SHADER_OUT})
+target_compile_definitions(Luxveil PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
+target_compile_options(Luxveil PRIVATE /W4 /wd4100 /arch:SSE2 /fp:fast /GS)
+target_link_libraries(Luxveil PRIVATE kernel32 user32 imgui)
 
 add_library(version SHARED proxy/version_proxy.cpp proxy/version.def)
-target_link_libraries(version PRIVATE CoAVolFog)
+target_link_libraries(version PRIVATE Luxveil)
 target_compile_definitions(version PRIVATE WIN32_LEAN_AND_MEAN)
 
 add_executable(vfog_harness tests/harness.cpp src/client_code.cpp src/client_light_stay.cpp
@@ -183,28 +183,28 @@ add_executable(vfog_harness tests/harness.cpp src/client_code.cpp src/client_lig
                src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(vfog_harness PRIVATE CoAVolFog user32 ole32 windowscodecs)
-add_custom_command(TARGET CoAVolFog POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/CoAVolFog.ini
+target_link_libraries(vfog_harness PRIVATE Luxveil user32 ole32 windowscodecs)
+add_custom_command(TARGET Luxveil POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/Luxveil.ini
             ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
-            $<TARGET_FILE_DIR:CoAVolFog>)
+            $<TARGET_FILE_DIR:Luxveil>)
 
 enable_testing()
-configure_file(CoAVolFog.ini interior-test.ini COPYONLY)
+configure_file(Luxveil.ini interior-test.ini COPYONLY)
 add_test(NAME interior_fog
     COMMAND vfog_harness --scene interior --ini ${CMAKE_CURRENT_BINARY_DIR}/interior-test.ini
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 add_test(NAME vfog_harness
     COMMAND vfog_harness --out ${CMAKE_CURRENT_BINARY_DIR}/harness-out
             --data ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
-            --ini ${CMAKE_CURRENT_SOURCE_DIR}/CoAVolFog.ini
+            --ini ${CMAKE_CURRENT_SOURCE_DIR}/Luxveil.ini
             --water-data ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 set_tests_properties(vfog_harness PROPERTIES LABELS gpu)
 add_test(NAME cpu_harness
     COMMAND vfog_harness --scene cpu --out ${CMAKE_CURRENT_BINARY_DIR}/cpu-harness-out
             --data ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
-            --ini ${CMAKE_CURRENT_SOURCE_DIR}/CoAVolFog.ini
+            --ini ${CMAKE_CURRENT_SOURCE_DIR}/Luxveil.ini
             --water-data ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 set_tests_properties(cpu_harness PROPERTIES LABELS cpu)

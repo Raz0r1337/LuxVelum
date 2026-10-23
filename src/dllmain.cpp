@@ -59,10 +59,13 @@ std::string ModuleDirectory(HMODULE module)
 void Attach(HMODULE module)
 {
     std::string dir = ModuleDirectory(module);
-    LogOpen((dir + "CoAVolFog.log").c_str());
-    GlobalConfig().Load(dir + "CoAVolFog.ini");
+    LogOpen((dir + "Luxveil.log").c_str());
+    const bool adopted = AdoptCoAVolFogSettings(dir + "CoAVolFog.ini", dir + "Luxveil.ini");
+    GlobalConfig().Load(dir + "Luxveil.ini");
     const Config& cfg = GlobalConfig().Get();
-    VF_LOG_INFO("CoAVolFog loaded from %s", dir.c_str());
+    VF_LOG_INFO("Luxveil loaded from %s", dir.c_str());
+    if (adopted)
+        VF_LOG_INFO("settings taken over from CoAVolFog.ini into Luxveil.ini");
     GlobalFogData().Load(dir + "fogdata.bin");
 
     if (!engine::IsSupportedClient())

@@ -1928,9 +1928,9 @@ void CheckOverlayKeyNames()
 void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring& shippedIni)
 {
     const std::wstring savedIni = FullPath(outDir + L"\\saved.ini");
-    Check(CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE) != FALSE, "shipped CoAVolFog.ini copied");
+    Check(CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE) != FALSE, "shipped Luxveil.ini copied");
     for (const wchar_t* removedKey : {L"LightShafts", L"WorldShadows"})
-        WritePrivateProfileStringW(L"CoAVolFog", removedKey, L"0", savedIni.c_str());
+        WritePrivateProfileStringW(L"Luxveil", removedKey, L"0", savedIni.c_str());
     ConfigStore store;
     store.Load(NarrowPath(savedIni));
     const Config shipped = store.Get();
@@ -1966,7 +1966,7 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
               r.localLights == edited.localLights && r.enable == shipped.enable && r.overlay == shipped.overlay,
           "saved settings reload unchanged and the restart-only keys stay as they were");
     const std::string text = ReadText(savedIni);
-    Check(text.rfind("; CoAVolFog settings.", 0) == 0 && text.find("\nDensity=2.5") != std::string::npos &&
+    Check(text.rfind("; Luxveil settings.", 0) == 0 && text.find("\nDensity=2.5") != std::string::npos &&
               text.find("\nHaze=1.0") != std::string::npos && text.find("\nEnable=1") != std::string::npos &&
               text.find("; Global density multiplier") != std::string::npos &&
               text.find("\nLightShafts=0") != std::string::npos && text.find("\nWorldShadows=0") != std::string::npos,
@@ -1981,7 +1981,7 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
     Config typed = store.Get();
     typed.haze = 1.23456f;
     store.Apply(typed);
-    WritePrivateProfileStringW(L"CoAVolFog", L"Quality", L"1", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxveil", L"Quality", L"1", savedIni.c_str());
     const bool mergedSave = store.Save();
     ConfigStore afterMerge;
     afterMerge.Load(NarrowPath(savedIni));
@@ -2006,9 +2006,9 @@ void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstrin
 
     const std::wstring savedIni = FullPath(outDir + L"\\region-local-lights.ini");
     CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE);
-    WritePrivateProfileStringW(L"CoAVolFog", L"AzerothLocalLights", L"12", savedIni.c_str());
-    WritePrivateProfileStringW(L"CoAVolFog", L"OutlandLocalLights", L"24", savedIni.c_str());
-    WritePrivateProfileStringW(L"CoAVolFog", L"NorthrendLocalLights", L"40", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxveil", L"AzerothLocalLights", L"12", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxveil", L"OutlandLocalLights", L"24", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxveil", L"NorthrendLocalLights", L"40", savedIni.c_str());
     ConfigStore written;
     written.Load(NarrowPath(savedIni));
     const Config& w = written.Get();
@@ -2016,6 +2016,58 @@ void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstrin
                 w.outlandLocalLights, w.northrendLocalLights);
     Check(w.azerothLocalLights == 12.0f && w.outlandLocalLights == 24.0f && w.northrendLocalLights == 32.0f,
           "region local lights read from the INI up to 32 and clamp to 32 above it");
+}
+
+bool WriteText(const std::wstring& path, const std::string& text)
+{
+    FILE* f = _wfopen(path.c_str(), L"wb");
+    if (!f)
+        return false;
+    const bool written = std::fwrite(text.data(), 1, text.size(), f) == text.size();
+    return std::fclose(f) == 0 && written;
+}
+
+constexpr const char* kLuxveilSectionLine = "[Luxveil]";
+
+void CheckCoAVolFogSettingsAreTakenOver(const std::wstring& outDir, const std::wstring& shippedIni)
+{
+    const std::wstring dir = FullPath(outDir + L"\\takeover");
+    CreateDirectoryW(dir.c_str(), nullptr);
+    const std::wstring coaVolFogIni = dir + L"\\CoAVolFog.ini";
+    const std::wstring luxveilIni = dir + L"\\Luxveil.ini";
+    DeleteFileW(luxveilIni.c_str());
+    std::string legacy = ReadText(shippedIni);
+    const size_t section = legacy.find(kLuxveilSectionLine);
+    if (section != std::string::npos)
+        legacy.replace(section, std::strlen(kLuxveilSectionLine), "[coavolfog]");
+    Check(section != std::string::npos && WriteText(coaVolFogIni, legacy), "an old CoAVolFog.ini written");
+    WritePrivateProfileStringW(L"CoAVolFog", L"Density", L"2.5", coaVolFogIni.c_str());
+    const std::string before = ReadText(coaVolFogIni);
+
+    const bool adopted = AdoptCoAVolFogSettings(NarrowPath(coaVolFogIni), NarrowPath(luxveilIni));
+    ConfigStore store;
+    store.Load(NarrowPath(luxveilIni));
+    const std::string taken = ReadText(luxveilIni);
+    ConfigStore shipped;
+    shipped.Load(NarrowPath(shippedIni));
+    Config expected = shipped.Get();
+    expected.density = 2.5f;
+    Check(adopted && SameLiveSettings(store.Get(), expected) && taken.find(kLuxveilSectionLine) != std::string::npos &&
+              taken.find("[coavolfog]") == std::string::npos &&
+              taken.find("; Global density multiplier") != std::string::npos && ReadText(coaVolFogIni) == before,
+          "without a Luxveil.ini the settings of an old CoAVolFog.ini are taken over, comments and all, under the "
+          "Luxveil section, and the old file stays as it was");
+
+    WritePrivateProfileStringW(L"CoAVolFog", L"Density", L"3", coaVolFogIni.c_str());
+    const bool again = AdoptCoAVolFogSettings(NarrowPath(coaVolFogIni), NarrowPath(luxveilIni));
+    const std::wstring emptyDir = FullPath(outDir + L"\\takeover-none");
+    CreateDirectoryW(emptyDir.c_str(), nullptr);
+    DeleteFileW((emptyDir + L"\\Luxveil.ini").c_str());
+    const bool fromNothing = AdoptCoAVolFogSettings(NarrowPath(emptyDir + L"\\CoAVolFog.ini"),
+                                                    NarrowPath(emptyDir + L"\\Luxveil.ini"));
+    Check(!again && ReadText(luxveilIni) == taken && !fromNothing &&
+              GetFileAttributesW((emptyDir + L"\\Luxveil.ini").c_str()) == INVALID_FILE_ATTRIBUTES,
+          "an existing Luxveil.ini is never overwritten, and without a CoAVolFog.ini none is made");
 }
 
 struct ClientInput
@@ -2519,6 +2571,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckOverlayKeyNames();
     CheckSettingsSaveKeepsTheIni(outDir, FullPath(iniPath));
     CheckRegionLocalLightsSetting(outDir, FullPath(iniPath));
+    CheckCoAVolFogSettingsAreTakenOver(outDir, FullPath(iniPath));
     CheckFogDataBounds(outDir, dataPath);
     forever_look_checks::CheckForeverGlow();
     forever_look_checks::CheckLookSettings(outDir, FullPath(iniPath));
@@ -3528,7 +3581,7 @@ int wmain(int argc, wchar_t** argv)
     std::wstring out = L"harness-out";
     std::string data = "fogdata.bin";
     std::string waterData = "waterdata.bin";
-    std::wstring ini = L"CoAVolFog.ini";
+    std::wstring ini = L"Luxveil.ini";
     std::wstring scene;
     D3DMULTISAMPLE_TYPE samples = D3DMULTISAMPLE_NONE;
     HarbourOptions harbour;

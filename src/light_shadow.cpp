@@ -1,6 +1,7 @@
 #include "light_shadow.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iterator>
 
 namespace
@@ -47,12 +48,20 @@ float LightShadowStrength(float haloOcclusion, float toLightViewZ, const FogPara
     return std::min(haloOcclusion, 1.0f) * SmoothStep(kLightInFrontViewZ, kLightShadowFullViewZ, toLightViewZ);
 }
 
+float LightInPictureShare(const LightOnScreen& light)
+{
+    if (!light.inFront)
+        return 0.0f;
+    const float fromCentre = std::max(std::fabs(light.ndc[0]), std::fabs(light.ndc[1]));
+    return 1.0f - SmoothStep(1.0f, 1.0f + kLightShadowFadeBeyondPicture, fromCentre);
+}
+
 LightShadowConstants LightShadowFor(const LightOnScreen& light, const Config& cfg, const FogParams& fog)
 {
     LightShadowConstants constants = {};
     constants.lightPixel[0] = light.pixel[0];
     constants.lightPixel[1] = light.pixel[1];
-    constants.strength = light.inFront ? LightShadowStrength(cfg.haloOcclusion, light.viewZ, fog) : 0.0f;
+    constants.strength = LightShadowStrength(cfg.haloOcclusion, light.viewZ, fog) * LightInPictureShare(light);
     constants.occluderThicknessShare = kOccluderThicknessShare;
     return constants;
 }

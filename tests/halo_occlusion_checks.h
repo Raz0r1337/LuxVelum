@@ -45,6 +45,7 @@ constexpr float kMaxLinearityError = 1.0e-4f;
 constexpr float kMaxLoopedDifference = 1.0e-4f;
 constexpr float kMaxOpacityChange = 1.0e-6f;
 constexpr float kMaxConstantError = 1.0e-4f;
+constexpr float kLightInPictureViewZ = 0.9f;
 constexpr float kRampMidViewZ = 0.125f;
 constexpr float kBelowFrontViewZ = 0.04f;
 constexpr int kRampSamples = 16;
@@ -1302,12 +1303,13 @@ void CheckLightShadowConstants()
           "the light projects onto the viewport where the god rays and the sun marker put it");
 
     Config full = defaults;
+    full.haloOcclusion = 1.0f;
     Config half = defaults;
     Config off = defaults;
     half.haloOcclusion = kHalfStrength;
     off.haloOcclusion = 0.0f;
     const LightShadowConstants fullShadow = LightShadowFor(onScreen, full, daylight);
-    Check(defaults.haloOcclusion == 1.0f && FogScattersDirectLight(daylight) && fullShadow.strength == 1.0f &&
+    Check(FogScattersDirectLight(daylight) && fullShadow.strength == 1.0f &&
               LightShadowFor(onScreen, half, daylight).strength == kHalfStrength &&
               LightShadowFor(onScreen, off, daylight).strength == 0.0f &&
               fullShadow.lightPixel[0] == onScreen.pixel[0] && fullShadow.lightPixel[1] == onScreen.pixel[1] &&
@@ -1319,13 +1321,12 @@ void CheckLightShadowConstants()
     for (int i = 0; i <= kRampSamples; ++i)
     {
         const float viewZ = kLightInFrontViewZ + (kLightShadowFullViewZ - kLightInFrontViewZ) * i / kRampSamples;
-        const float strength = LightShadowFor(UnitLightOnScreen(viewZ, projection, world), full, daylight).strength;
+        const float strength = LightShadowStrength(1.0f, viewZ, daylight);
         rising = rising && strength >= previous;
         previous = strength;
     }
-    const float atMid = LightShadowFor(UnitLightOnScreen(kRampMidViewZ, projection, world), full, daylight).strength;
-    const float atEnd =
-        LightShadowFor(UnitLightOnScreen(kLightShadowFullViewZ, projection, world), full, daylight).strength;
+    const float atMid = LightShadowStrength(1.0f, kRampMidViewZ, daylight);
+    const float atEnd = LightShadowStrength(1.0f, kLightShadowFullViewZ, daylight);
     const float atStart = LightShadowStrength(1.0f, kLightInFrontViewZ, daylight);
     const LightOnScreen nearlySideways = UnitLightOnScreen(kBelowFrontViewZ, projection, world);
     const LightOnScreen behind = UnitLightOnScreen(-0.5f, projection, world);
@@ -1335,6 +1336,34 @@ void CheckLightShadowConstants()
               !nearlySideways.inFront && LightShadowFor(nearlySideways, full, daylight).strength == 0.0f &&
               !behind.inFront && LightShadowFor(behind, full, daylight).strength == 0.0f,
           "the shadow fades in with the light's view z from 0.05 to 0.2 and is off while the light is behind");
+
+    const auto lightAtNdc = [](float x, float y) {
+        LightOnScreen light = {};
+        light.inFront = true;
+        light.viewZ = kLightInPictureViewZ;
+        light.ndc[0] = x;
+        light.ndc[1] = y;
+        return light;
+    };
+    bool falling = true;
+    float before = 2.0f;
+    for (int i = 0; i <= kRampSamples; ++i)
+    {
+        const float beyondEdge = 1.0f + kLightShadowFadeBeyondPicture * i / kRampSamples;
+        const float strength = LightShadowFor(lightAtNdc(0.0f, beyondEdge), full, daylight).strength;
+        falling = falling && strength <= before;
+        before = strength;
+    }
+    const float inPicture = LightShadowFor(lightAtNdc(0.6f, -0.9f), full, daylight).strength;
+    const float halfWayOut =
+        LightShadowFor(lightAtNdc(0.0f, 1.0f + 0.5f * kLightShadowFadeBeyondPicture), full, daylight).strength;
+    const float out = LightShadowFor(lightAtNdc(0.0f, 1.0f + kLightShadowFadeBeyondPicture), full, daylight).strength;
+    const float aside = LightShadowFor(lightAtNdc(-1.5f, 0.2f), full, daylight).strength;
+    std::printf("     halo occlusion strength %.3f in the picture, %.3f half way out, %.3f out, %.3f aside\n",
+                inPicture, halfWayOut, out, aside);
+    Check(falling && inPicture == 1.0f && std::fabs(halfWayOut - 0.5f) <= kMaxConstantError && out == 0.0f &&
+              aside == 0.0f,
+          "the shadow fades out while the light leaves the picture, as the occluders beyond its edge are unknown");
 
     Config sunless = defaults;
     sunless.sunScatter = 0.0f;
@@ -1375,11 +1404,11 @@ void CheckHaloOcclusionSetting(const std::wstring& outDir, const std::wstring& s
     shipped.Load(NarrowPath(shippedIni));
     const std::string text = ReadText(shippedIni);
     const std::vector<std::string> lines = water_settings_checks::IniLines(text);
-    Check(Config().haloOcclusion == 1.0f && shipped.Get().haloOcclusion == 1.0f &&
-              std::count(lines.begin(), lines.end(), std::string("HaloOcclusion=1.0")) == 1 &&
-              text.find("; How far terrain, trees and buildings in front of the sun or moon stop its halo") !=
+    Check(Config().haloOcclusion == 0.0f && shipped.Get().haloOcclusion == 0.0f &&
+              std::count(lines.begin(), lines.end(), std::string("HaloOcclusion=0.0")) == 1 &&
+              text.find("; Experimental, off by default and not in the settings window: how far terrain") !=
                   std::string::npos,
-          "HaloOcclusion defaults to 1 in the code and the shipped INI, which documents it");
+          "HaloOcclusion is off by default in the code and the shipped INI, which documents it as experimental");
 
     const std::wstring savedIni = FullPath(outDir + L"\\halo-occlusion.ini");
     CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE);
@@ -1388,23 +1417,23 @@ void CheckHaloOcclusionSetting(const std::wstring& outDir, const std::wstring& s
         const wchar_t* text;
         float expected;
     };
-    const WrittenValue values[] = {{L"0.35", 0.35f}, {L"0", 0.0f}, {L"-2", 0.0f}, {L"7", 1.0f}, {L"abc", 1.0f}};
+    const WrittenValue values[] = {{L"0.35", 0.35f}, {L"1", 1.0f}, {L"-2", 0.0f}, {L"7", 1.0f}, {L"abc", 0.0f}};
     bool parsed = true;
     for (const WrittenValue& value : values)
     {
-        WritePrivateProfileStringW(L"CoAVolFog", L"HaloOcclusion", value.text, savedIni.c_str());
+        WritePrivateProfileStringW(L"Luxveil", L"HaloOcclusion", value.text, savedIni.c_str());
         ConfigStore store;
         store.Load(NarrowPath(savedIni));
         parsed = parsed && store.Get().haloOcclusion == value.expected;
     }
     Check(parsed, "HaloOcclusion parses, clamps to 0..1 and keeps its default for an unreadable value");
 
-    WritePrivateProfileStringW(L"CoAVolFog", L"HaloOcclusion", L"1.0", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxveil", L"HaloOcclusion", L"0.0", savedIni.c_str());
     for (const wchar_t* removedKey : {L"LightShafts", L"WorldShadows"})
-        WritePrivateProfileStringW(L"CoAVolFog", removedKey, L"1", savedIni.c_str());
+        WritePrivateProfileStringW(L"Luxveil", removedKey, L"1", savedIni.c_str());
     ConfigStore withRemovedKeys;
     withRemovedKeys.Load(NarrowPath(savedIni));
-    Check(SameLiveSettings(withRemovedKeys.Get(), shipped.Get()) && withRemovedKeys.Get().haloOcclusion == 1.0f,
+    Check(SameLiveSettings(withRemovedKeys.Get(), shipped.Get()) && withRemovedKeys.Get().haloOcclusion == 0.0f,
           "LightShafts=1 and WorldShadows=1 stay ignored keys beside HaloOcclusion");
 
     ConfigStore store;
@@ -1417,7 +1446,7 @@ void CheckHaloOcclusionSetting(const std::wstring& outDir, const std::wstring& s
     ConfigStore reloaded;
     reloaded.Load(NarrowPath(savedIni));
     std::printf("     the settings window's HaloOcclusion change logs \"%s\"\n", changes.c_str());
-    Check(saved && reloaded.Get().haloOcclusion == kHalfStrength && changes == "HaloOcclusion 1 -> 0.5" &&
+    Check(saved && reloaded.Get().haloOcclusion == kHalfStrength && changes == "HaloOcclusion 0 -> 0.5" &&
               ReadText(savedIni).find("\nHaloOcclusion=0.5") != std::string::npos &&
               !SameFogSettings(reloaded.Get(), shipped.Get()),
           "a HaloOcclusion change is logged, saved to the INI, read back and counts as a fog setting change");

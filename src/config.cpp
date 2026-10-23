@@ -12,7 +12,9 @@
 
 namespace
 {
-constexpr const char* kSection = "CoAVolFog";
+constexpr const char* kSection = "Luxveil";
+constexpr const char* kCoAVolFogSection = "[CoAVolFog]";
+constexpr const char* kLuxveilSection = "[Luxveil]";
 constexpr unsigned kMaxFunctionKey = 24;
 
 struct IntSetting
@@ -253,6 +255,47 @@ bool SameText(const std::string& text, const char* name)
     return _stricmp(text.c_str(), name) == 0;
 }
 
+bool ReadWholeFile(const std::string& path, std::string& text)
+{
+    FILE* file = std::fopen(path.c_str(), "rb");
+    if (!file)
+        return false;
+    char buffer[4096];
+    size_t read = 0;
+    while ((read = std::fread(buffer, 1, sizeof(buffer), file)) > 0)
+        text.append(buffer, read);
+    const bool ok = !std::ferror(file);
+    std::fclose(file);
+    return ok;
+}
+
+std::string WithLuxveilSection(const std::string& text)
+{
+    std::string adopted;
+    size_t start = 0;
+    while (start < text.size())
+    {
+        const size_t newline = text.find('\n', start);
+        const size_t end = newline == std::string::npos ? text.size() : newline + 1;
+        const std::string line = text.substr(start, end - start);
+        const size_t lastVisible = line.find_last_not_of("\r\n");
+        const std::string body = lastVisible == std::string::npos ? std::string() : line.substr(0, lastVisible + 1);
+        adopted += SameText(Trimmed(body), kCoAVolFogSection) ? kLuxveilSection + line.substr(body.size()) : line;
+        start = end;
+    }
+    return adopted;
+}
+
+bool WriteWholeFile(const std::string& path, const std::string& text)
+{
+    FILE* file = std::fopen(path.c_str(), "wb");
+    if (!file)
+        return false;
+    bool ok = std::fwrite(text.data(), 1, text.size(), file) == text.size();
+    ok = std::fclose(file) == 0 && ok;
+    return ok;
+}
+
 bool IsLetterOrDigitKey(unsigned virtualKey)
 {
     return (virtualKey >= '0' && virtualKey <= '9') || (virtualKey >= 'A' && virtualKey <= 'Z');
@@ -424,8 +467,8 @@ bool ConfigStore::ReloadIfChanged()
     m_stamp = stamp;
     LogSettledEdits();
     ReadKeepingStartupSwitches();
-    if (!LogChanges("settings from CoAVolFog.ini"))
-        VF_LOG_INFO("CoAVolFog.ini reloaded; no live setting changed");
+    if (!LogChanges("settings from Luxveil.ini"))
+        VF_LOG_INFO("Luxveil.ini reloaded; no live setting changed");
     return true;
 }
 
@@ -481,7 +524,7 @@ bool ConfigStore::Save()
     m_saved = merged;
     LogSetLevel(merged.logLevel);
     VF_LOG_INFO("settings saved to %s", m_path.c_str());
-    LogChanges("settings from CoAVolFog.ini");
+    LogChanges("settings from Luxveil.ini");
     return true;
 }
 
@@ -490,7 +533,7 @@ void ConfigStore::Revert()
     LogSettledEdits();
     m_stamp = FileStamp(m_path);
     ReadKeepingStartupSwitches();
-    LogChanges("settings reverted to CoAVolFog.ini");
+    LogChanges("settings reverted to Luxveil.ini");
 }
 
 void ConfigStore::ReadKeepingStartupSwitches()
@@ -526,6 +569,20 @@ Config ConfigStore::ReadFile() const
     ForEachBoolSetting([&](const BoolSetting& s) { c.*s.value = ReadInt(p, s.key, c.*s.value ? 1 : 0, 0, 1) != 0; });
     ClampLiveSettings(c);
     return c;
+}
+
+bool AdoptCoAVolFogSettings(const std::string& coaVolFogIni, const std::string& luxveilIni)
+{
+    if (GetFileAttributesA(luxveilIni.c_str()) != INVALID_FILE_ATTRIBUTES)
+        return false;
+    std::string text;
+    if (!ReadWholeFile(coaVolFogIni, text))
+        return false;
+    if (WriteWholeFile(luxveilIni, WithLuxveilSection(text)))
+        return true;
+    DeleteFileA(luxveilIni.c_str());
+    VF_LOG_ERROR("settings could not be taken over from %s into %s", coaVolFogIni.c_str(), luxveilIni.c_str());
+    return false;
 }
 
 ConfigStore& GlobalConfig()
