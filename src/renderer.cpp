@@ -3,7 +3,7 @@
 #include "fog_data.h"
 #include "fog_model.h"
 #include "fullscreen_triangle.h"
-#include "light_shadow.h"
+#include "light_on_screen.h"
 #include "noise_volume.h"
 #include "log.h"
 
@@ -57,7 +57,6 @@ namespace
 {
 constexpr UINT kPixelConstants = 100;
 constexpr UINT kSampleSideRegister = 99;
-constexpr UINT kLightShadowRegister = 10;
 constexpr int kQualityLevels = 3;
 constexpr DWORD kAllStencilBits = 0xFF;
 constexpr DWORD kUnmarkedSamples = 0;
@@ -68,6 +67,7 @@ constexpr UINT kLayerNoiseRegister = 36;
 constexpr DWORD kAuthoredNoiseStage = 10;
 constexpr double kMaxNoiseStepSeconds = 0.25;
 constexpr UINT kRayScale = 4;
+constexpr UINT kRaySourceTexelsPerRayTexel = 2;
 constexpr float kMinViewportDepthExtent = 0.01f;
 constexpr float kDeepestWorldDepthInFullRangeViewport = 0.9999995f;
 constexpr float kWorldDepthMargin = 2.0e-6f;
@@ -389,6 +389,7 @@ void Renderer::ReleaseDefaultPool()
     SafeRelease(m_historyDepth);
     SafeRelease(m_rays[0]);
     SafeRelease(m_rays[1]);
+    SafeRelease(m_raySource);
     SafeRelease(m_sceneCopy);
     SafeRelease(m_localLightData);
     SafeRelease(m_densityNoise);
@@ -785,6 +786,7 @@ bool Renderer::EnsureTargets(IDirect3DDevice9* dev, UINT lowW, UINT lowH, UINT r
     SafeRelease(m_historyDepth);
     SafeRelease(m_rays[0]);
     SafeRelease(m_rays[1]);
+    SafeRelease(m_raySource);
     m_historyValid = false;
 
     D3DFORMAT fogFormat = D3DFMT_A16B16G16R16F;
@@ -798,7 +800,9 @@ bool Renderer::EnsureTargets(IDirect3DDevice9* dev, UINT lowW, UINT lowH, UINT r
          CreateTarget(dev, lowW, lowH, fogFormat, &m_history[1]) &&
          CreateTarget(dev, lowW, lowH, D3DFMT_A8R8G8B8, &m_historyDepth) &&
          CreateTarget(dev, rayW, rayH, D3DFMT_A8R8G8B8, &m_rays[0]) &&
-         CreateTarget(dev, rayW, rayH, D3DFMT_A8R8G8B8, &m_rays[1]);
+         CreateTarget(dev, rayW, rayH, D3DFMT_A8R8G8B8, &m_rays[1]) &&
+         CreateTarget(dev, rayW * kRaySourceTexelsPerRayTexel, rayH * kRaySourceTexelsPerRayTexel, D3DFMT_A8R8G8B8,
+                      &m_raySource);
     if (!ok)
     {
         VF_LOG_ERROR("render target creation failed (%ux%u)", lowW, lowH);
@@ -808,6 +812,7 @@ bool Renderer::EnsureTargets(IDirect3DDevice9* dev, UINT lowW, UINT lowH, UINT r
         SafeRelease(m_historyDepth);
         SafeRelease(m_rays[0]);
         SafeRelease(m_rays[1]);
+        SafeRelease(m_raySource);
         return Skip("render target creation failed");
     }
 
@@ -815,8 +820,9 @@ bool Renderer::EnsureTargets(IDirect3DDevice9* dev, UINT lowW, UINT lowH, UINT r
     m_lowH = lowH;
     m_rayW = rayW;
     m_rayH = rayH;
-    VF_LOG_INFO("targets: fog %ux%u (%s), depth history rgba8, rays %ux%u", lowW, lowH,
-                fogFormat == D3DFMT_A16B16G16R16F ? "fp16" : "rgba8", rayW, rayH);
+    VF_LOG_INFO("targets: fog %ux%u (%s), depth history rgba8, rays %ux%u from a %ux%u scene copy", lowW, lowH,
+                fogFormat == D3DFMT_A16B16G16R16F ? "fp16" : "rgba8", rayW, rayH, rayW * kRaySourceTexelsPerRayTexel,
+                rayH * kRaySourceTexelsPerRayTexel);
     return true;
 }
 
@@ -1028,7 +1034,7 @@ IDirect3DTexture9* Renderer::FilterWithHistory(IDirect3DDevice9* dev, IDirect3DT
 void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const FrameInputs& in, const Config& cfg,
                                const FogParams& fog, const AuthoredFog& authored, const D3DSURFACE_DESC& depthDesc,
                                const float* viewToWorld, const float* toLightInView, const float* sunPx,
-                               float rayStrength, float haloOcclusionStrength)
+                               float rayStrength)
 {
     const D3DVIEWPORT9& vp = in.viewport;
     const bool viewChanged = std::fabs(in.farClip - m_loggedFarClip) > 1.0f || vp.Width != m_loggedViewport.Width ||
@@ -1055,10 +1061,10 @@ void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const Frame
                 in.camPos[0], in.camPos[1], in.camPos[2], viewToWorld[12], viewToWorld[13], viewToWorld[14],
                 in.camTarget[0], in.camTarget[1], in.camTarget[2]);
     VF_LOG_INFO("  day %.4f %s toLight (%.3f %.3f %.3f) view (%.3f %.3f %.3f) vis %.2f above %.2f "
-                "sunPx (%.0f %.0f) rays %.2f halo occlusion strength %.2f",
+                "sunPx (%.0f %.0f) rays %.2f",
                 in.dayFraction, in.lightIsMoon ? "moon" : "sun", in.toLight[0], in.toLight[1], in.toLight[2],
                 toLightInView[0], toLightInView[1], toLightInView[2], fog.lightVisibility, fog.lightAboveHorizon,
-                sunPx[0], sunPx[1], rayStrength, haloOcclusionStrength);
+                sunPx[0], sunPx[1], rayStrength);
     VF_LOG_INFO("  map %d fog %08X start %.1f end %.1f zone %.1f sun %08X direct %08X ambient %08X refZ %.1f "
                 "glow %.2f, direct light vs Classic %.2f",
                 in.mapId, in.fogColor, in.fogStart, in.fogEnd, in.zoneFogDistance, in.sunColor, in.directColor,
@@ -1210,12 +1216,12 @@ void Renderer::PrepareFullscreenPasses(IDirect3DDevice9* dev)
 
 void Renderer::CopySceneForGodRays(IDirect3DDevice9* dev, IDirect3DSurface9* target, const D3DVIEWPORT9& vp)
 {
-    IDirect3DSurface9* raySurface = nullptr;
+    IDirect3DSurface9* sourceSurface = nullptr;
     const RECT world = ViewportRect(vp);
-    if (SUCCEEDED(m_rays[0]->GetSurfaceLevel(0, &raySurface)))
+    if (SUCCEEDED(m_raySource->GetSurfaceLevel(0, &sourceSurface)))
     {
-        dev->StretchRect(target, &world, raySurface, nullptr, D3DTEXF_LINEAR);
-        raySurface->Release();
+        dev->StretchRect(target, &world, sourceSurface, nullptr, D3DTEXF_LINEAR);
+        sourceSurface->Release();
     }
 }
 
@@ -1230,7 +1236,7 @@ void Renderer::DrawGodRayMask(IDirect3DDevice9* dev, IDirect3DTexture9* depthTex
     };
     dev->SetPixelShaderConstantF(9, &mask[0].x, 2);
     BindTexture(dev, 0, depthTexture, false);
-    BindTexture(dev, 1, m_rays[0], true);
+    BindTexture(dev, 1, m_raySource, true);
     DrawFullscreenTriangle(dev);
 
     float norm = 0.0f;
@@ -1257,7 +1263,8 @@ bool Renderer::DrawGodRaysOverScene(IDirect3DDevice9* dev, const SceneDepth& dep
                                     const D3DSURFACE_DESC& depthDesc, const GodRayFrame& rays)
 {
     const D3DVIEWPORT9& vp = rays.viewport;
-    if (!m_rays[0] || !m_rays[1] || vp.X + vp.Width > depthDesc.Width || vp.Y + vp.Height > depthDesc.Height)
+    if (!m_rays[0] || !m_rays[1] || !m_raySource || vp.X + vp.Width > depthDesc.Width ||
+        vp.Y + vp.Height > depthDesc.Height)
         return Skip("god ray targets unavailable");
     PrepareFullscreenPasses(dev);
     dev->SetPixelShaderConstantF(0, &rays.common[0][0], 9);
@@ -1357,7 +1364,6 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     const bool sunInFront = celestialOnScreen.inFront;
     const float sunNdcExtent = std::max(std::fabs(celestialOnScreen.ndc[0]), std::fabs(celestialOnScreen.ndc[1]));
     const float sunScreenFade = sunInFront ? std::clamp(1.6f - sunNdcExtent, 0.0f, 1.0f) : 0.0f;
-    const LightShadowConstants lightShadow = LightShadowFor(celestialOnScreen, cfg, fog);
     const float rayStrength = cfg.godRays * fog.lightVisibility * sunScreenFade;
     const bool rays = rayStrength > kMinGodRayStrength;
     const bool raysAfterWorld = rays && pass == FogPass::BeforeTransparents;
@@ -1371,8 +1377,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     std::memcpy(godRays.colour, fog.rayColor, sizeof(godRays.colour));
     godRays.glowToCompensate = cfg.glowCompensation ? in.clientGlowAmount : 0.0f;
 
-    LogFrameSummary(dev, now, in, cfg, fog, authored, depthDesc, viewToWorld, toLightInView, sunPx, rayStrength,
-                    lightShadow.strength);
+    LogFrameSummary(dev, now, in, cfg, fog, authored, depthDesc, viewToWorld, toLightInView, sunPx, rayStrength);
 
     if (LogEnabled(LogLevel::Info))
         m_gpuTimer.Begin(dev);
@@ -1389,7 +1394,6 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     const Float4 celestialLight = {toLightInView[0], toLightInView[1], toLightInView[2], fog.lightAboveHorizon};
     const Float4 march = {cfg.temporal > 0.0f ? 1.0f : 0.0f, fog.maxDistance, fog.horizonStart, fog.farClip};
     dev->SetPixelShaderConstantF(9, &celestialLight.x, 1);
-    dev->SetPixelShaderConstantF(kLightShadowRegister, lightShadow.lightPixel, 1);
     dev->SetPixelShaderConstantF(11, &march.x, 1);
     static_assert(sizeof(FogLayer) == 6 * sizeof(Float4), "FogLayer is six shader registers");
     dev->SetPixelShaderConstantF(12, &fog.layers[0].start, 6 * kFogLayers);
@@ -1491,7 +1495,6 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     m_drawnSplitComposite = splitSamples ? CompositeShader(compositeChoice, true) : nullptr;
     dev->SetPixelShader(m_drawnComposite);
     dev->SetPixelShaderConstantF(9, &celestialLight.x, 1);
-    dev->SetPixelShaderConstantF(kLightShadowRegister, lightShadow.lightPixel, 1);
     dev->SetPixelShaderConstantF(11, &march.x, 1);
     const FogParams compositeMarchFog = marchesLocalLights ? WithMeanNoise(fog) : fog;
     dev->SetPixelShaderConstantF(12, &compositeMarchFog.layers[0].start, 6 * kFogLayers);

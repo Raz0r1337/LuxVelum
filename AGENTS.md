@@ -42,8 +42,7 @@ pass and draws the fog after the world. It is built with CMake and MSVC; the sha
   `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `client_code` (client
   code views and byte guards), `client_light_stay` (the in-memory lightstay byte), `client_map` (the map id the far
   clip setter reads, the loading screen's as fallback), `fog_data` (Classic fog data),
-  `fog_model` (layer parameters), `renderer` (passes), `light_shadow` (halo occlusion: the light's screen position and
-  shadow strength in `c10`),
+  `fog_model` (layer parameters), `renderer` (passes), `light_on_screen` (the sun's or moon's position on screen),
   `fullscreen_triangle` (the triangle every full-screen pass draws, its edges outside the viewport),
   `transparent_fog` (linear stock fog fitted to the volumetric fog for see-through models after the early composite),
   `overlay` (ImGui settings window: input chaining, drawing at `Present`), `settings_panel` (its widgets), `config`,
@@ -55,8 +54,8 @@ pass and draws the fog after the world. It is built with CMake and MSVC; the sha
   (colour grading pass).
 - `shaders/` — the ps_3_0 passes: `vf_*` fog (march, temporal, composite and its multisampled silhouette split, god
   rays and their late composite after an early one, depth probe and depth-copy check), `vw_*` water (FFT, ripple
-  step, depth copy, shading) and `vp_grade` (colour grading). Among the includes, `vf_light_shadow` holds the halo
-  occlusion taps along the march and `vf_pixel_noise` the pixel noise of the step jitter and the display dither.
+  step, depth copy, shading) and `vp_grade` (colour grading). Among the includes, `vf_pixel_noise` holds the pixel
+  noise of the step jitter and the display dither.
 - `tests/harness.cpp` — the offline D3D9 harness; `--scene harbour` renders a logged in-game frame, `--scene ripples`
   units wading through the basin. `tests/shaders/` holds a copy of the client's M2 fog shader for the transparent fog
   checks.

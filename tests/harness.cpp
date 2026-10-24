@@ -9,7 +9,7 @@
 #include "fullscreen_triangle.h"
 #include "gpu_timing.h"
 #include "grading_renderer.h"
-#include "light_shadow.h"
+#include "light_on_screen.h"
 #include "local_light_stabiliser.h"
 #include "log.h"
 #include "msaa_depth.h"
@@ -1926,12 +1926,38 @@ void CheckOverlayKeyNames()
           "overlay key names read back as written");
 }
 
+void CheckLightProjectsOntoTheViewport()
+{
+    const D3DVIEWPORT9 offset = {10, 20, 800, 600, 0.0f, 1.0f};
+    float projection[16] = {};
+    projection[0] = 1.2f;
+    projection[5] = 2.1f;
+    projection[8] = 0.02f;
+    projection[9] = -0.03f;
+    const Vec3 toLight = Norm({0.2f, 0.3f, 0.9f});
+    const float toLightInView[3] = {toLight.x, toLight.y, toLight.z};
+    const LightOnScreen onScreen = ProjectLightOntoViewport(toLightInView, projection, offset);
+    const float ndcX = toLight.x / toLight.z * projection[0] + projection[8];
+    const float ndcY = toLight.y / toLight.z * projection[5] + projection[9];
+    const float column = offset.X + (ndcX * 0.5f + 0.5f) * offset.Width;
+    const float row = offset.Y + (0.5f - ndcY * 0.5f) * offset.Height;
+    const float sideways[3] = {1.0f, 0.0f, 0.5f * kLightInFrontViewZ};
+    const float behind[3] = {0.0f, 0.6f, -0.8f};
+    Check(onScreen.inFront && Near(onScreen.pixel[0], column) && Near(onScreen.pixel[1], row) &&
+              Near(onScreen.ndc[0], ndcX) && Near(onScreen.ndc[1], ndcY) &&
+              !ProjectLightOntoViewport(sideways, projection, offset).inFront &&
+              !ProjectLightOntoViewport(behind, projection, offset).inFront,
+          "the sun or moon projects onto the viewport where the god rays and the sun marker put it, and a light "
+          "beside or behind the camera is not in front");
+}
+
 void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring& shippedIni)
 {
     const std::wstring savedIni = FullPath(outDir + L"\\saved.ini");
     Check(CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE) != FALSE, "shipped Luxvelum.ini copied");
     for (const wchar_t* removedKey : {L"LightShafts", L"WorldShadows"})
         WritePrivateProfileStringW(L"Luxvelum", removedKey, L"0", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"HaloOcclusion", L"1", savedIni.c_str());
     ConfigStore store;
     store.Load(NarrowPath(savedIni));
     const Config shipped = store.Get();
@@ -1940,8 +1966,10 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
     shippedStore.Load(NarrowPath(shippedIni));
     const std::string shippedText = ReadText(shippedIni);
     Check(SameLiveSettings(shipped, shippedStore.Get()) && shippedText.find("LightShafts") == std::string::npos &&
-              shippedText.find("WorldShadows") == std::string::npos,
-          "the removed LightShafts and WorldShadows keys are gone from the shipped INI and ignored in an old one");
+              shippedText.find("WorldShadows") == std::string::npos &&
+              shippedText.find("HaloOcclusion") == std::string::npos,
+          "the removed LightShafts, WorldShadows and HaloOcclusion keys are gone from the shipped INI and ignored in "
+          "an old one, HaloOcclusion=1 included");
 
     Config edited = shipped;
     edited.enable = false;
@@ -1970,7 +1998,8 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
     Check(text.rfind("; Luxvelum settings.", 0) == 0 && text.find("\nDensity=2.5") != std::string::npos &&
               text.find("\nHaze=1.0") != std::string::npos && text.find("\nEnable=1") != std::string::npos &&
               text.find("; Global density multiplier") != std::string::npos &&
-              text.find("\nLightShafts=0") != std::string::npos && text.find("\nWorldShadows=0") != std::string::npos,
+              text.find("\nLightShafts=0") != std::string::npos && text.find("\nWorldShadows=0") != std::string::npos &&
+              text.find("\nHaloOcclusion=1") != std::string::npos,
           "saving rewrites only the changed lines and keeps the comments and unknown keys");
 
     Config scratch = store.Get();
@@ -2478,7 +2507,6 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "transparent_fog_checks.h"
 #include "early_composite_look_checks.h"
 #include "multisampling_checks.h"
-#include "halo_occlusion_checks.h"
 
 void CheckFirstColumnIsFogged(const Image& transmittance, const D3DVIEWPORT9& world)
 {
@@ -2604,8 +2632,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     water_data_checks::CheckWaterData(outDir, waterDataPath);
     water_settings_checks::CheckWaterSettings(outDir, FullPath(iniPath));
     transparent_fog_checks::CheckTransparentFogSetting(outDir, FullPath(iniPath));
-    halo_occlusion::CheckLightShadowConstants();
-    halo_occlusion::CheckHaloOcclusionSetting(outDir, FullPath(iniPath));
+    CheckLightProjectsOntoTheViewport();
 
     if (cpuOnly)
     {
@@ -2705,9 +2732,6 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     authored_noise::CheckAuthoredNoiseOnTheGpu(h.dev);
     classic_phase::CheckIsotropicSlabSaturation(h.dev);
     march_layers::CheckUnrolledMarchMatchesLoopedMarch(h.dev);
-    halo_occlusion::CheckHaloOcclusionMarch(h.dev);
-    halo_occlusion::CheckHaloOcclusionNearTheFarClip(h.dev);
-    halo_occlusion::CheckHaloOcclusionInTheComposites(h.dev);
     local_light_gpu::CheckLocalLightIntegration(h.dev);
     silhouette_quality::CheckSilhouettes(h.dev);
     grazing_upsample::CheckGrazingGroundUpsample(h.dev);
@@ -2717,8 +2741,6 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckTemporalFallbackNoise(h.dev);
     CheckLightDisappearanceHistory(h);
     CheckSunOccluderLeavesFogLit(h);
-    halo_occlusion::CheckHaloOcclusionInTheRenderer(h);
-    halo_occlusion::CheckHaloOcclusionAtFullResolutionWithTemporal(h);
     classic_phase::CheckSunsetHaloKeepsItsHue(h, FullPath(iniPath));
     water_fft_checks::CheckWaterFft(h.dev);
     water_mask_packing_checks::CheckWaveFoamMaskPacking(h.dev);

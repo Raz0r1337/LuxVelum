@@ -55,10 +55,6 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
   the fog of the sky mirrored above it; levelled to the horizon, its rays crossed the whole fog range and showed a
   white wall.
 - **Forward scattering** around the visible sun or moon sprite (Henyey–Greenstein phase).
-- **Halo occlusion**: terrain, trees and buildings on screen in front of the sun or moon shadow its halo and the light
-  it scatters into the fog behind them, while that fog keeps its ambient light and the glow of local lights
-  (`HaloOcclusion`, experimental and off by default since TEST Build-24-11: in 24-10 under a lowered camera the trees in
-  the picture cast streaks through the fog, and testers found the halo no longer shines through the trees without it).
 - **Local lights**: up to eight native point lights in view scatter into the medium with the client's constant,
   linear and quadratic attenuation. Light/ray intersections preserve small light volumes between march samples.
   Every light scatters with one shared phase (`LocalLightPhase`), and one brighter than 1 keeps its intensity.
@@ -107,64 +103,6 @@ pixel's plane, lights and curvature aside, because its own march takes the noise
 
 Every full-screen pass draws one triangle whose edges lie outside the viewport (NDC −1.5 and 4.5), so it covers every
 4x sample of the edge columns; Direct3D 9 maps NDC −1 onto the first column's centres.
-
-**Halo occlusion** (experimental, `HaloOcclusion=0` by default, no slider in the settings window). The sun's and moon's
-in-scatter is shadowed by what the depth buffer holds between a pixel and the light. The light path from a fog point at
-view depth z on the pixel's ray projects onto the screen segment from the pixel to the light's projected position, and
-at the fraction s of that segment it lies at view depth z/(1−s): a surface the depth buffer holds there at view depth
-z_S hides it once z ≥ z_S(1−s), and a surface of thickness T only while z ≤ (z_S + T)(1−s). Each march ray takes 12, 16
-or 24 depth taps along the segment (`Quality` 1, 2, 3), clipped to the viewport, starting one pixel out so that a pixel
-never shadows itself through its own texel, and offset by the march's step jitter (fixed midpoints with `Temporal=0`);
-it keeps where its solid shadow starts and where its shadow behind thin casters starts and ends. A tap at least half as
-deep as the pixel's own surface is solid, as a cliff or a hill hides the light path behind it; a nearer one, a trunk or
-a character in front of a cliff, is a slab max(2 yd, 0.25·z_S) thick, behind which the last solid tap's shadow continues
-so a near object does not punch the cliff's shadow open. Sky pixels have no surface, so every caster in front of the sky
-is a slab. The solid and continued shadow ends at the pixel's surface, and the slabs' shadow ends where the solid one
-begins. For a surface in the horizon blend (from 0.85 of the far clip) or beyond the far clip the march extends the ray
-toward `MaxDistance`, fog for which the depth buffer holds no casters, and that extension stays lit: the quantised taps
-of the ground just behind the surface cannot shadow it, and a face inside the blend is shadowed alike in every row, as
-before the blend. Sky taps are open. Distant terrain (WDL), whose depth decodes as `MaxDistance`, occludes there for
-every pixel that is not distant terrain itself, so a ridge beyond the far clip shadows the sky above it and the ground's
-fog before the blend, and in the blend up to the ground's surface, beyond which the extension stays lit. A
-distant-terrain pixel's own depth is unknown, so it is shadowed as the sky is: its distant-terrain taps are open, since
-the terrain they hold may lie in front of or behind the pixel's own, and every nearer caster is a slab, with no shadow
-continuing behind it. A trunk in front of a distant-terrain skyline beside the sun thus shadows the terrain's fog as it
-does the sky's above it; continuing the terrain's surface behind the trunk left a hard step along the skyline (320×180
-port, camera 3 yd up, a 1 yd trunk 30 yd away, sun 3° up beside it: the distant terrain lost up to 0.69 of its direct
-light at σ 0.00013/yd and 0.19 at 0.0015/yd, while the sky lost at most 0.008 and 0.041; now the terrain loses at most
-0.007 and 0.038). Flat ground cannot shadow the fog in front of itself: a light path above the ground lies in front of
-the ground the depth buffer holds at every tap, up to the depth texels' quantisation. The line left to the light is kept
-above 10⁻⁶ of the segment, so a tap that rounds onto the light (a step jitter a few ulps below 1) cannot start a shadow
-at the camera. Each step's lit share is its overlap with these intervals, computed analytically, and scales only the
-direct-light term of every layer (Classic, derived and the distance fog); the emissive and ambient light, the opacity
-and the local lights are unchanged. The strength is `HaloOcclusion` times a smoothstep of the light direction's
-view-space z from 0.05 to 0.2 (87° to 78° off the view axis), so it fades out before the light's projection runs off to
-infinity and is 0 while the light is behind the camera, and times a fade while the light leaves the picture, from its
-edge to a fifth of the half picture beyond it (normalised device coordinates 1 to 1.2): with the light above the
-picture, as under a lowered camera, the line to it ends at the picture's edge, the casters beyond it are unknown, and
-the trees cut by the edge would cast streaks across the whole picture; it is also 0, and the taps are skipped, while no
-layer scatters direct light (sunless light or a full interior blend). The light pixel, the strength and the thickness
-share sit in `c10`, uploaded before the march and again before the composite, whose full-resolution fallback marches,
-since the temporal pass overwrites `c9` to `c12` in between. To stay within 32 temporary registers the composites with
-authored noise keep only the solid shadow in that fallback march; the low-resolution march keeps both. The taps add 89
-to 124 instruction slots per variant (the plain march 537 → 657) and up to four temporaries, at most 32 (the lit noisy
-march and the lit and noisy composites). At strength 0 a branch also skips each step's lit share: the plain march's step
-loop runs 217 instructions at `Quality=2`, against 207 before halo occlusion, the rest being the per-layer split of
-direct and emissive light. A CPU port of the march on synthetic scenes (320×180, 50° vertical field of view, σ
-0.0015/yd, 24 steps, 16 taps), compared with ray-traced visibility of the light from each step, lowers the mean
-in-scatter error within 80 px of the light from 0.077 to 0.004 of its peak in front of a cliff, from 0.023 to 0.004
-between trees and from 0.056 to 0.006 with a character in front of the cliff, and the rules for the surface and the
-distant terrain leave these figures unchanged. With the sun behind a ridge beyond the far clip the error falls from 0.19
-to 0.023 on the sky (occluding at the far clip instead gives 0.10) and from 0.024 to 0.018 on the ground. The ridge's
-own fog keeps its direct light, an error of 0.70 against a ray trace that shadows the fog the march extends behind the
-ridge's unknown depth; letting the distant terrain occlude its own fog lowers that to 0.12, but over flat ground at
-sunset (camera 30 or 100 yd up, far clip 800 yd, σ 0.00013/yd, sun 3°) its taps, all at `MaxDistance`, shadow one
-another's fog, taking up to 0.59 of the distant terrain's direct light, and a shadow running on past the surface took up
-to 0.75 of the blend's; now the distant terrain loses none and the blend at most 0.002. Over flat ground (σ 0.0015/yd,
-sun 2° above the horizon) the quantisation costs a pixel at most 5.0% of its direct in-scatter with the camera 2 yd up,
-4.1% at 5 yd, 3.2% at 10 yd and 0.7% at 30 yd, 0.18% to 0.05% on average, and at most 2.7% in the blend, which lost up
-to 0.83 at 0.5° (σ 0.00013/yd, camera 2 yd) while a shadow could start in front of the blend and run on past the
-surface; Limits gives the lower suns.
 
 **Local lights.** The captured diffuse includes the M2 light's animated intensity (see World lights), so a light
 brighter than 1 carries it in the colour. In linear light a colour whose brightest channel is above 1 decodes only
@@ -217,6 +155,19 @@ afterwards; frames without volumetric fog keep the stock fog, and an unexpected 
 next frame. The client's glow (`screen + g·blur²`, with `g` from the day/night light) runs afterwards and would
 bleach bright fog to white, so fogged pixels are pre-compensated with the live glow amount. God rays use the
 remaining display highlight range after the glow and need a scene copy; without one they are omitted.
+
+**God-ray mask.** The rays are blurred at a quarter of the viewport's resolution, so each mask texel stands for a 4x4
+block of screen pixels. The mask used to test that block for sky with one depth tap and take its colour from a 4:1
+linear copy of the scene, which reads the block's central 2x2 pixels: a black branch one pixel wide in front of bright
+sky took none, half, all or none of the texel as it crossed the block's four columns, and the radial blur drew that
+change along the whole ray, so the rays trembled while the camera moved and stood still when it stopped, as a tester
+reported. The mask now takes its colour from a copy of the world viewport at half resolution, four texels per mask
+texel, each the linear average of a 2x2 block, passes each through the brightness threshold and weights it by the sky
+share of its four pixels from four depth taps. The same branch now takes 3/8 of the texel wherever it crosses the block,
+the average of what the old mask took, so the rays keep their strength and lose the flicker; since the colour average
+already contains the branch, a dark occluder weighs more than its area, as before. The mask grows from 47 to 213
+instruction slots and 2 to 20 texture reads at a sixteenth of the screen's pixels, and the copy adds one 8-bit target of
+a quarter of the viewport's area.
 
 **Display dither.** The fog is marched and filtered in 16-bit float and blended in 32-bit float, but the composite
 writes 8-bit codes into the client's back buffer. Where a gradient falls slowly, as in the dark outer halo of the sun
@@ -770,7 +721,7 @@ Engine notes behind the code:
 
 `Ctrl+F7` (`OverlayKey`) shows and hides a Dear ImGui window over the game. On laptops whose F-keys send media keys by
 default, hold Fn (the log names the key that arrived). The window edits every setting below except `Enable`,
-`EngineHooks`, `Overlay`, `OverlayKey` and the experimental `HaloOcclusion`, and the next frame uses the change.
+`EngineHooks`, `Overlay` and `OverlayKey`, and the next frame uses the change.
 **Save** writes the settings changed in the window back to `Luxvelum.ini`, keeping the comments and every other line;
 settings not changed in the window keep what the file holds. **Revert** reloads the file, and a hand edit of the file
 also replaces unsaved changes. The window shows whether the fog drew in the last frame, or why it did not. It also shows
@@ -850,44 +801,13 @@ Further suites check the authored noise and `ClassicPhase`, the transparent fog,
 4x device (`SKIP` without a copy method), and the ripples. The display dither checks draw an opaque fog ramp from code
 30 to 38 through each composite, both fixed-function blends and the late god-ray composite: every column must average to
 the continuous code (0.1 rms, 0.2 at most), while exact codes without fog and the debug views stay unchanged. The
-grading checks compare stripe means over 32 rows with the curve (0.2 at most) and allow each pixel the dither. The halo
-occlusion checks compute the shadow constant (light pixel, strength, the fades by view depth and beyond the picture's
-edge, fog without direct light) and the `HaloOcclusion` key on the CPU, march synthetic depth at every quality (a cliff
-hiding the light, a character in front of it, a gap between two trunks, flat ground, a ridge beyond the far clip whose
-own fog keeps the direct light, a step jitter a few ulps below 1; half strength, a light behind the camera, the jittered
-march repeated, the per-layer loop) and march flat ground up to and beyond the far clip in thin fog under a 3° sun
-(camera 30 and 100 yd up, at most 0.05 of the direct light lost below the blend, in it and on the distant terrain, none
-on the sky). At every quality they march a wall inside the blend (950 yd, its top 110 yd above a camera 30 yd up) with
-the sun 10° above its top on screen, whose face must lose its direct light without a step (adjacent rows within 0.1 of
-it) from the row below its top (at least 0.01 of it there on average), and distant terrain 3° high hiding a sun 2° up
-over ground to the far clip (camera 100 yd up, σ 0.0015/yd), whose shadow on the ground's fog must not step at the start
-of the blend (within 0.1), with at most half the direct light left before the blend and on the sky above the ridge and
-none lost in the ridge's own fog, and a trunk 30 yd away in front of a distant-terrain skyline 2° high with the sun 3°
-up beside it (camera 3 yd up, σ 0.00013 and 0.0015/yd), whose distant terrain must keep the direct light of the sky
-above it (within 0.1). They compare the composites' full-resolution fallback at strength 1 with the march at the same
-pixel (plain, with local lights and split, to 10⁻⁴): every low-resolution tap reads the last pixel, whose distant
-terrain matches no other pixel's depth, so every other pixel takes the fallback. They compare the march with authored
-noise with the plain march (10⁻⁴, no noisy layer), and the noisy composites, which keep only the solid shadow, with the
-plain fallback: equal where every caster is solid, the cliff's shadow kept behind the character and the sky beside a
-trunk unshadowed, where the plain fallback takes 0.055 to 0.096 of its direct light. Last, they render the harness
-street behind a wall that hides the sun, and again with `Temporal` at its default and two one-pixel posts at 400 yd
-below the wall, in columns no low-resolution tap reads (multiples of 4), whose fog only the composite's full-resolution
-march computes: it must keep at most half its sunlight and match the frame with `Temporal=0` exactly. Run on Wine's
-Direct3D 9 over llvmpipe, the march and composite checks pass, and so do the renderer checks, built with MinGW against
-`renderer.cpp` and a stand-in for the device wrapper (the posts keep 0.01 of their sunlight). The cliff, character,
-trunk and ridge checks fail with the shaders from before halo occlusion. The ridge's own fog fails when distant terrain
-occludes its own pixels (0.73 to 0.85 of its direct light lost), the far-clip check when the shadow runs on past the
-surface (0.71 lost in the blend) or distant terrain occludes its own pixels (0.57 on it), the wall check when a shadow
-must start in front of the blend (adjacent rows up to 0.76 apart, where they are 0.03 apart now) or one starting in the
-blend is dropped (0.003 at most lost on average in the row below the top, against 0.022 to 0.025), the distant-terrain
-check when its taps are open for surfaces in the blend (0.63 to 0.80 apart at the start of the blend, against 0.04 to
-0.06), the skyline check when the distant terrain's surface continues behind the trunk (steps of 0.67 to 0.69 in thin
-fog and 0.14 to 0.15 at σ 0.0015/yd, against 0.001 at most), and the jitter check without the floor on the line left to
-the light. The composite checks fail when they hand the composite the temporal pass's `c10`, and the noisy march check
-when that march drops the shadow behind thin casters. The composite checks set the registers themselves, so the
-renderer's upload after the temporal pass is guarded by the posts' check, which fails without the upload of `c10` before
-the composite (the posts keep all their sunlight, 76/255 off the frame with `Temporal=0`) and without that of `c9` or
-`c11` (1/255 and 10/255 off).
+grading checks compare stripe means over 32 rows with the curve (0.2 at most) and allow each pixel the dither. The
+god-ray mask checks draw one mask texel over a depth buffer at an odd subviewport offset: with sky in one row of its
+footprint it must read 0.25 and with sky in all but that row 0.75, and a one-pixel column of geometry must leave it at
+0.75 in each of the footprint's four columns and at 1 beside it. A third check gives the four half-resolution scene
+texels under the mask texel 1, 0.5, 0 and 0 at a threshold of 0.4 and its neighbours 1: the mask must read 0.3. The
+previous mask, one depth tap and one colour per texel, fails all three checks (Wine's Direct3D on llvmpipe; the new mask
+passes them there).
 
 `vfog_harness --scene harbour <dir> --data data/fogdata.bin` renders the logged in-game frame at the
 Stormwind harbour (sunset, far clip 791.6 yd) with ideal depth and with the client's depth range, and
@@ -945,10 +865,6 @@ The time covers the fog passes alone, god rays included, without the client's ow
 compare it with the frame time to see the fog's share of a GPU-bound frame. `skipped` counts frames whose timing
 was lost, and `fog gpu no samples` means none finished in the interval. Without timestamp queries the log says
 so once and the summaries omit the time; at `LogLevel=0` no queries are issued.
-The summary's `day` line ends with `halo occlusion strength`, the strength the march applies (see Halo occlusion):
-`HaloOcclusion` times the fades by the light's view-space z and by its distance beyond the picture's edge, so it reads
-0.00 with any `HaloOcclusion` while the light is outside the picture, beside or behind the camera or no layer scatters
-direct light (a sunless sky, a full interior blend).
 With Classic data the summary adds the resolved glow, three points of the grading curve and each noisy layer.
 
 Every 60 s the water adds `water gpu 1.24 ms (median of 3500 frames, 0 skipped), classes lake+ocean, waves 256
@@ -995,7 +911,6 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |
 | `SunScatter`, `Ambient`, `Exposure` | 1, 1, 1 | Light in the fog |
 | `MoonScatter` | 0.2 | Moon light in the fog at night, on its own (`SunScatter` is the sun's), Classic and derived |
-| `HaloOcclusion` | 0 | Experimental: shadow of trees and terrain on screen in the sun's or moon's fog light |
 | `ClassicExposure` | 1 | Brightness of the Classic layers (1 = as authored) |
 | `ClassicPhase` | 0 | Classic sun and moon scattering: 0 phase peaks at 1 toward the light, 1 energy-normalised |
 | `LocalLights`, `LocalLightIntensity` | 1, 1 | Scatter up to eight world point lights in view; intensity 0..8 |
@@ -1057,25 +972,6 @@ Forever in the game, so by default colours still differ from Classic.
   required fog shader disables volumetric fog for that device and logs its name, HRESULT and the shader caps; native
   fog remains the fallback. An unsupported water shading shader leaves the client's own water on that device and logs
   its name and HRESULT, and an unsupported ripple step logs its HRESULT and leaves the modern water without ripples.
-- Halo occlusion is screen space: casters off screen or off the segment to the light do not block it, a light outside
-  the picture casts no shadow at all, what a nearer object hides is taken to be the solid surface seen before it on the
-  segment, thin casters are slabs of an assumed thickness (every caster in front of the sky or of distant terrain, whose
-  depths are unknown), and several of them on one segment merge into one slab from the nearest start to the farthest
-  end. The shadow ends at the pixel's surface, so the fog the march extends beyond a surface in the horizon blend or
-  beyond the far clip stays lit: a mountain beyond the far clip keeps all its own fog's direct light (an error of 0.70
-  in the 320×180 port), and the shadow of the ground's fog in front of it steps where the mountain's pixels begin (0.21
-  to 0.24 of the direct light in thin fog and 0.50 to 0.63 at σ 0.0015/yd in the 64² GPU fixture, camera 100 yd up,
-  ridge 3° and sun 2° above the horizon). Distant terrain occludes at `MaxDistance` for every other pixel, so flat
-  distant terrain stands as a wall up to the horizon at `MaxDistance`: with the sun less than about camera
-  height/(`MaxDistance` − distance) above the horizon it shadows fog that a ray trace leaves lit (camera 100 yd up, sun
-  0.5°, σ 0.00013/yd: up to 0.57 of the direct light below the blend and 0.23 in it in the port, 0.31 in it at 1280×720;
-  0.20 below the blend at 1°, under 0.01 at 2°). The depth texels' quantisation over flat ground costs more the lower
-  the camera and the sun: with the sun 0.5° up in thin fog up to 0.15 of the direct light below the blend and 0.054 in
-  it with the camera 2 yd up in the port (at 1280×720 0.052 below it, and 0.026 in it with the camera 5 yd up, where it
-  lost 0.36 while a shadow could run on past the surface), and up to 0.30 below the blend and 0.18 in it in the 64² GPU
-  fixture (camera 2 and 10 yd up, 0.44° per texel). It fades out while the light is more than 78° off the view axis and
-  is off while the light is behind the camera. Water reflections and the `TransparentFog` fit stay unshadowed, and the
-  god rays are unchanged. It is harness-checked and simulated only, not tested in game.
 - Local lighting captures the current M2 scene's point-light table. It does not create spotlight cones or local
   shadows, and coverage of WMO-only lights is unverified. A light's sphere is capped at 200 yd and its attenuation
   denominator floored at 1; it is a candidate at any camera distance while its sphere meets the view and the client
