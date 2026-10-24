@@ -1608,7 +1608,7 @@ bool InstallTransparentFogHooks()
 FogFrameStatus LastFogFrameStatus()
 {
     if (g_failed)
-        return {false, "stopped after an exception, see Luxvelum.log"};
+        return {false, "stopped after an exception, see LuxVelum.log"};
     if (g_renderedLastFrame)
         return {true, ""};
     return {false, *g_fogNotDrawnReason ? g_fogNotDrawnReason : "waiting for the world to render"};
@@ -1757,7 +1757,7 @@ WaterFrameStatus LastWaterFrameStatus()
     if (!g_waterHooksInstalled)
         return {false, "hooks not installed"};
     if (g_waterFailed)
-        return {false, "stopped after an exception, see Luxvelum.log"};
+        return {false, "stopped after an exception, see LuxVelum.log"};
     if (!GlobalConfig().Get().water)
         return {false, "off"};
     return g_waterStatus;
