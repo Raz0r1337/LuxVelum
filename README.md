@@ -98,7 +98,7 @@ filter returns the average of the current samples in the 3×3 low-resolution nei
 The full-resolution composite upsamples the march through depth-validated taps. Ground seen at a grazing angle
 is interpolated from the current frame's march where the taps lie on the pixel's plane, the march is linear
 across them and no light's sphere meets the ray; thin silhouettes that every tap misses are marched at full
-resolution. Under authored noise the lit composite interpolates the filtered fog wherever the taps lie on the
+resolution. Under authored noise the lit noisy composite interpolates the filtered fog wherever the taps lie on the
 pixel's plane, lights and curvature aside, and marches only the rest through the noise (see Authored noise).
 
 Every full-screen pass draws one triangle whose edges lie outside the viewport (NDC −1.5 and 4.5), so it covers every
@@ -408,10 +408,10 @@ temporary registers of ps_3_0 they leave out the density variation (`NoiseAmount
 weight `1 − alpha`, so a silhouette marched again in a layer without noise lacks the variation's patches, at most
 `±NoiseAmount` of its density. On grazing water the rows between the low-resolution taps match no tap; where the lit
 composite marched them again at the mean they showed as bright horizontal lines one low-resolution texel apart
-(inferred from the code and a tester's screenshot of grazing water in rain; not yet confirmed in game), so under noise
-it interpolates the filtered fog of the taps on the pixel's plane instead. It takes the filtered fog rather than the
-current march, whose samples jitter each frame, so that the noise cannot turn the jitter into shimmer on every other
-row (inferred).
+(inferred from the code and a tester's screenshot of grazing water in rain; not yet confirmed in game), so the lit
+noisy composites, which draw noisy fog wherever a point light is marched, interpolate the filtered fog of the taps on
+the pixel's plane instead. They take the filtered fog rather than the current march, whose samples jitter each frame,
+so that the noise cannot turn the jitter into shimmer on every other row (inferred).
 
 `fogdata.bin` format 4 holds the lights, the light params they reference (with `LightParams.Glow`), the fog keys (with
 a grading curve index), the layers, the zone lights and their outlines, and the grading curves; the loader rejects any
