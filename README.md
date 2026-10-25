@@ -125,12 +125,13 @@ the lights whose sphere meets the view frustum, at any distance, by their irradi
 24 candidates, equal irradiance ranking the nearer light first; the view test precedes the ranking, so a light whose
 sphere lies wholly outside the view takes no slot. A light behind or beside the camera still competes while its sphere
 reaches into the view, which a sphere of up to 200 yd does from as far away. A candidate is the nearest light already
-known with the same node address within 2 yd plus 40 yd for each second since the last capture, so a colour or
-attenuation that animates between captures stays one light, and so does a light that moves at up to 40 yd/s at any
-frame rate, while an address the client reuses 10 yd away within one frame at 60 fps is a new light. A free slot goes
-first to a challenger that evicted its holder, otherwise to the visible candidate with the highest smoothed priority
-(0.3 s). A light that takes a slot fades in over 1 s along a smoothstep curve, so neither end of the
-fade jumps. It shines at once in the first capture after a reset (map change, start, a gap of more than 1 s) and when
+known with the same node address within 2 yd plus 40 yd for each second since the last capture that was not held (see
+below), so a colour or attenuation that animates between captures stays one light, and so does a light that moves at up
+to 40 yd/s at any frame rate, also across held captures, while an address the client reuses 10 yd away within one frame
+at 60 fps is a new light. A free slot goes first to a challenger that evicted its holder, otherwise to the visible
+candidate with the highest smoothed priority (0.3 s). A light that takes a slot fades in over 1 s along a smoothstep
+curve, so neither end of the fade jumps.
+It shines at once in the first capture after a reset (map change, start, a gap of more than 1 s) and when
 it enters the candidates with its centre outside the view, its sphere reaching in from the edge as when the camera
 turns back toward it. An occupied slot changes hands only when a candidate's smoothed priority exceeds 1.5 times that
 of the weakest slot for three captures in a row, and a light that leaves the client's table, is evicted, dims to
