@@ -127,10 +127,10 @@ sphere lies wholly outside the view takes no slot. A light behind or beside the 
 reaches into the view, which a sphere of up to 200 yd does from as far away. A candidate is the nearest light already
 known with the same node address within 2 yd plus 40 yd for each second since the last capture that was not held (see
 below), so a colour or attenuation that animates between captures stays one light, and so does a light that moves at up
-to 40 yd/s at any frame rate, also across held captures, while an address the client reuses 10 yd away within one frame
-at 60 fps is a new light. A free slot goes first to a challenger that evicted its holder, otherwise to the visible
-candidate with the highest smoothed priority (0.3 s). A light that takes a slot fades in over 1 s along a smoothstep
-curve, so neither end of the fade jumps.
+to 40 yd/s at any frame rate, also across held captures that span up to 1 s, while an address the client reuses 10 yd
+away within one frame at 60 fps is a new light. A free slot goes first to a challenger that evicted its holder,
+otherwise to the visible candidate with the highest smoothed priority (0.3 s). A light that takes a slot fades in
+over 1 s along a smoothstep curve, so neither end of the fade jumps.
 It shines at once in the first capture after a reset (map change, start, a gap of more than 1 s) and when
 it enters the candidates with its centre outside the view, its sphere reaching in from the edge as when the camera
 turns back toward it. An occupied slot changes hands only when a candidate's smoothed priority exceeds 1.5 times that
@@ -143,7 +143,9 @@ first, passes to the strongest other visible candidate whose smoothed priority e
 such as the challenger back after missing a capture; with no such candidate for three captures in a row it is called
 off, and the evicted light ramps back up instead of fading out and in again. A light that has faded keeps its smoothed
 priority while it is still captured inside the view and fades back in if it wins a slot again; the slot it lost goes
-to its challenger, so the challenger is not undercut by its momentary rank.
+to its challenger, so the challenger is not undercut by its momentary rank. A slotted light that is not evicted keeps
+its slot through two missed captures in a row even at nothing, so a light that has just taken a slot and drops out of
+one capture does not hand it back to the light it replaced.
 A slotted light whose last captured sphere lies more than 5 yd outside the view is forgotten at once, freeing its slot
 the same step, and re-enters as a new light; one that only jitters across the view's edge, or moves out of the view
 while its last captured position still meets it, dims over 1 s and ramps back if it returns within that time, so a
