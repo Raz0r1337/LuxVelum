@@ -91,6 +91,7 @@ constexpr unsigned kLocalLightSetSettleFrames = 30;
 constexpr uint64_t kLightIdMixMultiplier = 0x9E3779B97F4A7C15ull;
 constexpr unsigned kLightSetCaptureShift = 32;
 constexpr size_t kCaptureRejectionText = 80;
+constexpr DWORD kClientRenderTargets = 4;
 
 const D3DRENDERSTATETYPE kRenderStates[] = {
     D3DRS_ZENABLE,          D3DRS_ZWRITEENABLE,  D3DRS_ALPHATESTENABLE,   D3DRS_ALPHABLENDENABLE,
@@ -368,12 +369,78 @@ const char* ViewportOutsideTarget(const D3DVIEWPORT9& vp, const D3DSURFACE_DESC&
         return "world viewport outside the render target";
     return nullptr;
 }
+
+struct ClientBindings
+{
+    IDirect3DSurface9* colour[kClientRenderTargets] = {};
+    IDirect3DSurface9* depth = nullptr;
+    IDirect3DVertexBuffer9* stream = nullptr;
+    UINT streamOffset = 0;
+    UINT streamStride = 0;
+    bool captured = false;
+};
+
+ClientBindings HoldClientTargets(IDirect3DDevice9* dev)
+{
+    ClientBindings client;
+    for (DWORD i = 0; i < kClientRenderTargets; ++i)
+        dev->GetRenderTarget(i, &client.colour[i]);
+    dev->GetDepthStencilSurface(&client.depth);
+    return client;
+}
+
+void CaptureClientState(IDirect3DDevice9* dev, IDirect3DStateBlock9* state, ClientBindings& client)
+{
+    dev->GetStreamSource(0, &client.stream, &client.streamOffset, &client.streamStride);
+    state->Capture();
+    client.captured = true;
+    for (DWORD i = 1; i < kClientRenderTargets; ++i)
+        if (client.colour[i])
+            dev->SetRenderTarget(i, nullptr);
+}
+
+void RestoreCapturedClientState(IDirect3DDevice9* dev, IDirect3DStateBlock9* state, const ClientBindings& client)
+{
+    dev->SetRenderTarget(0, client.colour[0]);
+    for (DWORD i = 1; i < kClientRenderTargets; ++i)
+        if (client.colour[i])
+            dev->SetRenderTarget(i, client.colour[i]);
+    state->Apply();
+    dev->SetDepthStencilSurface(client.depth);
+    dev->SetStreamSource(0, client.stream, client.streamOffset, client.streamStride);
+}
+
+void RestoreClientBindings(IDirect3DDevice9* dev, IDirect3DStateBlock9* state, ClientBindings& client)
+{
+    if (client.captured)
+        RestoreCapturedClientState(dev, state, client);
+    for (auto*& colour : client.colour)
+        SafeRelease(colour);
+    SafeRelease(client.depth);
+    SafeRelease(client.stream);
+}
+
+constexpr DWORD kInjectedFogPassFault = 0xE0564646;
+bool g_fogPassFaultInjected = false;
+
+void RaiseInjectedFogPassFault()
+{
+    if (!g_fogPassFaultInjected)
+        return;
+    g_fogPassFaultInjected = false;
+    RaiseException(kInjectedFogPassFault, 0, 0, nullptr);
+}
 }
 
 void ForceFogParams(const FogParams* fog)
 {
     g_fogParamsForced = fog != nullptr;
     g_forcedFogParams = fog ? *fog : FogParams{};
+}
+
+void InjectFogPassFault(bool injected)
+{
+    g_fogPassFaultInjected = injected;
 }
 
 Renderer::~Renderer()
@@ -1113,40 +1180,23 @@ bool Renderer::ReadyToRender(IDirect3DDevice9* dev, const SceneDepth& depth, con
 template <typename Passes>
 bool Renderer::WithClientStateSaved(IDirect3DDevice9* dev, const SceneDepth& depth, Passes passes)
 {
-    IDirect3DSurface9* saved[4] = {};
-    for (DWORD i = 0; i < 4; ++i)
-        dev->GetRenderTarget(i, &saved[i]);
-    IDirect3DSurface9* savedDepth = nullptr;
-    dev->GetDepthStencilSurface(&savedDepth);
-
+    ClientBindings client = HoldClientTargets(dev);
     bool ok = false;
-    D3DSURFACE_DESC depthDesc = {};
-    if (const char* unusable = UnusableTargets(saved[0], savedDepth, depth, depthDesc))
-        Skip(unusable);
-    else
+    __try
     {
-        IDirect3DVertexBuffer9* stream = nullptr;
-        UINT streamOffset = 0;
-        UINT streamStride = 0;
-        dev->GetStreamSource(0, &stream, &streamOffset, &streamStride);
-        m_state->Capture();
-        for (DWORD i = 1; i < 4; ++i)
-            if (saved[i])
-                dev->SetRenderTarget(i, nullptr);
-        ok = passes(saved[0], depthDesc);
-        dev->SetRenderTarget(0, saved[0]);
-        for (DWORD i = 1; i < 4; ++i)
-            if (saved[i])
-                dev->SetRenderTarget(i, saved[i]);
-        m_state->Apply();
-        dev->SetDepthStencilSurface(savedDepth);
-        dev->SetStreamSource(0, stream, streamOffset, streamStride);
-        SafeRelease(stream);
+        D3DSURFACE_DESC depthDesc = {};
+        if (const char* unusable = UnusableTargets(client.colour[0], client.depth, depth, depthDesc))
+            Skip(unusable);
+        else
+        {
+            CaptureClientState(dev, m_state, client);
+            ok = passes(client.colour[0], depthDesc);
+        }
     }
-
-    for (auto*& s : saved)
-        SafeRelease(s);
-    SafeRelease(savedDepth);
+    __finally
+    {
+        RestoreClientBindings(dev, m_state, client);
+    }
     return ok;
 }
 
@@ -1453,6 +1503,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     dev->SetPixelShaderConstantF(78, &variation.x, 1);
     BindTexture(dev, 0, depthTexture, false);
     DrawFullscreenTriangle(dev);
+    RaiseInjectedFogPassFault();
 
     m_adaptiveLightingHistory =
         pointLightCount > 0 || m_prevLocalLightCount > 0 || cfg.noiseAmount > 0.0f || samplesNoise;

@@ -77,3 +77,5 @@ EXPORTS
     vf_test_hook_opaque_done
     vf_test_simulate_fog_hook_failure
     vf_test_drawn_glow_compensation
+    vf_test_fail_fog_pass
+    vf_test_fail_grading_pass

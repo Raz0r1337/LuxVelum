@@ -465,6 +465,9 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
   or both when it comes from their shared inputs, and `GlowCompensation` then uses the clamped day/night glow.
 - **State.** Every state the passes touch is captured with a recorded state block and restored, plus render
   targets, depth and stream 0 (whose offset state blocks drop). The client's shader-constant cache stays valid.
+  The fog and grading passes restore them in a termination handler, so an exception inside a pass, which the
+  hook's guard catches, still hands the client back its own targets and state, and releases the references that
+  would otherwise block the next `Reset`.
 - **Overlay.** When a fog device is created, the device window's procedure is chained so the settings window
   sees input first, and the wrapper's `Present` draws the window over the finished frame.
 

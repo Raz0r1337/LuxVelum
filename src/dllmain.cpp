@@ -350,6 +350,16 @@ extern "C" float __cdecl vf_test_drawn_glow_compensation()
     return DrawnFogGlowCompensation(LatestFogDevice());
 }
 
+extern "C" void __cdecl vf_test_fail_fog_pass(int fail)
+{
+    InjectFogPassFault(fail != 0);
+}
+
+extern "C" void __cdecl vf_test_fail_grading_pass(int fail)
+{
+    InjectGradingFault(fail != 0);
+}
+
 extern "C" int __cdecl vf_test_water_armed()
 {
     return WaterPassArmed(LatestFogDevice()) ? 1 : 0;

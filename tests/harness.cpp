@@ -121,6 +121,8 @@ extern "C" __declspec(dllimport) void __cdecl vf_test_hook_opaque_done();
 extern "C" __declspec(dllimport) void __cdecl vf_test_hook_world_done();
 extern "C" __declspec(dllimport) void __cdecl vf_test_simulate_fog_hook_failure(int);
 extern "C" __declspec(dllimport) float __cdecl vf_test_drawn_glow_compensation();
+extern "C" __declspec(dllimport) void __cdecl vf_test_fail_fog_pass(int);
+extern "C" __declspec(dllimport) void __cdecl vf_test_fail_grading_pass(int);
 
 namespace
 {

@@ -11,6 +11,7 @@
 #include <d3d9.h>
 
 void ForceFogParams(const FogParams* fog);
+void InjectFogPassFault(bool injected);
 
 class Renderer
 {

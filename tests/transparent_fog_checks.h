@@ -64,6 +64,7 @@ constexpr uintptr_t kUnreadableAddress = 0x10;
 constexpr const char* kEarlyCompositeDepthUnboundLine =
     "transparent fog: the early composite was skipped: fog depth surface not bound; the fog is drawn after the world";
 constexpr float kRaysOn = 1.0f;
+constexpr const char* kFogPassFaultLine = "exception 0xE0564646 in world hook; fog disabled for this session";
 constexpr uint32_t kSentinelEsi = 0x51515151u;
 constexpr uint32_t kSentinelEdi = 0x5D5D5D5Du;
 constexpr uint32_t kSentinelEbx = 0x5B5B5B5Bu;
@@ -1463,6 +1464,43 @@ void CheckM2HookFaultKeepsTheFog(Harness& h)
           "drawn after the world, as with TransparentFog=0");
 }
 
+bool FogPassFaultKeepsClientState(Harness& h, const View& v, const Config& cfg)
+{
+    vf_test_set_config(&cfg);
+    vf_test_use_fog_hook_client(&v.in);
+    vf_test_hook_frame_begin();
+    h.BeginFrame();
+    h.DrawScene(v.eye, v.view, v.proj, v.world);
+    vf_test_fail_fog_pass(1);
+    const bool kept = KeepsState(h, v, &vf_test_hook_world_done);
+    vf_test_fail_fog_pass(0);
+    h.dev->EndScene();
+    vf_test_hook_frame_end();
+    h.dev->Present(nullptr, nullptr, nullptr, nullptr);
+    return kept;
+}
+
+void CheckFogPassFaultRestoresTheClient(Harness& h)
+{
+    const View v;
+    const Config cfg = HookConfig(false);
+    RenderSettledHookedFrame(h, v, cfg, FrameOptions());
+    const size_t start = water_settings_checks::DllLogSize();
+    const bool kept = FogPassFaultKeepsClientState(h, v, cfg);
+    const size_t faults = water_settings_checks::CountOf(runtime_cost::LogWrittenSince(start), kFogPassFaultLine);
+    vf_test_simulate_fog_hook_failure(0);
+    const HRESULT reset = h.dev->Reset(&h.pp);
+    std::printf("     exception inside the fog passes at the world-done hook: %zu fault lines, client state %s, Reset "
+                "0x%08lX\n",
+                faults, kept ? "kept" : "changed", static_cast<unsigned long>(reset));
+    Check(faults == 1 && kept,
+          "an exception inside the fog passes, caught by the world-done hook, still gives the client back its "
+          "render target, depth surface, shaders, declaration, stream 0 and render state");
+    Check(SUCCEEDED(reset),
+          "after an exception inside the fog passes the device resets: the fog holds no reference to the client's "
+          "render target, depth surface or stream 0");
+}
+
 void CheckTransparentFog(Harness& h)
 {
     Config saved;
@@ -1478,6 +1516,7 @@ void CheckTransparentFog(Harness& h)
     CheckThunksAndGlarePass(h);
     CheckStageZeroCounts(h);
     CheckM2HookFaultKeepsTheFog(h);
+    CheckFogPassFaultRestoresTheClient(h);
     vf_test_set_config(&saved);
 }
 
