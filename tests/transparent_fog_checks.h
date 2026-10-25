@@ -67,6 +67,7 @@ constexpr float kRaysOn = 1.0f;
 constexpr const char* kFogPassFaultLine = "exception 0xE0564646 in world hook; fog disabled for this session";
 constexpr float kTemporalOn = 0.85f;
 constexpr const char* kLateRaysDepthUnboundLine = "god rays after the world skipped: fog depth surface not bound";
+constexpr const char* kRaySourceCopyFailedLine = "god rays skipped: the scene copy they are drawn from failed";
 constexpr uint32_t kSentinelEsi = 0x51515151u;
 constexpr uint32_t kSentinelEdi = 0x5D5D5D5Du;
 constexpr uint32_t kSentinelEbx = 0x5B5B5B5Bu;
@@ -1089,6 +1090,35 @@ void CheckFailedLateGodRaysKeepTheFogHistory(Harness& h)
           "the fog's temporal history valid for the next frame: the late pass never touches the fog targets");
 }
 
+void CheckFailedRaySourceCopyDrawsNoRays(Harness& h)
+{
+    const View v;
+    FrameOptions options;
+    options.captureAfterLiquid = true;
+    Config wholeFrame = HookConfig(false);
+    wholeFrame.godRays = kRaysOn;
+    Config early = HookConfig(true);
+    early.godRays = kRaysOn;
+    RenderSettledHookedFrame(h, v, wholeFrame, options);
+    const HookedFrame withoutRays = RenderSettledHookedFrame(h, v, HookConfig(false), options);
+    const size_t start = water_settings_checks::DllLogSize();
+    vf_test_fail_ray_source_copy(1);
+    const HookedFrame whole = RenderHookedFrame(h, v, wholeFrame, options);
+    const HookedFrame late = RenderHookedFrame(h, v, early, options);
+    vf_test_fail_ray_source_copy(0);
+    const size_t logged =
+        water_settings_checks::CountOf(runtime_cost::LogWrittenSince(start), kRaySourceCopyFailedLine);
+    const int wholeDifference = LargestDifference(whole.image, withoutRays.image, v.world);
+    const int lateDifference = LargestDifference(late.afterLiquid, late.image, v.world);
+    std::printf("     god-ray source copy failing after frames with rays: single composite vs no god rays %d/255, "
+                "end of the world adds %d/255 after the early composite, %zu failure lines\n",
+                wholeDifference, lateDifference, logged);
+    Check(wholeDifference == 0 && lateDifference == 0 && logged == 1,
+          "when the scene copy the god rays are drawn from fails, no rays are drawn from its stale or undefined "
+          "contents, neither in the single composite nor after the early composite, and the failure is logged "
+          "once");
+}
+
 Config LampLitConfig()
 {
     Config cfg = HookConfig(true);
@@ -1538,6 +1568,7 @@ void CheckTransparentFog(Harness& h)
     CheckTransparentsFoggedAtOwnDepth(h);
     CheckGodRaysAfterTheWorld(h);
     CheckFailedLateGodRaysKeepTheFogHistory(h);
+    CheckFailedRaySourceCopyDrawsNoRays(h);
     CheckFittedColourCarriesThePointLights(h);
     CheckHookedFogRestoresState(h);
     CheckFogDrawnBeforeWorldText(h);

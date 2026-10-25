@@ -160,7 +160,8 @@ next frame. The client's glow (`screen + g·blur²`, with `g` from the day/night
 bleach bright fog to white, so fogged pixels are pre-compensated with the live glow amount while the fog blends in
 linear light over a scene copy (`ColorSpace=1`). The gamma blends (`ColorSpace=0`) and the fixed-function blend
 without a scene copy leave the fog uncompensated; only the god rays are compensated there. God rays use the remaining
-display highlight range after the glow and need a scene copy; without one they are omitted.
+display highlight range after the glow and need a scene copy and the half-resolution copy of the world viewport their
+mask is drawn from; without either they are omitted, and a failed copy is logged once.
 
 **God-ray mask.** The rays are blurred at a quarter of the viewport's resolution, so each mask texel stands for a 4x4
 block of screen pixels. The mask used to test that block for sky with one depth tap and take its colour from a 4:1

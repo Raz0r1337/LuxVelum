@@ -12,6 +12,7 @@
 
 void ForceFogParams(const FogParams* fog);
 void InjectFogPassFault(bool injected);
+void RefuseRaySourceCopy(bool refused);
 
 class Renderer
 {
@@ -69,7 +70,7 @@ private:
     bool WithClientStateSaved(IDirect3DDevice9* dev, const SceneDepth& depth, Passes passes);
     bool DrawLateGodRays(IDirect3DDevice9* dev, const SceneDepth& depth);
     void PrepareFullscreenPasses(IDirect3DDevice9* dev);
-    void CopySceneForGodRays(IDirect3DDevice9* dev, IDirect3DSurface9* target, const D3DVIEWPORT9& vp);
+    bool CopySceneForGodRays(IDirect3DDevice9* dev, IDirect3DSurface9* target, const D3DVIEWPORT9& vp);
     void DrawGodRayMask(IDirect3DDevice9* dev, IDirect3DTexture9* depthTexture, const GodRayFrame& rays);
     bool DrawGodRaysOverScene(IDirect3DDevice9* dev, const SceneDepth& depth, IDirect3DSurface9* target,
                               const D3DSURFACE_DESC& depthDesc, const GodRayFrame& rays);
@@ -160,6 +161,7 @@ private:
     UINT m_sceneCopyW = 0;
     UINT m_sceneCopyH = 0;
     bool m_sceneCopyFailed = false;
+    bool m_raySourceCopyFailureLogged = false;
     bool m_probeFailed = false;
 
     int m_historyIndex = 0;

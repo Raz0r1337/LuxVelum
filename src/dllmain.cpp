@@ -365,6 +365,11 @@ extern "C" int __cdecl vf_test_fog_history_valid()
     return FogHistoryValid(LatestFogDevice()) ? 1 : 0;
 }
 
+extern "C" void __cdecl vf_test_fail_ray_source_copy(int fail)
+{
+    RefuseRaySourceCopy(fail != 0);
+}
+
 extern "C" int __cdecl vf_test_water_armed()
 {
     return WaterPassArmed(LatestFogDevice()) ? 1 : 0;

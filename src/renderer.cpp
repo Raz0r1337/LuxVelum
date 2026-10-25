@@ -422,6 +422,15 @@ void RestoreClientBindings(IDirect3DDevice9* dev, IDirect3DStateBlock9* state, C
 
 constexpr DWORD kInjectedFogPassFault = 0xE0564646;
 bool g_fogPassFaultInjected = false;
+bool g_raySourceCopyRefused = false;
+
+HRESULT StretchSceneIntoRaySource(IDirect3DDevice9* dev, IDirect3DSurface9* scene, const RECT& world,
+                                  IDirect3DSurface9* raySource)
+{
+    if (g_raySourceCopyRefused)
+        return D3DERR_INVALIDCALL;
+    return dev->StretchRect(scene, &world, raySource, nullptr, D3DTEXF_LINEAR);
+}
 
 void RaiseInjectedFogPassFault()
 {
@@ -441,6 +450,11 @@ void ForceFogParams(const FogParams* fog)
 void InjectFogPassFault(bool injected)
 {
     g_fogPassFaultInjected = injected;
+}
+
+void RefuseRaySourceCopy(bool refused)
+{
+    g_raySourceCopyRefused = refused;
 }
 
 Renderer::~Renderer()
@@ -1272,15 +1286,21 @@ void Renderer::PrepareFullscreenPasses(IDirect3DDevice9* dev)
     dev->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 }
 
-void Renderer::CopySceneForGodRays(IDirect3DDevice9* dev, IDirect3DSurface9* target, const D3DVIEWPORT9& vp)
+bool Renderer::CopySceneForGodRays(IDirect3DDevice9* dev, IDirect3DSurface9* target, const D3DVIEWPORT9& vp)
 {
     IDirect3DSurface9* sourceSurface = nullptr;
-    const RECT world = ViewportRect(vp);
-    if (SUCCEEDED(m_raySource->GetSurfaceLevel(0, &sourceSurface)))
-    {
-        dev->StretchRect(target, &world, sourceSurface, nullptr, D3DTEXF_LINEAR);
-        sourceSurface->Release();
-    }
+    HRESULT result = m_raySource->GetSurfaceLevel(0, &sourceSurface);
+    if (SUCCEEDED(result))
+        result = StretchSceneIntoRaySource(dev, target, ViewportRect(vp), sourceSurface);
+    SafeRelease(sourceSurface);
+    if (SUCCEEDED(result))
+        return true;
+    if (!m_raySourceCopyFailureLogged)
+        VF_LOG_ERROR("god rays skipped: the scene copy they are drawn from failed (HRESULT 0x%08lX); no god rays "
+                     "while it fails",
+                     static_cast<unsigned long>(result));
+    m_raySourceCopyFailureLogged = true;
+    return false;
 }
 
 void Renderer::DrawGodRayMask(IDirect3DDevice9* dev, IDirect3DTexture9* depthTexture, const GodRayFrame& rays)
@@ -1424,8 +1444,6 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     const float sunScreenFade = sunInFront ? std::clamp(1.6f - sunNdcExtent, 0.0f, 1.0f) : 0.0f;
     const float rayStrength = cfg.godRays * fog.lightVisibility * sunScreenFade;
     const bool rays = rayStrength > kMinGodRayStrength;
-    const bool raysAfterWorld = rays && pass == FogPass::BeforeTransparents;
-    const bool raysNow = rays && !raysAfterWorld;
     GodRayFrame godRays;
     std::memcpy(godRays.common, common, sizeof(common));
     godRays.viewport = vp;
@@ -1519,8 +1537,9 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     IDirect3DTexture9* const fogResult =
         temporalFiltering ? FilterWithHistory(dev, depthTexture, reproj, historyValid, cfg.temporal) : m_marchTarget;
 
-    if (rays)
-        CopySceneForGodRays(dev, target, vp);
+    const bool raysCopied = rays && CopySceneForGodRays(dev, target, vp);
+    const bool raysAfterWorld = raysCopied && pass == FogPass::BeforeTransparents;
+    const bool raysNow = raysCopied && !raysAfterWorld;
     if (raysNow)
         DrawGodRayMask(dev, depthTexture, godRays);
 

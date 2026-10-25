@@ -80,3 +80,4 @@ EXPORTS
     vf_test_fail_fog_pass
     vf_test_fail_grading_pass
     vf_test_fog_history_valid
+    vf_test_fail_ray_source_copy
