@@ -5,6 +5,7 @@
 #include "engine.h"
 #include "fog_data.h"
 #include "forever_look.h"
+#include "grading_renderer.h"
 #include "hooks.h"
 #include "log.h"
 #include "noise_volume.h"
@@ -491,6 +492,11 @@ extern "C" void __cdecl vf_test_forever_look_world_done()
 extern "C" int __cdecl vf_test_delivered_glow(float* amount)
 {
     return DeliveredGlowThisFrame(*amount) ? 1 : 0;
+}
+
+extern "C" void __cdecl vf_test_fail_grading_scene_copies(int count)
+{
+    FailGradingSceneCopies(count);
 }
 
 extern "C" void __cdecl vf_test_grading_stats(GradingStats* stats)

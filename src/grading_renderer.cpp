@@ -56,6 +56,16 @@ const SamplerStateValue kPointSampledClamp[] = {
 
 const D3DFORMAT kCurveFormats[] = {D3DFMT_R32F, D3DFMT_A32B32G32R32F};
 
+int g_failingSceneCopies = 0;
+
+bool TakeInjectedSceneCopyFailure()
+{
+    if (g_failingSceneCopies <= 0)
+        return false;
+    --g_failingSceneCopies;
+    return true;
+}
+
 template <typename T>
 void SafeRelease(T*& p)
 {
@@ -89,6 +99,11 @@ void BindPointSampled(IDirect3DDevice9* dev, DWORD stage, IDirect3DBaseTexture9*
     for (const SamplerStateValue& sampler : kPointSampledClamp)
         dev->SetSamplerState(stage, sampler.state, sampler.value);
 }
+}
+
+void FailGradingSceneCopies(int count)
+{
+    g_failingSceneCopies = count;
 }
 
 GradingRenderer::~GradingRenderer()
@@ -264,7 +279,7 @@ bool GradingRenderer::CopyWorld(IDirect3DDevice9* dev, IDirect3DSurface9* target
         return false;
     const RECT rect = ViewportRect(world);
     IDirect3DSurface9* copy = nullptr;
-    const bool copied = SUCCEEDED(m_sceneCopy->GetSurfaceLevel(0, &copy)) &&
+    const bool copied = !TakeInjectedSceneCopyFailure() && SUCCEEDED(m_sceneCopy->GetSurfaceLevel(0, &copy)) &&
                         SUCCEEDED(dev->StretchRect(target, &rect, copy, nullptr, D3DTEXF_POINT));
     SafeRelease(copy);
     return copied || Skip("scene copy failed");

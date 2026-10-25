@@ -12,6 +12,8 @@ struct GradingStats
     bool holdsCurve = false;
 };
 
+void FailGradingSceneCopies(int count);
+
 class GradingRenderer
 {
 public:

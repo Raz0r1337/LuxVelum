@@ -111,6 +111,7 @@ extern "C" __declspec(dllimport) void __cdecl vf_test_use_forever_look_frame(con
 extern "C" __declspec(dllimport) void __cdecl vf_test_forever_look_world_done();
 extern "C" __declspec(dllimport) int __cdecl vf_test_delivered_glow(float*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_grading_stats(GradingStats*);
+extern "C" __declspec(dllimport) void __cdecl vf_test_fail_grading_scene_copies(int);
 extern "C" __declspec(dllimport) int __cdecl vf_test_forever_look_guards(engine::CodeRange*, int);
 extern "C" __declspec(dllimport) void __cdecl vf_test_forever_look_status(ForeverLookStatus*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_use_world_hook_client(const FrameInputs*, int);

@@ -125,7 +125,7 @@ bool g_gradingFailed = false;
 GlowFrame g_glow;
 GradingFrame g_grading;
 FrameRead g_frameRead;
-FogDevice* g_gradedDevice = nullptr;
+FogDevice* g_gradingDevice = nullptr;
 ForeverLookStatus g_status;
 StatusLog g_gradingLog;
 bool g_loggedGlowOverride = false;
@@ -264,8 +264,8 @@ void RecordGrading(GradingState state, const char* reason, float strength)
 
 void ReleaseGradingWhenOff()
 {
-    FogDevice* device = g_gradedDevice;
-    g_gradedDevice = nullptr;
+    FogDevice* device = g_gradingDevice;
+    g_gradingDevice = nullptr;
     if (device && device == g_client.device())
         ReleaseGrading(device);
 }
@@ -289,12 +289,11 @@ void GradeWorldFrame()
         return;
     }
     FogDevice* device = g_client.device();
+    if (device)
+        g_gradingDevice = device;
     const char* skip = "";
     if (GradeWorld(device, grading.viewport, grading.curve, grading.strength, &skip))
-    {
-        g_gradedDevice = device;
         RecordGrading(GradingState::Ready, "", grading.strength);
-    }
     else
         RecordGrading(GradingState::Skipped, skip && *skip ? skip : "the grading pass could not draw", 0.0f);
 }
