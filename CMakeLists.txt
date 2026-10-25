@@ -173,10 +173,14 @@ add_executable(vfog_harness tests/harness.cpp src/client_code.cpp src/client_lig
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(vfog_harness PRIVATE LuxVelum user32 ole32 windowscodecs)
-add_custom_command(TARGET LuxVelum POST_BUILD
+add_custom_target(luxvelum_runtime_files ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:LuxVelum>
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
             ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
-            $<TARGET_FILE_DIR:LuxVelum>)
+            $<TARGET_FILE_DIR:LuxVelum>
+    COMMENT "Copying LuxVelum.ini, fogdata.bin and waterdata.bin beside LuxVelum.dll"
+    VERBATIM)
+add_dependencies(vfog_harness luxvelum_runtime_files)
 
 enable_testing()
 configure_file(LuxVelum.ini interior-test.ini COPYONLY)

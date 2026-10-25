@@ -757,7 +757,7 @@ cmake --build build --config Release
 ```
 
 Outputs in `build/Release`: `LuxVelum.dll` and `vfog_harness.exe`, with `LuxVelum.ini`, `fogdata.bin` and
-`waterdata.bin` copied beside them.
+`waterdata.bin` copied beside them on every build, also when only the INI or a data file has changed.
 
 ### Download a CI build
 
