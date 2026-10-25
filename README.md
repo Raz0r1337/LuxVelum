@@ -537,9 +537,10 @@ Engine notes behind the code:
 - Loader slot. On disk `[0xB2ED98]` holds the delay-load thunk `0x41C654`, which pushes the slot (`0x41C65F`)
   before resolving it; `0x41C673` jumps through it. The hooks install while the slot holds the thunk or, when the
   loader in `Wow.exe` runs after the client's first call through it, the `GetProcAddress` the thunk resolved
-  (kernel32's or KernelBase's export; the filter calls its own import either way). Any other value is another hook,
-  and nothing is patched; `LuxVelum.log` names the state it found. A `Direct3DCreate9` resolved before the DLL loaded
-  is not wrapped, and the hooks then find no fog device.
+  (kernel32's or KernelBase's export; the filter calls its own import either way). Any other value is another hook:
+  the engine, transparent fog and water hooks are not installed, while `LightStay` and the far-clip calls still
+  apply, and `LuxVelum.log` names the state it found. A `Direct3DCreate9` resolved before the DLL loaded is not
+  wrapped, and the hooks then find no fog device.
 - Matrices. `0x6821A4` reads the camera-relative view matrix at Gx `+0x1B00 + 64·[+0x1AF8]` and then the projection at
   `+0xF88`. The engine builds its projection with `0x6BF370` (OpenGL depth range, w = view z); the D3D backend
   converts it.
@@ -606,7 +607,7 @@ Engine notes behind the code:
   (`0x81FD1A 6A 01 E8 6F 36 05 00 83 C4 14`).
 - M2 unfogged batch. The batch is `esi` throughout `0x81FB10` (`0x81FB18 8B F1`); seven calls reach it (`0x82040D`,
   `0x8209E6`, `0x820B3E`, `0x820FA6`, `0x8210CD`, `0x821606`, `0x82307D`). It reads the material
-  (`0x81FB58 8B 8E 98 00 00 00`), takes mode 0 when its flags have bit 2 (`0x81FB61 F6 01 02`) or the lighting's fog
+  (`0x81FB58 8B 8E 98 00 00 00`), takes mode 0 when its flags have 0x2 (`0x81FB61 F6 01 02`) or the lighting's fog
   at `+0xB0` is not above 0, and otherwise the table entry of the blend mode at material `+2`
   (`0x81FB77 0F B7 49 02`). Mode 0 jumps (`0x81FB86 3B C3 89 86 80 00 00 00 0F 84 92 01 00 00`) to
   `0x81FD26 53 DD D8 E8 62 36 05 00 83 C4 04`, the upload `0x873390(0)` with `ebx` = 0. The upload
@@ -626,7 +627,9 @@ Engine notes behind the code:
   `0x7F0870` (7 bytes; it then draws a second moon), the LightParams getter `0x7EB180` (it multiplies the glow by its
   `ambientGlow` CVar, so the glow can exceed 1), the light blend `0x7F3230` and M2 and DayNight functions. None
   touches `0x4F9170`, `0x81FD15`, `0x873210`, `0x4F9213`, `0x4F9281`, `0x4F8770`, `0xD38C2C` or the FFX code, or
-  overlaps a checked byte run; at `LogLevel=2` the log says what `0x7F0870` begins with.
+  overlaps a byte run checked before the M2 unfogged batch hook; at `LogLevel=2` the log says what `0x7F0870` begins
+  with. The runs of that hook (`0x81FB18`-`0x81FD30`, `0x873390`, `0x8733C6`, `0x87327F`) and its call `0x81FD29`
+  were not checked against it; when one differs the log says so and the hook stays off.
 - Screen effects. FFX end runs the current effect `[0xD45780]` when the `ffx` CVar (`[0xD45774]`, int at `+0x30`)
   and the effect's own CVar (`+4`) are on. The glow effect `[0xB74364]` keeps `ffxGlow` there (`0x8BFEDB`);
   `0x4F8770` feeds it the DayNight glow (`0xD38C2C`) as the additive weight of `lerp(screen, blur, other) +
