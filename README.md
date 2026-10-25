@@ -99,7 +99,7 @@ The full-resolution composite upsamples the march through depth-validated taps. 
 is interpolated from the current frame's march where the taps lie on the pixel's plane, the march is linear
 across them and no light's sphere meets the ray; thin silhouettes that every tap misses are marched at full
 resolution. Under authored noise the lit composite interpolates the filtered fog wherever the taps lie on the
-pixel's plane, lights and curvature aside, because its own march takes the noise at its mean (see Authored noise).
+pixel's plane, lights and curvature aside, and marches only the rest through the noise (see Authored noise).
 
 Every full-screen pass draws one triangle whose edges lie outside the viewport (NDC −1.5 and 4.5), so it covers every
 4x sample of the edge columns; Direct3D 9 maps NDC −1 onto the first column's centres.
@@ -387,15 +387,20 @@ average passes through a fixed S-curve of contrast 20 about 0.5, and `f = lerp(1
 while the emission moves toward the fade colour by `1 − f`, so storm fog becomes patchier and about half as dense.
 Alpha is the share of a layer's blend weight that carries noise, and each octave scrolls as a phase in tiles, so a
 blend that changes the tile size scales the pattern about the camera. The modern `t_perlinNoise3D` is not in the kit;
-the volume here is a 64³ tileable Perlin noise built at load. The water's reflection fog, the far-clip check and the lit
-composites' full-resolution march take a noisy layer at its mean; a lit composite that samples the noise would exceed
-the 32 temporary registers of ps_3_0. A march at the mean is more opaque than the noisy march on average: each long far
-step takes the noise of one point, the curve is nearly binary, and transmittance averaged over dense and clear patches
-lets more light through than a uniform half density. On grazing water the rows between the low-resolution taps match no
-tap, and where the lit composite marched them again they showed as bright horizontal lines one low-resolution texel
-apart (inferred from the code and a tester's screenshot of grazing water in rain; not yet confirmed in game), so under
-noise it interpolates the filtered fog of the taps on the pixel's plane instead. It takes the filtered fog rather than
-the current march, whose samples jitter each frame, so that the noise cannot turn the jitter into shimmer on every other
+the volume here is a 64³ tileable Perlin noise built at load. The water's reflection fog and the far-clip check take a
+noisy layer at its mean. A march at the mean is more opaque than the noisy march on average: each long far step takes
+the noise of one point, the curve is nearly binary, and transmittance averaged over dense and clear patches lets more
+light through than a uniform half density. The lit composites once marched silhouettes that every low-resolution tap
+missed at the mean, and in rain the trunks and hill crests before brighter fog showed bright specks and streaks (a
+tester's screenshots in Mulgore, `ClassicNoise=1` against `0`; the specks follow from the code, the match is
+inferred). The lit noisy composites sample the noise in that march as the lit noisy march does; to stay within the 32
+temporary registers of ps_3_0 they leave out the density variation (`NoiseAmount`), which a noisy layer takes only at
+weight `1 − alpha`, so a silhouette marched again in a layer without noise lacks the variation's patches, at most
+`±NoiseAmount` of its density. On grazing water the rows between the low-resolution taps match no tap; where the lit
+composite marched them again at the mean they showed as bright horizontal lines one low-resolution texel apart
+(inferred from the code and a tester's screenshot of grazing water in rain; not yet confirmed in game), so under noise
+it interpolates the filtered fog of the taps on the pixel's plane instead. It takes the filtered fog rather than the
+current march, whose samples jitter each frame, so that the noise cannot turn the jitter into shimmer on every other
 row (inferred).
 
 `fogdata.bin` format 4 holds the lights, the light params they reference (with `LightParams.Glow`), the fog keys (with

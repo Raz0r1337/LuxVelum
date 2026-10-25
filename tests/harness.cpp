@@ -3369,6 +3369,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     runtime_cost::CheckDisabledTemporalSkipsHistoryPasses(h, eye, at, proj, resized);
     CheckRendererSwitchesLitShaders(h);
     authored_noise::CheckRendererDrawsStormNoise(h);
+    authored_noise::CheckRendererDrawsLitStormNoise(h);
     runtime_cost::CheckFrameSummaryLogsClassicExtras(h);
     runtime_cost::CheckLocalLightLogLines(h);
     runtime_cost::CheckDepthProbeAndGpuTimeLog(h, eye, at);

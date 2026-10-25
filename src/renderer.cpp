@@ -13,6 +13,12 @@
 #include "ps_lit_composite_low.h"
 #include "ps_lit_composite_mid.h"
 #include "ps_lit_composite_high.h"
+#include "ps_lit_noisy_composite_low.h"
+#include "ps_lit_noisy_composite_mid.h"
+#include "ps_lit_noisy_composite_high.h"
+#include "ps_lit_noisy_split_composite_high.h"
+#include "ps_lit_noisy_split_composite_low.h"
+#include "ps_lit_noisy_split_composite_mid.h"
 #include "ps_lit_split_composite_high.h"
 #include "ps_lit_split_composite_low.h"
 #include "ps_lit_split_composite_mid.h"
@@ -515,6 +521,8 @@ void Renderer::ReleaseAll()
         SafeRelease(ps);
     for (auto*& ps : m_litComposite)
         SafeRelease(ps);
+    for (auto*& ps : m_litNoisyComposite)
+        SafeRelease(ps);
     ReleaseSplitComposites();
     m_splitCompositesUnavailable = false;
     SafeRelease(m_rayMask);
@@ -663,6 +671,9 @@ bool Renderer::EnsureShaders(IDirect3DDevice9* dev)
         {"ps_lit_composite_low", g_ps_lit_composite_low, &m_litComposite[0]},
         {"ps_lit_composite_mid", g_ps_lit_composite_mid, &m_litComposite[1]},
         {"ps_lit_composite_high", g_ps_lit_composite_high, &m_litComposite[2]},
+        {"ps_lit_noisy_composite_low", g_ps_lit_noisy_composite_low, &m_litNoisyComposite[0]},
+        {"ps_lit_noisy_composite_mid", g_ps_lit_noisy_composite_mid, &m_litNoisyComposite[1]},
+        {"ps_lit_noisy_composite_high", g_ps_lit_noisy_composite_high, &m_litNoisyComposite[2]},
         {"ps_ray_mask", g_ps_ray_mask, &m_rayMask},
         {"ps_ray_blur", g_ps_ray_blur, &m_rayBlur},
         {"ps_ray_composite", g_ps_ray_composite, &m_rayComposite},
@@ -711,6 +722,8 @@ void Renderer::ReleaseSplitComposites()
         SafeRelease(ps);
     for (auto*& ps : m_litSplitComposite)
         SafeRelease(ps);
+    for (auto*& ps : m_litNoisySplitComposite)
+        SafeRelease(ps);
 }
 
 bool Renderer::EnsureSplitComposites(IDirect3DDevice9* dev)
@@ -723,8 +736,10 @@ bool Renderer::EnsureSplitComposites(IDirect3DDevice9* dev)
         {g_ps_split_composite_low, g_ps_split_composite_mid, g_ps_split_composite_high},
         {g_ps_noisy_split_composite_low, g_ps_noisy_split_composite_mid, g_ps_noisy_split_composite_high},
         {g_ps_lit_split_composite_low, g_ps_lit_split_composite_mid, g_ps_lit_split_composite_high},
+        {g_ps_lit_noisy_split_composite_low, g_ps_lit_noisy_split_composite_mid, g_ps_lit_noisy_split_composite_high},
     };
-    IDirect3DPixelShader9** const shaders[] = {m_splitComposite, m_noisySplitComposite, m_litSplitComposite};
+    IDirect3DPixelShader9** const shaders[] = {m_splitComposite, m_noisySplitComposite, m_litSplitComposite,
+                                               m_litNoisySplitComposite};
     static_assert(std::size(code) == std::size(shaders), "one split composite array per shader family");
     HRESULT result = D3D_OK;
     for (size_t family = 0; family < std::size(shaders) && SUCCEEDED(result); ++family)
@@ -749,6 +764,8 @@ bool Renderer::EnsureSplitComposites(IDirect3DDevice9* dev)
 IDirect3DPixelShader9* Renderer::CompositeShader(const CompositeChoice& choice, bool splitSamples) const
 {
     const int index = std::clamp(choice.quality, 1, kQualityLevels) - 1;
+    if (choice.lit && choice.noisy)
+        return (splitSamples ? m_litNoisySplitComposite : m_litNoisyComposite)[index];
     if (choice.lit)
         return (splitSamples ? m_litSplitComposite : m_litComposite)[index];
     if (choice.noisy)
@@ -1574,8 +1591,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     dev->SetPixelShader(m_drawnComposite);
     dev->SetPixelShaderConstantF(9, &celestialLight.x, 1);
     dev->SetPixelShaderConstantF(11, &march.x, 1);
-    const FogParams compositeMarchFog = marchesLocalLights ? WithMeanNoise(fog) : fog;
-    dev->SetPixelShaderConstantF(12, &compositeMarchFog.layers[0].start, 6 * kFogLayers);
+    dev->SetPixelShaderConstantF(12, &fog.layers[0].start, 6 * kFogLayers);
     m_drawnGlowCompensation = cfg.glowCompensation && sceneBlend ? in.clientGlowAmount : 0.0f;
     const Float4 composite[3] = {
         {fog.authored ? cfg.classicExposure : cfg.exposure, raysNow && sceneBlend ? rayStrength : 0.0f,

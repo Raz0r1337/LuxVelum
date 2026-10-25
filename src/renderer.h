@@ -120,10 +120,12 @@ private:
     IDirect3DPixelShader9* m_composite[3] = {};
     IDirect3DPixelShader9* m_noisyComposite[3] = {};
     IDirect3DPixelShader9* m_litComposite[3] = {};
+    IDirect3DPixelShader9* m_litNoisyComposite[3] = {};
     IDirect3DPixelShader9* m_silhouetteMask = nullptr;
     IDirect3DPixelShader9* m_splitComposite[3] = {};
     IDirect3DPixelShader9* m_noisySplitComposite[3] = {};
     IDirect3DPixelShader9* m_litSplitComposite[3] = {};
+    IDirect3DPixelShader9* m_litNoisySplitComposite[3] = {};
     bool m_splitCompositesUnavailable = false;
     IDirect3DPixelShader9* m_drawnMarch = nullptr;
     IDirect3DPixelShader9* m_drawnComposite = nullptr;
