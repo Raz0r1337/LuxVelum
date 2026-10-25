@@ -15,16 +15,30 @@ namespace
 constexpr const char* kSection = "LuxVelum";
 constexpr const char* kSectionLine = "[LuxVelum]";
 constexpr const char* kIniName = "LuxVelum.ini";
+constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
+constexpr const char* kUtf16LeBom = "\xFF\xFE";
 
 struct EarlierSettings
 {
     const char* ini;
-    const char* sectionLine;
+    const char* section;
 };
 
 constexpr EarlierSettings kEarlierSettings[] = {
-    {"Luxveil.ini", "[Luxveil]"},
-    {"CoAVolFog.ini", "[CoAVolFog]"},
+    {"Luxveil.ini", "Luxveil"},
+    {"CoAVolFog.ini", "CoAVolFog"},
+};
+
+struct IniText
+{
+    std::string text;
+    bool utf16 = false;
+};
+
+struct RenamedSections
+{
+    std::string text;
+    int renamed = 0;
 };
 constexpr unsigned kMaxFunctionKey = 24;
 
@@ -279,9 +293,72 @@ bool ReadWholeFile(const std::string& path, std::string& text)
     return ok;
 }
 
-std::string WithSectionRenamed(const std::string& text, const char* earlierSectionLine)
+bool StartsWith(const std::string& text, const char* prefix)
 {
-    std::string adopted;
+    return text.compare(0, std::strlen(prefix), prefix) == 0;
+}
+
+std::string Utf8FromUtf16Le(const std::string& bytes)
+{
+    const int units = static_cast<int>(bytes.size() / sizeof(wchar_t));
+    if (units == 0)
+        return std::string();
+    std::wstring wide(units, L'\0');
+    std::memcpy(&wide[0], bytes.data(), units * sizeof(wchar_t));
+    const int size = WideCharToMultiByte(CP_UTF8, 0, wide.data(), units, nullptr, 0, nullptr, nullptr);
+    if (size <= 0)
+        return std::string();
+    std::string text(size, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wide.data(), units, &text[0], size, nullptr, nullptr);
+    return text;
+}
+
+std::string Utf16LeFromUtf8(const std::string& text)
+{
+    const int length = static_cast<int>(text.size());
+    if (length == 0)
+        return std::string();
+    const int units = MultiByteToWideChar(CP_UTF8, 0, text.data(), length, nullptr, 0);
+    if (units <= 0)
+        return std::string();
+    std::wstring wide(units, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.data(), length, &wide[0], units);
+    return std::string(reinterpret_cast<const char*>(wide.data()), units * sizeof(wchar_t));
+}
+
+IniText DecodedIni(const std::string& bytes)
+{
+    IniText ini;
+    if (StartsWith(bytes, kUtf16LeBom))
+    {
+        ini.utf16 = true;
+        ini.text = Utf8FromUtf16Le(bytes.substr(std::strlen(kUtf16LeBom)));
+    }
+    else
+        ini.text = StartsWith(bytes, kUtf8Bom) ? bytes.substr(std::strlen(kUtf8Bom)) : bytes;
+    return ini;
+}
+
+std::string EncodedIni(const std::string& text, bool utf16)
+{
+    return utf16 ? kUtf16LeBom + Utf16LeFromUtf8(text) : text;
+}
+
+bool IsSectionHeader(const std::string& line, const char* section, size_t& afterHeader)
+{
+    const size_t open = line.find_first_not_of(" \t");
+    if (open == std::string::npos || line[open] != '[')
+        return false;
+    const size_t close = line.rfind(']');
+    if (close == std::string::npos || close < open)
+        return false;
+    afterHeader = close + 1;
+    return SameText(Trimmed(line.substr(open + 1, close - open - 1)), section);
+}
+
+RenamedSections WithSectionRenamed(const std::string& text, const char* earlierSection)
+{
+    RenamedSections adopted;
     size_t start = 0;
     while (start < text.size())
     {
@@ -290,7 +367,14 @@ std::string WithSectionRenamed(const std::string& text, const char* earlierSecti
         const std::string line = text.substr(start, end - start);
         const size_t lastVisible = line.find_last_not_of("\r\n");
         const std::string body = lastVisible == std::string::npos ? std::string() : line.substr(0, lastVisible + 1);
-        adopted += SameText(Trimmed(body), earlierSectionLine) ? kSectionLine + line.substr(body.size()) : line;
+        size_t afterHeader = 0;
+        if (IsSectionHeader(body, earlierSection, afterHeader))
+        {
+            adopted.text += kSectionLine + line.substr(afterHeader);
+            ++adopted.renamed;
+        }
+        else
+            adopted.text += line;
         start = end;
     }
     return adopted;
@@ -306,12 +390,19 @@ bool WriteWholeFile(const std::string& path, const std::string& text)
     return ok;
 }
 
-bool AdoptSettings(const std::string& earlierIni, const char* earlierSectionLine, const std::string& ini)
+bool AdoptSettings(const std::string& earlierIni, const char* earlierSection, const std::string& ini)
 {
-    std::string text;
-    if (!ReadWholeFile(earlierIni, text))
+    std::string bytes;
+    if (!ReadWholeFile(earlierIni, bytes))
         return false;
-    if (WriteWholeFile(ini, WithSectionRenamed(text, earlierSectionLine)))
+    const IniText earlier = DecodedIni(bytes);
+    const RenamedSections adopted = WithSectionRenamed(earlier.text, earlierSection);
+    if (adopted.renamed == 0)
+    {
+        VF_LOG_ERROR("settings not taken over from %s: it has no [%s] section", earlierIni.c_str(), earlierSection);
+        return false;
+    }
+    if (WriteWholeFile(ini, EncodedIni(adopted.text, earlier.utf16)))
         return true;
     DeleteFileA(ini.c_str());
     VF_LOG_ERROR("settings could not be taken over from %s into %s", earlierIni.c_str(), ini.c_str());
@@ -599,7 +690,7 @@ const char* AdoptEarlierSettings(const std::string& directory)
     if (GetFileAttributesA(ini.c_str()) != INVALID_FILE_ATTRIBUTES)
         return nullptr;
     for (const EarlierSettings& earlier : kEarlierSettings)
-        if (AdoptSettings(directory + earlier.ini, earlier.sectionLine, ini))
+        if (AdoptSettings(directory + earlier.ini, earlier.section, ini))
             return earlier.ini;
     return nullptr;
 }

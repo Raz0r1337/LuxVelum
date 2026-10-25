@@ -2124,6 +2124,107 @@ void CheckEarlierSettingsAreTakenOver(const std::wstring& outDir, const std::wst
           "a Luxveil.ini from TEST Build-24-11 is taken over before an older CoAVolFog.ini");
 }
 
+constexpr const char* kShippedDensityLine = "\nDensity=1.0";
+constexpr const char* kTakenOverDensityLine = "\nDensity=2.5";
+constexpr float kTakenOverDensity = 2.5f;
+constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
+constexpr const char* kUtf16LeBom = "\xFF\xFE";
+constexpr const char* kPlayerComment = "; Nebel f\xC3\xBCr Elwynn\r\n";
+
+std::string EarlierIniText(const std::wstring& shippedIni, const char* sectionLine)
+{
+    std::string text = ReadText(shippedIni);
+    const size_t at = text.find(kLuxVelumSectionLine);
+    const size_t density = text.find(kShippedDensityLine);
+    if (at == std::string::npos || density == std::string::npos || density < at)
+        return std::string();
+    text.replace(density, std::strlen(kShippedDensityLine), kTakenOverDensityLine);
+    text.replace(at, std::strlen(kLuxVelumSectionLine), sectionLine);
+    return text;
+}
+
+std::string Utf16Le(const std::string& utf8)
+{
+    const int length = static_cast<int>(utf8.size());
+    const int units = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), length, nullptr, 0);
+    if (units <= 0)
+        return std::string();
+    std::wstring wide(units, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, utf8.data(), length, &wide[0], units);
+    return std::string(reinterpret_cast<const char*>(wide.data()), wide.size() * sizeof(wchar_t));
+}
+
+struct TakenOver
+{
+    std::string from;
+    bool written = false;
+    std::string text;
+    Config settings;
+
+    bool From(const char* ini) const { return written && from == ini; }
+};
+
+TakenOver TakeOverIn(const std::wstring& dir)
+{
+    TakenOver taken;
+    const char* from = AdoptEarlierSettings(NarrowPath(dir + L"\\"));
+    taken.from = from ? from : "";
+    const std::wstring ini = dir + L"\\LuxVelum.ini";
+    taken.written = GetFileAttributesW(ini.c_str()) != INVALID_FILE_ATTRIBUTES;
+    if (!taken.written)
+        return taken;
+    taken.text = ReadText(ini);
+    ConfigStore store;
+    store.Load(NarrowPath(ini));
+    taken.settings = store.Get();
+    return taken;
+}
+
+void CheckEarlierSettingsAreTakenOverWhateverTheirShape(const std::wstring& outDir, const std::wstring& shippedIni)
+{
+    ConfigStore shipped;
+    shipped.Load(NarrowPath(shippedIni));
+    Config expected = shipped.Get();
+    expected.density = kTakenOverDensity;
+
+    const std::wstring trailing = FreshTakeoverDirectory(outDir, L"takeover-trailing-text");
+    WriteText(trailing + L"\\CoAVolFog.ini", EarlierIniText(shippedIni, "[CoAVolFog] ; mine"));
+    const TakenOver fromTrailing = TakeOverIn(trailing);
+    Check(fromTrailing.From("CoAVolFog.ini") && SameLiveSettings(fromTrailing.settings, expected) &&
+              fromTrailing.text.find("\n[LuxVelum] ; mine") != std::string::npos,
+          "a CoAVolFog.ini whose header line goes on after its ] is taken over, the rest of the line kept");
+
+    const std::wstring utf8 = FreshTakeoverDirectory(outDir, L"takeover-utf8-bom");
+    WriteText(utf8 + L"\\CoAVolFog.ini", std::string(kUtf8Bom) + "[CoAVolFog]\r\nDensity=2.5\r\n");
+    const TakenOver fromUtf8 = TakeOverIn(utf8);
+    Check(fromUtf8.From("CoAVolFog.ini") && fromUtf8.settings.density == kTakenOverDensity &&
+              fromUtf8.text.rfind(kLuxVelumSectionLine, 0) == 0,
+          "a CoAVolFog.ini saved as UTF-8 with its header on the first line is taken over, and LuxVelum.ini starts "
+          "with its header, not with the byte order mark");
+
+    const std::wstring utf16 = FreshTakeoverDirectory(outDir, L"takeover-utf16");
+    WriteText(utf16 + L"\\CoAVolFog.ini",
+              kUtf16LeBom + Utf16Le(kPlayerComment + EarlierIniText(shippedIni, "[CoAVolFog]")));
+    const TakenOver fromUtf16 = TakeOverIn(utf16);
+    Check(fromUtf16.From("CoAVolFog.ini") && SameLiveSettings(fromUtf16.settings, expected) &&
+              fromUtf16.text.rfind(kUtf16LeBom + Utf16Le(kPlayerComment), 0) == 0 &&
+              fromUtf16.text.find(Utf16Le(kLuxVelumSectionLine)) != std::string::npos,
+          "a CoAVolFog.ini saved as Unicode is taken over and stays Unicode, its comments unchanged");
+
+    const std::wstring sectionless = FreshTakeoverDirectory(outDir, L"takeover-sectionless");
+    WriteText(sectionless + L"\\CoAVolFog.ini", "[Settings]\r\nDensity=2.5\r\n");
+    const TakenOver fromSectionless = TakeOverIn(sectionless);
+    Check(fromSectionless.from.empty() && !fromSectionless.written,
+          "an earlier INI without its section is not taken over, and no LuxVelum.ini is made from it");
+
+    const std::wstring next = FreshTakeoverDirectory(outDir, L"takeover-next");
+    WriteText(next + L"\\Luxveil.ini", "; Luxveil\r\n[Fog]\r\nDensity=1.75\r\n");
+    WriteText(next + L"\\CoAVolFog.ini", EarlierIniText(shippedIni, "[CoAVolFog]"));
+    const TakenOver fromNext = TakeOverIn(next);
+    Check(fromNext.From("CoAVolFog.ini") && SameLiveSettings(fromNext.settings, expected),
+          "a Luxveil.ini without its section is passed over for the CoAVolFog.ini behind it");
+}
+
 struct ClientInput
 {
     int keyDowns = 0;
@@ -2627,6 +2728,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckSettingsSaveKeepsTheIni(outDir, FullPath(iniPath));
     CheckRegionLocalLightsSetting(outDir, FullPath(iniPath));
     CheckEarlierSettingsAreTakenOver(outDir, FullPath(iniPath));
+    CheckEarlierSettingsAreTakenOverWhateverTheirShape(outDir, FullPath(iniPath));
     CheckFogDataBounds(outDir, dataPath);
     forever_look_checks::CheckForeverGlow();
     forever_look_checks::CheckLookSettings(outDir, FullPath(iniPath));

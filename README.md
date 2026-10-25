@@ -846,8 +846,10 @@ Delete the `version.dll` of an earlier package: one from CoAVolFog or Luxveil ke
 old DLL is gone, and one from LuxVelum once its DLL no longer exports `vf_loader_anchor`.
 To keep the settings of an earlier Luxveil or CoAVolFog install, leave out `LuxVelum.ini`: on its first start the DLL
 then copies `Luxveil.ini`, or without it `CoAVolFog.ini`, to `LuxVelum.ini` with its section renamed and logs which file
-it took; an existing `LuxVelum.ini` is never replaced. The old `Luxveil.dll`, `Luxveil.ini`, `Luxveil.log`,
-`CoAVolFog.dll`, `CoAVolFog.ini` and `CoAVolFog.log` are no longer used and can be deleted.
+it took; an existing `LuxVelum.ini` is never replaced. A file saved as UTF-8 or Unicode (UTF-16) and a section header
+followed by more text are taken over too; a file without its `[Luxveil]` or `[CoAVolFog]` section is skipped with a log
+line, and the next one is tried. The old `Luxveil.dll`, `Luxveil.ini`, `Luxveil.log`, `CoAVolFog.dll`, `CoAVolFog.ini`
+and `CoAVolFog.log` are no longer used and can be deleted.
 
 ## Steam Deck and Linux (Proton)
 
