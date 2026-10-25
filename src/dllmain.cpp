@@ -512,6 +512,11 @@ extern "C" void __cdecl vf_test_fail_depth_creation(int failing)
     FailDepthCreation(failing != 0);
 }
 
+extern "C" const char* __cdecl vf_test_load_nvapi(LibraryLoader load)
+{
+    return LoadNvapiThrough(load);
+}
+
 extern "C" void __cdecl vf_test_water_ripple_stats(WaterRippleStats* out)
 {
     ReadWaterRippleStats(LatestFogDevice(), *out);

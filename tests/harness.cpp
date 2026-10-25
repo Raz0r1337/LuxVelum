@@ -104,6 +104,7 @@ extern "C" __declspec(dllimport) void __cdecl vf_test_multisampling(Multisamplin
 extern "C" __declspec(dllimport) void __cdecl vf_test_probe_depth_copy(IDirect3D9*, DepthCopyProbe*);
 extern "C" __declspec(dllimport) D3DFORMAT __cdecl vf_test_display_format_for(D3DFORMAT);
 extern "C" __declspec(dllimport) void __cdecl vf_test_fail_depth_creation(int);
+extern "C" __declspec(dllimport) const char* __cdecl vf_test_load_nvapi(LibraryLoader);
 extern "C" __declspec(dllimport) void __cdecl vf_test_water_ripple_stats(WaterRippleStats*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_water_ripple_shading(WaterRippleShading*);
 extern "C" __declspec(dllimport) unsigned __cdecl vf_test_water_contact_reads();
@@ -2879,6 +2880,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckLightProjectsOntoTheViewport();
     CheckGetProcAddressSlotStates();
     device_creation_checks::CheckDisplayFormats();
+    multisampling_checks::CheckNvapiLoadsWithoutKb2533623();
 
     if (cpuOnly)
     {
