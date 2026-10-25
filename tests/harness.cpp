@@ -25,6 +25,7 @@
 
 #include <windows.h>
 #include <d3d9.h>
+#include <share.h>
 #include <wincodec.h>
 
 #include <algorithm>
@@ -105,6 +106,7 @@ extern "C" __declspec(dllimport) void __cdecl vf_test_probe_depth_copy(IDirect3D
 extern "C" __declspec(dllimport) D3DFORMAT __cdecl vf_test_display_format_for(D3DFORMAT);
 extern "C" __declspec(dllimport) void __cdecl vf_test_fail_depth_creation(int);
 extern "C" __declspec(dllimport) const char* __cdecl vf_test_load_nvapi(LibraryLoader);
+extern "C" __declspec(dllimport) const char* __cdecl vf_test_log_path();
 extern "C" __declspec(dllimport) void __cdecl vf_test_water_ripple_stats(WaterRippleStats*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_water_ripple_shading(WaterRippleShading*);
 extern "C" __declspec(dllimport) unsigned __cdecl vf_test_water_contact_reads();
@@ -2752,6 +2754,44 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "multisampling_checks.h"
 #include "device_creation_checks.h"
 
+constexpr unsigned long kFirstClientProcessId = 4141;
+constexpr unsigned long kSecondClientProcessId = 4242;
+
+std::string WrittenAndClosed(LogFile& log, const char* line)
+{
+    if (!log.file)
+        return std::string();
+    std::fputs(line, log.file);
+    std::fclose(log.file);
+    log.file = nullptr;
+    return line;
+}
+
+void CheckSecondClientWritesItsOwnLog(const std::wstring& outDir)
+{
+    const std::wstring folder = FullPath(outDir + L"\\two-clients");
+    CreateDirectoryW(folder.c_str(), nullptr);
+    const std::wstring shared = folder + L"\\LuxVelum.log";
+    const std::wstring own = folder + L"\\LuxVelum-" + std::to_wstring(kSecondClientProcessId) + L".log";
+    DeleteFileW(own.c_str());
+    LogFile first = OpenLogFile(NarrowPath(shared), kFirstClientProcessId);
+    LogFile second = OpenLogFile(NarrowPath(shared), kSecondClientProcessId);
+    const std::string firstLine = WrittenAndClosed(first, "first client");
+    const std::string secondLine = WrittenAndClosed(second, "second client");
+    Check(first.path == NarrowPath(shared) && second.path == NarrowPath(own) && !firstLine.empty() &&
+              ReadText(shared) == firstLine && !secondLine.empty() && ReadText(own) == secondLine,
+          "a second client started from the same folder writes LuxVelum-<process id>.log and leaves the first "
+          "client's LuxVelum.log intact");
+}
+
+void CheckFogLogRefusesASecondWriter()
+{
+    FILE* second = _wfsopen(runtime_cost::FogLogBesideTheFogDll().c_str(), L"r+", _SH_DENYNO);
+    if (second)
+        std::fclose(second);
+    Check(!second, "the DLL's log cannot be opened for writing by a second client while the DLL writes it");
+}
+
 void CheckFirstColumnIsFogged(const Image& transmittance, const D3DVIEWPORT9& world)
 {
     int largest = 0;
@@ -2881,6 +2921,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckGetProcAddressSlotStates();
     device_creation_checks::CheckDisplayFormats();
     multisampling_checks::CheckNvapiLoadsWithoutKb2533623();
+    CheckSecondClientWritesItsOwnLog(outDir);
+    CheckFogLogRefusesASecondWriter();
 
     if (cpuOnly)
     {

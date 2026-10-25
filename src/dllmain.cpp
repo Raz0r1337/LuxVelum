@@ -517,6 +517,11 @@ extern "C" const char* __cdecl vf_test_load_nvapi(LibraryLoader load)
     return LoadNvapiThrough(load);
 }
 
+extern "C" const char* __cdecl vf_test_log_path()
+{
+    return LogPath();
+}
+
 extern "C" void __cdecl vf_test_water_ripple_stats(WaterRippleStats* out)
 {
     ReadWaterRippleStats(LatestFogDevice(), *out);

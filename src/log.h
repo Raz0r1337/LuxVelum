@@ -1,10 +1,20 @@
 #pragma once
 
 #include <cstdarg>
+#include <cstdio>
+#include <string>
 
 enum class LogLevel : int { Error = 0, Info = 1, Debug = 2 };
 
+struct LogFile
+{
+    std::FILE* file = nullptr;
+    std::string path;
+};
+
+LogFile OpenLogFile(const std::string& path, unsigned long processId);
 void LogOpen(const char* path);
+const char* LogPath();
 void LogSetLevel(int level);
 bool LogEnabled(LogLevel level);
 void LogWrite(LogLevel level, const char* fmt, ...);
