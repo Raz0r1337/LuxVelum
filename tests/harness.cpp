@@ -124,6 +124,10 @@ namespace
 {
 constexpr D3DFORMAT kIntz = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 constexpr D3DFORMAT kClientDepthFormat = D3DFMT_D24X8;
+constexpr DWORD kClientDeviceFlags =
+    D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE | D3DCREATE_FPU_PRESERVE;
+static_assert(kClientDeviceFlags == 0x52, "the harness creates its devices with the client's flags 0x52");
+constexpr DWORD kFogDeviceFlags = kClientDeviceFlags & ~static_cast<DWORD>(D3DCREATE_PUREDEVICE);
 constexpr float kPi = 3.14159265f;
 constexpr float kNear = 0.4f;
 constexpr float kFar = 1000.0f;
@@ -2852,18 +2856,17 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     h.pp.AutoDepthStencilFormat = kClientDepthFormat;
     h.pp.hDeviceWindow = h.window;
     h.pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-    DWORD engineFlags = D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE | D3DCREATE_FPU_PRESERVE;
-    Check(engineFlags == 0x52, "harness uses the client's device flags");
     Config startup = {};
     vf_test_set_config(&startup);
-    HRESULT hr = h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, engineFlags, &h.pp, &h.dev);
+    HRESULT hr = h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, kClientDeviceFlags, &h.pp, &h.dev);
     Check(SUCCEEDED(hr) && h.dev, "CreateDevice through the wrapper");
     if (!h.dev)
         return 1;
 
     D3DDEVICE_CREATION_PARAMETERS cp;
     h.dev->GetCreationParameters(&cp);
-    Check((cp.BehaviorFlags & D3DCREATE_PUREDEVICE) == 0, "pure-device flag removed");
+    Check((cp.BehaviorFlags & kClientDeviceFlags) == kFogDeviceFlags,
+          "the fog device keeps hardware vertex processing and FPU preservation and drops only the pure-device flag");
     D3DADAPTER_IDENTIFIER9 adapter = {};
     D3DCAPS9 caps = {};
     h.d3d->GetAdapterIdentifier(0, 0, &adapter);
@@ -3308,7 +3311,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     ULONG devRefs = h.dev->Release();
     client_sprite_checks::CheckDeviceReleaseRestoresTheGate();
     h.dev = nullptr;
-    hr = h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, engineFlags, &h.pp, &h.dev);
+    hr = h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, kClientDeviceFlags, &h.pp, &h.dev);
     Check(SUCCEEDED(hr) && h.dev, "a device is created again on the harness window");
     if (h.dev)
     {
@@ -3607,8 +3610,7 @@ int RunHarbour(const std::wstring& outDir, const std::string& dataPath, const Ha
     h.pp.AutoDepthStencilFormat = kClientDepthFormat;
     h.pp.hDeviceWindow = h.window;
     h.pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-    DWORD engineFlags = D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE | D3DCREATE_FPU_PRESERVE;
-    if (FAILED(h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, engineFlags, &h.pp, &h.dev)) || !h.dev)
+    if (FAILED(h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, kClientDeviceFlags, &h.pp, &h.dev)) || !h.dev)
     {
         std::printf("CreateDevice through the wrapper failed\n");
         h.d3d->Release();

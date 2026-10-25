@@ -129,9 +129,10 @@ void CheckDepthProbeAndGpuTimeLog(Harness& h, Vec3 eye, Vec3 at)
     probe.pp.BackBufferWidth = kProbeDeviceWidth;
     probe.pp.BackBufferHeight = kProbeDeviceHeight;
     probe.pp.hDeviceWindow = probe.window;
-    const DWORD engineFlags = D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE | D3DCREATE_FPU_PRESERVE;
-    const bool created = probe.window && SUCCEEDED(h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, probe.window, engineFlags,
-                                                                       &probe.pp, &probe.dev)) && probe.dev;
+    const bool created = probe.window &&
+                         SUCCEEDED(h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, probe.window, kClientDeviceFlags,
+                                                       &probe.pp, &probe.dev)) &&
+                         probe.dev;
     Check(created, "a second fog device starts with a fresh renderer for the log checks");
     if (!created)
     {

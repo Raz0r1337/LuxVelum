@@ -7,8 +7,6 @@ namespace multisampling_checks
 using Direct3DCreate = IDirect3D9*(WINAPI*)(UINT);
 
 constexpr D3DMULTISAMPLE_TYPE kFourSamples = D3DMULTISAMPLE_4_SAMPLES;
-constexpr DWORD kClientDeviceFlags =
-    D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE | D3DCREATE_FPU_PRESERVE;
 constexpr DWORD kClientClearFlags = D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER;
 constexpr D3DFORMAT kStencilDepthFormat = D3DFMT_D24S8;
 constexpr D3DFORMAT kResz = static_cast<D3DFORMAT>(MAKEFOURCC('R', 'E', 'S', 'Z'));
@@ -1185,7 +1183,9 @@ void CheckMultisampledDevice(Harness& m, const DepthCopyProbe& probe, const std:
         return;
     D3DDEVICE_CREATION_PARAMETERS cp = {};
     m.dev->GetCreationParameters(&cp);
-    Check((cp.BehaviorFlags & D3DCREATE_PUREDEVICE) == 0, "the multisampled device drops the pure-device flag");
+    Check((cp.BehaviorFlags & kClientDeviceFlags) == kFogDeviceFlags,
+          "the multisampled device keeps hardware vertex processing and FPU preservation and drops only the "
+          "pure-device flag");
 
     const FogFrame fog = RenderFogOverDepthQuads(m);
     PrintFogFrame("4x fog", fog);

@@ -521,9 +521,9 @@ int RunPerformance(D3DMULTISAMPLE_TYPE samples)
     h.pp.MultiSampleType = samples;
     h.pp.hDeviceWindow = h.window;
     h.pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-    const DWORD flags = D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE | D3DCREATE_FPU_PRESERVE;
     bool completed = false;
-    if (h.d3d && SUCCEEDED(h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, flags, &h.pp, &h.dev)) && h.dev)
+    if (h.d3d && SUCCEEDED(h.d3d->CreateDevice(0, D3DDEVTYPE_HAL, h.window, kClientDeviceFlags, &h.pp, &h.dev)) &&
+        h.dev)
         completed = performance_scene::MeasureCases(h);
     if (h.dev)
         h.dev->Release();
