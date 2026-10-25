@@ -785,9 +785,10 @@ the development branch `st0ny-dev`, and on a manual run of it, a test job delete
 (`build-<n>-test` or `build-<n>-<k>-test`) and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes
 `build-<n+1>-<k>-test` as a pre-release titled `LuxVelum TEST Build-<n+1>-<k> (st0ny-dev <commit>)`, which never
 becomes `releases/latest`. `<k>` is one more than the successful runs of the workflow on `st0ny-dev` since `build-<n>`
-was published, which a refresh does not change, so testers can tell the test builds of one candidate apart. A build
-whose branch has already moved on to a newer commit gets no release and deletes nothing; other branches and pull
-requests publish none.
+was published, which a refresh does not change, so testers can tell the test builds of one candidate apart. The two
+branches publish in parallel, so the test job looks at the releases again after creating its own and deletes it again
+when `st0ny-main` has published `build-<n+1>` meanwhile. A build whose branch has already moved on to a newer commit
+gets no release and deletes nothing; other branches and pull requests publish none.
 
 CI uses Windows Server 2022, MSVC 2022 and `fxc` to build Win32 Release, then runs the comment check and the CPU
 harness. The CPU harness exercises the existing data, fog model, local-light/interior, settings persistence (with the

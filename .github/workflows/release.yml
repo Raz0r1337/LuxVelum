@@ -279,3 +279,11 @@ jobs:
           } > notes.md
           gh release create "$tag" LuxVelum-Win32.zip --repo "$GITHUB_REPOSITORY" --prerelease --latest=false \
             --target "$SHA" --title "$title" --notes-file notes.md
+          released=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.prerelease | not) | .tag_name | select(test("^build-[0-9]+$")) | ltrimstr("build-")' |
+            sort -n | tail -n 1)
+          if [ "${released:-0}" -ge "$number" ]; then
+            echo "::notice::${MAIN} published build-${released} meanwhile; the test release ${tag} is deleted again"
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes ||
+              echo "::warning::the test release ${tag} could not be deleted"
+          fi
