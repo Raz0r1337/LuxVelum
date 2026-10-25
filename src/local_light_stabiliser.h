@@ -55,7 +55,9 @@ private:
     void AdvanceWeights(float dt);
     static bool TakesFreeSlotBefore(const Entry& entry, const Entry& other);
     void FillFreeSlots();
+    uint32_t AdoptOrphanedEvictions(const Entry& weakestEvicted, uint32_t orphans);
     void CancelEvictionsWithoutHeirs();
+    void CallOffLeastFadedEvictions(uint32_t count);
     void ChallengeWeakestSlot();
     void RemoveSpentEntries();
     void WriteOutput(LocalLightInputs& lights);
@@ -66,6 +68,7 @@ private:
     LocalPointLight m_held[kMaxLocalPointLights] = {};
     uint32_t m_heldCount = 0;
     uint32_t m_rejectedCaptures = 0;
+    uint32_t m_orphanCaptures = 0;
     bool m_sceneStarting = true;
     int m_mapId = 0;
     uint32_t m_lastFrame = 0;
