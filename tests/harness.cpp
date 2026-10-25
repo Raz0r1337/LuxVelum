@@ -102,6 +102,7 @@ extern "C" __declspec(dllimport) void __cdecl vf_test_force_depth_copy_method(in
 extern "C" __declspec(dllimport) int __cdecl vf_test_read_scene_depth(const DepthTexel*, int, float*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_multisampling(MultisamplingStatus*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_probe_depth_copy(IDirect3D9*, DepthCopyProbe*);
+extern "C" __declspec(dllimport) D3DFORMAT __cdecl vf_test_display_format_for(D3DFORMAT);
 extern "C" __declspec(dllimport) void __cdecl vf_test_water_ripple_stats(WaterRippleStats*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_water_ripple_shading(WaterRippleShading*);
 extern "C" __declspec(dllimport) unsigned __cdecl vf_test_water_contact_reads();
@@ -2747,6 +2748,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "transparent_fog_checks.h"
 #include "early_composite_look_checks.h"
 #include "multisampling_checks.h"
+#include "device_creation_checks.h"
 
 void CheckFirstColumnIsFogged(const Image& transmittance, const D3DVIEWPORT9& world)
 {
@@ -2875,6 +2877,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     transparent_fog_checks::CheckTransparentFogSetting(outDir, FullPath(iniPath));
     CheckLightProjectsOntoTheViewport();
     CheckGetProcAddressSlotStates();
+    device_creation_checks::CheckDisplayFormats();
 
     if (cpuOnly)
     {
@@ -3395,6 +3398,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     ULONG d3dRefs = h.d3d->Release();
     Check(devRefs == 0 && d3dRefs == 0, "wrapper reference counts reach zero");
     multisampling_checks::CheckMultisampling(realCreate, h.window, outDir, FullPath(iniPath));
+    device_creation_checks::CheckDeviceCreation(realCreate, h.window);
     vf_test_set_config(&restored);
     DestroyWindow(h.window);
     CheckTheDllStaysLoadedAfterFreeLibrary(outDir);

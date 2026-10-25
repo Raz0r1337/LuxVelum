@@ -452,6 +452,10 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
   treat anything deeper as beyond the far clip.
   When the game asks for multisampling and a depth copy passes its self-test (see Antialiasing), the device keeps
   the game's multisampled back buffer and automatic depth (D24S8 for D24X8) instead, and `INTZ` becomes a copy.
+  The `INTZ` and D24S8 support checks pass a fullscreen back buffer's display format as the adapter format:
+  X8R8G8B8 for A8R8G8B8 and X1R5G5B5 for A1R5G5B5, since D3D9 displays no alpha and DXVK refuses those formats as
+  adapter formats. Which format the client asks for in fullscreen is not confirmed; windowed devices use the
+  desktop's mode.
 - **Hooks.** Five 5-byte call displacements: the world render call (`0x4FB03D`, stock-fog override and restore),
   after the opaque M2 pass (`0x4F911D`, captures camera inputs), the liquid surface pass (`0x4F9170`, forces
   depth writes), world-name text (`0x7E5818`, draws the fog unless it already composited this frame, then
