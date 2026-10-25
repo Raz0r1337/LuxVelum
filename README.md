@@ -430,6 +430,9 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
 - **Loader.** `Wow.exe` loads `LuxVelum.dll` at startup, before the client resolves Direct3D, through the LuxVelum
   loader of St0ny's AIO WoW EXE Patcher; `DllMain` does the rest and no export is called. Earlier packages loaded it
   through a `version.dll` proxy and a static import of its `vf_loader_anchor` export, which the DLL no longer has.
+  Loaded with `LoadLibraryA`, the DLL pins itself before it patches anything, so no `FreeLibrary` can unmap the code
+  the hooks call, and an exception during start-up is logged and leaves the load successful with the hooks installed
+  so far.
 - **D3D9.** The client resolves `Direct3DCreate9` through the delay-loaded `GetProcAddress` slot `[0xB2ED98]`.
   The DLL points that slot at a filter that returns a wrapped `IDirect3D9`. No d3d9 code is patched, so DXVK or
   other `d3d9.dll` builds keep working underneath.

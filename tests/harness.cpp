@@ -1995,6 +1995,32 @@ void CheckGetProcAddressSlotStates()
           "address");
 }
 
+std::wstring LuxVelumDllPath()
+{
+    HMODULE module = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(&vf_test_get_config), &module))
+        return std::wstring();
+    wchar_t path[MAX_PATH] = {};
+    const DWORD length = GetModuleFileNameW(module, path, MAX_PATH);
+    return std::wstring(path, length);
+}
+
+void CheckTheDllStaysLoadedAfterFreeLibrary(const std::wstring& outDir)
+{
+    const std::wstring dir = FullPath(outDir + L"\\pin-check");
+    CreateDirectoryW(dir.c_str(), nullptr);
+    const std::wstring dll = LuxVelumDllPath();
+    const std::wstring copy = dir + L"\\LuxVelumPinCheck.dll";
+    const bool copied = !dll.empty() && CopyFileW(dll.c_str(), copy.c_str(), FALSE);
+    HMODULE loaded = copied ? LoadLibraryW(copy.c_str()) : nullptr;
+    if (loaded)
+        FreeLibrary(loaded);
+    Check(loaded && GetModuleHandleW(L"LuxVelumPinCheck.dll") == loaded,
+          "LuxVelum.dll pins itself while it loads, so a FreeLibrary by the loader in Wow.exe or by another tool "
+          "cannot unmap the code its hooks call");
+}
+
 void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring& shippedIni)
 {
     const std::wstring savedIni = FullPath(outDir + L"\\saved.ini");
@@ -2856,6 +2882,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
         CheckInteriorFogInputs();
         water_contact_checks::CheckWaterContacts();
+        CheckTheDllStaysLoadedAfterFreeLibrary(outDir);
         CoUninitialize();
         std::printf("CPU checks %s (%d failures); D3D9 graphics checks were not run\n",
                     g_failures ? "FAILED" : "OK", g_failures);
@@ -3364,6 +3391,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     multisampling_checks::CheckMultisampling(realCreate, h.window, outDir, FullPath(iniPath));
     vf_test_set_config(&restored);
     DestroyWindow(h.window);
+    CheckTheDllStaysLoadedAfterFreeLibrary(outDir);
     CoUninitialize();
     std::printf("%s (%d failure%s)\n", g_failures ? "FAILED" : "OK", g_failures, g_failures == 1 ? "" : "s");
     return g_failures ? 1 : 0;

@@ -17,6 +17,7 @@
 
 #include <windows.h>
 
+#include <exception>
 #include <string>
 
 namespace
@@ -57,14 +58,25 @@ std::string ModuleDirectory(HMODULE module)
     return slash == std::string::npos ? std::string() : dir.substr(0, slash + 1);
 }
 
+bool PinnedInTheProcess()
+{
+    HMODULE self = nullptr;
+    return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+                              reinterpret_cast<LPCWSTR>(&PinnedInTheProcess), &self) != FALSE;
+}
+
 void Attach(HMODULE module)
 {
+    const bool pinned = PinnedInTheProcess();
     std::string dir = ModuleDirectory(module);
     LogOpen((dir + "LuxVelum.log").c_str());
     const char* adoptedFrom = AdoptEarlierSettings(dir);
     GlobalConfig().Load(dir + "LuxVelum.ini");
     const Config& cfg = GlobalConfig().Get();
     VF_LOG_INFO("LuxVelum loaded from %s", dir.c_str());
+    if (!pinned)
+        VF_LOG_ERROR("LuxVelum.dll could not pin itself in the process; unloading it would leave the hooks calling "
+                     "unmapped code");
     if (adoptedFrom)
         VF_LOG_INFO("settings taken over from %s into LuxVelum.ini", adoptedFrom);
     GlobalFogData().Load(dir + "fogdata.bin");
@@ -99,6 +111,23 @@ void Attach(HMODULE module)
         GlobalWaterData().Load(dir + "waterdata.bin");
     InstallFarClipHooks();
 }
+
+void AttachWithoutEscapingExceptions(HMODULE module)
+{
+    try
+    {
+        Attach(module);
+    }
+    catch (const std::exception& error)
+    {
+        VF_LOG_ERROR("start-up stopped by an exception (%s); the hooks installed before it stay in place",
+                     error.what());
+    }
+    catch (...)
+    {
+        VF_LOG_ERROR("start-up stopped by an exception; the hooks installed before it stay in place");
+    }
+}
 }
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
@@ -106,7 +135,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
     if (reason == DLL_PROCESS_ATTACH)
     {
         DisableThreadLibraryCalls(instance);
-        Attach(instance);
+        AttachWithoutEscapingExceptions(instance);
     }
     if (reason == DLL_PROCESS_DETACH)
         GlobalClientRippleSprites().Restore();
