@@ -573,6 +573,18 @@ bool UsesLightingFogColour(uint32_t colour)
     return (colour & kFogColourAlphaMask) == kLightingFogColourAlpha;
 }
 
+bool UnfoggedBatchFogColour(uint16_t blendMode, uint32_t& colour)
+{
+    constexpr uint32_t kBlendModeFogColours[kM2BlendModes] = {
+        kLightingFogColourAlpha, kLightingFogColourAlpha, kLightingFogColourAlpha, kAdditiveFogColour,
+        kAdditiveFogColour,      kModulateFogColour,      kModulate2xFogColour,    kAdditiveFogColour,
+    };
+    if (blendMode >= kM2BlendModes)
+        return false;
+    colour = kBlendModeFogColours[blendMode];
+    return true;
+}
+
 void ApplyStockFogFit(const StockFogFit& fit, M2BatchFogArgs& args)
 {
     if (!fit.fogs)

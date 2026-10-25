@@ -223,6 +223,10 @@ with how clear they are, toward the depth where the transmittance along the view
 never past the far clip; when even the far clip keeps 99.5%, no line is fitted and the effects stay unfogged. God rays
 are added at the end of the world render. Under water, with `StockFog=0`, a debug view or the sun marker, or when the
 early composite cannot run, the fog is drawn after the world.
+Batches the client draws unfogged (an M2 material with the unfogged flag, a lighting without fog, blend mode 7), among
+them lamp glows, wisps and other glowing effects, take the same line with the colour of their blend mode: drawn after
+the composite they had no fog at all and shone through any fog at any distance, where the fog drawn after the world
+dims them by the fog behind them (a tester's screenshots of lamps in Duskwood in rain and a lantern in fog, 2026-10-25).
 
 **Water.** The client draws every water and ocean surface, and nothing else, inside one call of its liquid
 renderer. Before that call the DLL copies the scene colour and its linear depth, clears the stencil and turns on
@@ -460,6 +464,9 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
   after the fog hooks whatever `TransparentFog` says, and neither when a byte run checked under M2 batch fog, M2 fog
   setter or Native glare differs. The M2 thunk forwards to the client while nothing is armed and otherwise hands the
   cdecl argument block to the DLL (`pushad; lea eax, [esp+0x24]`); an exception in it turns transparent fog off.
+  The unfogged batch's fog upload call (`0x81FD29`) is retargeted after them, on its own: when a byte run checked under
+  M2 unfogged batch differs it stays unpatched and unfogged effects stay unfogged. Its thunk hands the batch (`esi`)
+  and the upload's argument to the DLL, which calls the setter with the fitted line and turns the upload's 0 into 1.
 - **Water hooks.** Installed after the fog hooks and only when those installed, since the water needs the wrapped
   device and the frame-end hook of the world render call: the water pass call (`0x790AA2`) and the `Render` slots of
   the two water material vtables (`0xA5954C`, `0xA59580`, read-only data patched under `VirtualProtect`). The call
@@ -587,6 +594,16 @@ Engine notes behind the code:
   lighting `[esi+0x70]`), the colour's address (`lea ecx, [ebp−4]`), the end (`+0xAC`) and the start (`+0xA8`),
   calls the setter at `0x81FD15` (`E8 F6 34 05 00` → `0x873210`), then `0x873390(1)`, and pops the arguments
   (`0x81FD1A 6A 01 E8 6F 36 05 00 83 C4 14`).
+- M2 unfogged batch. The batch is `esi` throughout `0x81FB10` (`0x81FB18 8B F1`); seven calls reach it (`0x82040D`,
+  `0x8209E6`, `0x820B3E`, `0x820FA6`, `0x8210CD`, `0x821606`, `0x82307D`). It reads the material
+  (`0x81FB58 8B 8E 98 00 00 00`), takes mode 0 when its flags have bit 2 (`0x81FB61 F6 01 02`) or the lighting's fog
+  at `+0xB0` is not above 0, and otherwise the table entry of the blend mode at material `+2`
+  (`0x81FB77 0F B7 49 02`). Mode 0 jumps (`0x81FB86 3B C3 89 86 80 00 00 00 0F 84 92 01 00 00`) to
+  `0x81FD26 53 DD D8 E8 62 36 05 00 83 C4 04`, the upload `0x873390(0)` with `ebx` = 0. The upload
+  (`55 8B EC 83 EC 10 83 7D 08 00 74 5D`) with 1 sets vertex c30 from the setter's stored constants at `0xD43068`
+  (`0x8733C6 68 68 30 D4 00 6A 1E 6A 00 FF D2`, written at `0x87327F A3 68 30 D4 00`), with 0 c30 = (0, 1, 1, 0)
+  (`0x87341D`), fog 1 at every depth; nothing else writes c30. The setter is called only from `0x7A84BA`,
+  `0x7A9B35` (map object fog from the day/night fog at `0xD38B8C` or `0xD38BA0`) and `0x81FD15`.
 - M2 fog setter. `0x873210` (`55 8B EC 83 EC 14 83 3D 20 30 D4 00 00`) writes the colour's bytes +2, +1 and +0 over
   255 (`0x873225 8B 75 14 0F B6 46 02`, `0x873242 0F B6 4E 01`, `0x873254 0F B6 16`) to pixel c2 and builds vertex
   `c30 = (−1/(end − start), end/(end − start), exponent, 0)` from the start and end (`0x873263 D9 45 0C D9 45 08 D8
@@ -1019,9 +1036,9 @@ Forever in the game, so by default colours still differ from Classic.
   only setting that changes an instruction of the client's own code; the hooks retarget call sites and vtable slots to
   the DLL.
 - Transparent materials without depth writes are fogged at the depth behind them.
-  With `TransparentFog=1` (harness-checked only) M2 effects take one line fitted to the fog of the first 100 yd,
-  or of a longer range when the fog in those is thin (see Transparent fog), which cannot follow height fog and fully
-  fogs effects past its end (500–900 yd in tests), so far glows vanish.
+  With `TransparentFog=1` (harness-checked only) M2 effects, those the client draws unfogged included, take one line
+  fitted to the fog of the first 100 yd, or of a longer range when the fog in those is thin (see Transparent fog),
+  which cannot follow height fog and fully fogs effects past its end (500–900 yd in tests), so far glows vanish.
 - Interior treatment follows the camera's transition weight, not rooms or portals along each ray, so views
   through doorways may differ.
 - The `gxApi d3d9ex` path is not wrapped (fog and the settings window stay off there). The settings window also
