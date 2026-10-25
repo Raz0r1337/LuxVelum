@@ -214,8 +214,11 @@ are drawn at the end of the liquid pass instead, before the see-through models o
 M2 batch fog call gets a linear fog with exponent 1: a least-squares line in planar view depth, the depth the client's
 M2 shaders fog by, through the volumetric transmittance along 15 rays within 100 yd, with the fitted in-scatter,
 point lights included, as the colour where the batch uses its lighting colour (additive, modulate and modulate-2x
-batches keep black, white and grey). God rays are added at the end of the world render. Under water, with
-`StockFog=0`, a debug view or the sun marker, or when the early composite cannot run, the fog is drawn after the world.
+batches keep black, white and grey). When those 100 yd keep more than 90% of the light, the fitted range grows, smoothly
+with how clear they are, toward the depth where the transmittance along the view axis halves, reached at 99.5%, and
+never past the far clip; when even the far clip keeps 99.5%, no line is fitted and the effects stay unfogged. God rays
+are added at the end of the world render. Under water, with `StockFog=0`, a debug view or the sun marker, or when the
+early composite cannot run, the fog is drawn after the world.
 
 **Water.** The client draws every water and ocean surface, and nothing else, inside one call of its liquid
 renderer. Before that call the DLL copies the scene colour and its linear depth, clears the stencil and turns on
@@ -990,7 +993,8 @@ Forever in the game, so by default colours still differ from Classic.
   the DLL.
 - Transparent materials without depth writes are fogged at the depth behind them.
   With `TransparentFog=1` (harness-checked only) M2 effects take one line fitted to the fog of the first 100 yd,
-  which cannot follow height fog and fully fogs effects past its end (500–900 yd in tests), so far glows vanish.
+  or of a longer range when the fog in those is thin (see Transparent fog), which cannot follow height fog and fully
+  fogs effects past its end (500–900 yd in tests), so far glows vanish.
 - Interior treatment follows the camera's transition weight, not rooms or portals along each ray, so views
   through doorways may differ.
 - The `gxApi d3d9ex` path is not wrapped (fog and the settings window stay off there). The settings window also
