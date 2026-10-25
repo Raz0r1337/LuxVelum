@@ -192,6 +192,7 @@ add_custom_target(luxvelum_runtime_files ALL
             $<TARGET_FILE_DIR:LuxVelum>
     COMMENT "Copying LuxVelum.ini, fogdata.bin and waterdata.bin beside LuxVelum.dll"
     VERBATIM)
+add_dependencies(LuxVelum luxvelum_runtime_files)
 add_dependencies(vfog_harness luxvelum_runtime_files)
 
 enable_testing()
