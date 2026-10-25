@@ -2917,6 +2917,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     water_data_checks::CheckWaterData(outDir, waterDataPath);
     water_settings_checks::CheckWaterSettings(outDir, FullPath(iniPath));
     transparent_fog_checks::CheckTransparentFogSetting(outDir, FullPath(iniPath));
+    authored_noise::CheckClassicNoiseOffByDefault(FullPath(iniPath));
     CheckLightProjectsOntoTheViewport();
     CheckGetProcAddressSlotStates();
     device_creation_checks::CheckDisplayFormats();

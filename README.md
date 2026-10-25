@@ -60,8 +60,8 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
   Every light scatters with one shared phase (`LocalLightPhase`), and one brighter than 1 keeps its intensity.
 - **Interior transitions**: the camera's native WMO blend reduces outdoor layers and sunlight while preserving
   the interior's native fog colour and range.
-- **Authored noise**: drifting fog banks where the Classic layers carry the modern client's noise, mostly in
-  storms (`ClassicNoise`).
+- **Authored noise** (optional, off by default): drifting fog banks where the Classic layers carry the modern
+  client's noise, mostly in storms (`ClassicNoise`).
 - **Density variation**: a two-octave field anchored in world space modulates the scene layers around their
   authored mean and drifts along world +X; the distance fog stays smooth so it cannot uncover the far clip. This
   is an artistic control, not a reconstruction of Classic's authored noise.
@@ -389,7 +389,8 @@ it is not in the kit); `ClassicPhase=1` multiplies the scattering by `k(g) = (1+
 6674335, variant 002): two octaves sample a tileable 3D noise volume at `frac((p − offset_i)·inverseTile_i)`, their
 average passes through a fixed S-curve of contrast 20 about 0.5, and `f = lerp(1, curve, alpha)` scales the density
 while the emission moves toward the fade colour by `1 − f`, so storm fog becomes patchier and about half as dense.
-Alpha is the share of a layer's blend weight that carries noise, and each octave scrolls as a phase in tiles, so a
+It is off by default (`ClassicNoise=0`), as a tester judged the storms without it right (2026-10-25). Alpha is the share
+of a layer's blend weight that carries noise, and each octave scrolls as a phase in tiles, so a
 blend that changes the tile size scales the pattern about the camera. The modern `t_perlinNoise3D` is not in the kit;
 the volume here is a 64³ tileable Perlin noise built at load. The water's reflection fog and the far-clip check take a
 noisy layer at its mean. A march at the mean is more opaque than the noisy march on average: each long far step takes
@@ -964,7 +965,7 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `NoiseAmount` | 0.15 | World-space density variation, 0..1; 0 disables it |
 | `NoiseScale` | 0.025 | Inverse feature size of the variation |
 | `NoiseWindSpeed` | 0.5 | Drift of the variation along world +X in yd/s |
-| `ClassicNoise` | 1 | The modern client's authored noise on the Classic layers that carry it (mostly storms); 0 = off |
+| `ClassicNoise` | 0 | The modern client's authored noise on the Classic layers that carry it (mostly storms); 0 = off |
 | `StockFog` | 1 | 1 replaces the stock fog with the distance fog, 0 keeps it |
 | `TransparentFog` | 0 | 1 fogs see-through effects at their own distance, 0 at the scene behind (see Transparent fog) |
 | `DataMode` | 1 | 1 Classic layers where available, 0 derived layers everywhere |

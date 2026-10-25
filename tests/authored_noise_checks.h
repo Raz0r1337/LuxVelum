@@ -135,12 +135,19 @@ FrameInputs HyjalMidnight()
     return ContinentFrame(kKalimdor, hyjal, 0.0f, kToMoonOverHyjal, true);
 }
 
+Config WithClassicNoise()
+{
+    Config config;
+    config.classicNoise = true;
+    return config;
+}
+
 void CheckModelTakesAuthoredNoise(const FogData& data)
 {
     const FrameInputs hyjal = HyjalMidnight();
     AuthoredFog fog = {};
     const bool resolved = data.Resolve(kKalimdor, hyjal.camPos, hyjal.dayFraction, kClearWeather, fog);
-    Config on;
+    const Config on = WithClassicNoise();
     Config off;
     off.classicNoise = false;
     const FogParams noisy = BuildFogParams(hyjal, on, &fog);
@@ -257,7 +264,7 @@ double HyjalStormBlendPath(const FogData& data, double clearSeconds, float* tile
 {
     const FrameInputs hyjal = HyjalMidnight();
     const double pointNearCamera[3] = {hyjal.camPos[0] + 212.0, hyjal.camPos[1] + 212.0, hyjal.camPos[2]};
-    const Config config;
+    const Config config = WithClassicNoise();
     AuthoredNoiseScroll scroll;
     double coordinates[kAuthoredNoiseOctaves][3] = {};
     double path[kAuthoredNoiseOctaves][3] = {};
@@ -1027,6 +1034,28 @@ void CheckRendererDrawsLitStormNoise(Harness& harness)
           "a storm with authored noise and a point light draws the lit noisy march and the lit noisy composite, "
           "whose silhouettes sample the noise like the march around them");
     vf_test_set_config(&saved);
+}
+
+void CheckClassicNoiseOffByDefault(const std::wstring& shippedIni)
+{
+    ConfigStore shipped;
+    shipped.Load(NarrowPath(shippedIni));
+    const std::string text = ReadText(shippedIni);
+    int offLines = 0;
+    int onLines = 0;
+    for (size_t start = 0; start < text.size();)
+    {
+        const size_t end = std::min(text.find('\n', start), text.size());
+        std::string line = text.substr(start, end - start);
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        offLines += line == "ClassicNoise=0";
+        onLines += line == "ClassicNoise=1";
+        start = end + 1;
+    }
+    Check(!shipped.Get().classicNoise && !Config().classicNoise && offLines == 1 && onLines == 0,
+          "the shipped INI and the built-in default keep ClassicNoise=0, so storms keep their full Classic density "
+          "unless a player turns the noise on");
 }
 
 void CheckAuthoredNoise(const FogData& data)
