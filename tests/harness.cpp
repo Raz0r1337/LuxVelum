@@ -3327,6 +3327,29 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     return g_failures ? 1 : 0;
 }
 
+constexpr float kSavedInteriorFarFog = 0.8f;
+
+int RunInterior(const std::wstring& outDir, const std::wstring& shippedIni)
+{
+    CheckInteriorFogInputs();
+    CreateDirectoryW(outDir.c_str(), nullptr);
+    const std::wstring iniCopy = FullPath(outDir + L"\\interior.ini");
+    Check(CopyFileW(FullPath(shippedIni).c_str(), iniCopy.c_str(), FALSE) != FALSE,
+          "the interior scene saves to a fresh copy of the shipped LuxVelum.ini");
+    ConfigStore settings;
+    settings.Load(NarrowPath(iniCopy));
+    Check(settings.Get().interiorFarFog != kSavedInteriorFarFog,
+          "the copied INI does not hold the InteriorFarFog the check saves yet");
+    Config edited = settings.Get();
+    edited.interiorFarFog = kSavedInteriorFarFog;
+    settings.Apply(edited);
+    Check(settings.Save(), "InteriorFarFog saves through the setting registry");
+    ConfigStore reloaded;
+    reloaded.Load(NarrowPath(iniCopy));
+    Check(reloaded.Get().interiorFarFog == kSavedInteriorFarFog, "InteriorFarFog reloads from the ini");
+    return g_failures ? 1 : 0;
+}
+
 constexpr UINT kHarbourWidth = 2560;
 constexpr UINT kHarbourHeight = 1440;
 constexpr int kHarbourSettleFrames = 24;
@@ -3836,21 +3859,7 @@ int wmain(int argc, wchar_t** argv)
         }
     }
     if (scene == L"interior")
-    {
-        CheckInteriorFogInputs();
-        ConfigStore settings;
-        char path[MAX_PATH] = {};
-        WideCharToMultiByte(CP_ACP, 0, ini.c_str(), -1, path, MAX_PATH, nullptr, nullptr);
-        settings.Load(path);
-        Config edited = settings.Get();
-        edited.interiorFarFog = 0.8f;
-        settings.Apply(edited);
-        Check(settings.Save(), "InteriorFarFog saves through the setting registry");
-        ConfigStore reloaded;
-        reloaded.Load(path);
-        Check(reloaded.Get().interiorFarFog == 0.8f, "InteriorFarFog reloads from the ini");
-        return g_failures ? 1 : 0;
-    }
+        return RunInterior(out, ini);
     if (scene == L"harbour")
         return RunHarbour(out, data, harbour);
     if (scene == L"performance")

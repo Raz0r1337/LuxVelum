@@ -183,9 +183,9 @@ add_custom_target(luxvelum_runtime_files ALL
 add_dependencies(vfog_harness luxvelum_runtime_files)
 
 enable_testing()
-configure_file(LuxVelum.ini interior-test.ini COPYONLY)
 add_test(NAME interior_fog
-    COMMAND vfog_harness --scene interior --ini ${CMAKE_CURRENT_BINARY_DIR}/interior-test.ini
+    COMMAND vfog_harness --scene interior --out ${CMAKE_CURRENT_BINARY_DIR}/interior-out
+            --ini ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 add_test(NAME vfog_harness
     COMMAND vfog_harness --out ${CMAKE_CURRENT_BINARY_DIR}/harness-out
