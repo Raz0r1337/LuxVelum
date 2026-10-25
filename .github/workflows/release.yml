@@ -173,14 +173,55 @@ jobs:
             tag="build-${number}"
             create_release
           }
+          asset_id() {
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" --jq ".assets[] | select(.name == \"$1\") | .id"
+          }
+          rename_asset() {
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/assets/$1" -f name="$2" --silent
+          }
+          delete_asset() {
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/$1" --silent
+          }
+          upload_replacement_zip() {
+            cp LuxVelum-Win32.zip LuxVelum-Win32.new.zip
+            gh release upload "$tag" LuxVelum-Win32.new.zip --clobber --repo "$GITHUB_REPOSITORY"
+          }
+          discard_replacement_zip() {
+            local replacement
+            replacement=$(asset_id LuxVelum-Win32.new.zip) && delete_asset "$replacement"
+          }
+          swap_in_replacement_zip() {
+            local stale live replacement
+            stale=$(asset_id LuxVelum-Win32.old.zip)
+            if [ -n "$stale" ]; then
+              delete_asset "$stale"
+            fi
+            live=$(asset_id LuxVelum-Win32.zip)
+            replacement=$(asset_id LuxVelum-Win32.new.zip)
+            if [ -n "$live" ]; then
+              rename_asset "$live" LuxVelum-Win32.old.zip
+            fi
+            if ! rename_asset "$replacement" LuxVelum-Win32.zip; then
+              echo "::error::the new zip of ${tag} could not be renamed to LuxVelum-Win32.zip"
+              if [ -n "$live" ]; then
+                rename_asset "$live" LuxVelum-Win32.zip
+              fi
+              exit 1
+            fi
+            if [ -n "$live" ]; then
+              delete_asset "$live" || echo "::warning::the replaced zip of ${tag} stays as LuxVelum-Win32.old.zip"
+            fi
+          }
           refresh_release() {
+            upload_replacement_zip
             if ! move_tag; then
+              discard_replacement_zip || echo "::warning::LuxVelum-Win32.new.zip stays on ${tag} until it is deleted"
               publish_next_number
               return
             fi
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "$(release_title)" \
               --notes-file notes.md
-            gh release upload "$tag" LuxVelum-Win32.zip --clobber --repo "$GITHUB_REPOSITORY"
+            swap_in_replacement_zip
           }
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             if [ "$REFRESH" = "true" ]; then

@@ -835,9 +835,11 @@ uploads the zip to that release again. A manual run of `st0ny-main` with `refres
 zip of the release in place, so the release is never deleted and keeps its publication date. GitHub may refuse to
 move a tag with the workflow's `GITHUB_TOKEN` when files under `.github/workflows` changed since the tagged commit; a
 refresh whose tag cannot be moved publishes the commit as `build-<n+1>` instead, as a push would, and `build-<n>` is
-deleted only once `build-<n+1>` exists. If the upload fails, the zip is missing until the run is rerun. A push whose
-commit message carries `[skip ci]` runs nothing, so a fix can join the current release this way. On a push to
-the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every test release
+deleted only once `build-<n+1>` exists. A refresh uploads the new zip as `LuxVelum-Win32.new.zip` before it moves
+the tag, then renames the old zip away, gives the new one its name and deletes the old one, so the download is
+missing only between those two renames, never while an upload runs; if the upload fails, the release stays as it
+was. A push whose commit message carries `[skip ci]` runs nothing, so a fix can join the current release this way.
+On a push to the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every test release
 (`build-<n>-test` or `build-<n>-<k>-test`) and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes
 `build-<n+1>-<k>-test` as a pre-release titled `LuxVelum TEST Build-<n+1>-<k> (st0ny-dev <commit>)`, which never
 becomes `releases/latest`. `<k>` is one more than the successful runs of the workflow on `st0ny-dev` since `build-<n>`
