@@ -454,11 +454,12 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
   after the fog hooks whatever `TransparentFog` says, and neither when a byte run checked under M2 batch fog, M2 fog
   setter or Native glare differs. The M2 thunk forwards to the client while nothing is armed and otherwise hands the
   cdecl argument block to the DLL (`pushad; lea eax, [esp+0x24]`); an exception in it turns transparent fog off.
-- **Water hooks.** Installed after the fog hooks and independently of them: the water pass call (`0x790AA2`) and
-  the `Render` slots of the two water material vtables (`0xA5954C`, `0xA59580`, read-only data patched under
-  `VirtualProtect`). The call site, both slots and the layout bytes the classification reads are checked first; on
-  any mismatch none are patched and the fog is unaffected. `waterdata.bin` is loaded only once they are installed. A
-  water exception restores the device state, turns water off for the session and leaves the fog running.
+- **Water hooks.** Installed after the fog hooks and only when those installed, since the water needs the wrapped
+  device and the frame-end hook of the world render call: the water pass call (`0x790AA2`) and the `Render` slots of
+  the two water material vtables (`0xA5954C`, `0xA59580`, read-only data patched under `VirtualProtect`). The call
+  site, both slots and the layout bytes the classification reads are checked first; on any mismatch none are patched
+  and the fog is unaffected. `waterdata.bin` is loaded only once they are installed. A water exception restores the
+  device state, turns water off for the session and leaves the fog running.
 - **Glow and grading.** No patch: the glow override runs before the fog composite and the grading in the world
   render's frame-end hook, each only while its guarded bytes match. An exception turns that one off for the session,
   or both when it comes from their shared inputs, and `GlowCompensation` then uses the clamped day/night glow.
