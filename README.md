@@ -832,8 +832,10 @@ releases included, so the fork keeps only the newest build at `releases/latest/d
 counts on from the highest `build-<n>` release; a rerun for the commit that a `build-<n>` tag already points at
 uploads the zip to that release again. A manual run of `st0ny-main` with `refresh` set rebuilds the highest
 `build-<n>` at the new commit under the same `<n>`: it moves the tag to the commit and replaces the title, notes and
-zip of the release in place, so the release is never deleted and keeps its publication date. If the tag cannot be
-moved, the release stays as it was; if the upload fails, the zip is missing until the run is rerun. A push whose
+zip of the release in place, so the release is never deleted and keeps its publication date. GitHub may refuse to
+move a tag with the workflow's `GITHUB_TOKEN` when files under `.github/workflows` changed since the tagged commit; a
+refresh whose tag cannot be moved publishes the commit as `build-<n+1>` instead, as a push would, and `build-<n>` is
+deleted only once `build-<n+1>` exists. If the upload fails, the zip is missing until the run is rerun. A push whose
 commit message carries `[skip ci]` runs nothing, so a fix can join the current release this way. On a push to
 the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every test release
 (`build-<n>-test` or `build-<n>-<k>-test`) and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes
