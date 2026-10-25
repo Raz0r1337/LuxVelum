@@ -14,6 +14,7 @@ constexpr int kReszDepthCopy = static_cast<int>(DepthCopyMethod::Resz);
 struct DeviceScript
 {
     Direct3DCreate realCreate = nullptr;
+    int failingCreations = 0;
     D3DFORMAT intzAdapterFormat = D3DFMT_UNKNOWN;
     D3DFORMAT stencilDepthAdapterFormat = D3DFMT_UNKNOWN;
     D3DFORMAT matchAdapterFormat = D3DFMT_UNKNOWN;
@@ -125,6 +126,11 @@ public:
     HRESULT STDMETHODCALLTYPE CreateDevice(UINT a, D3DDEVTYPE t, HWND window, DWORD flags,
                                            D3DPRESENT_PARAMETERS* pp, IDirect3DDevice9** out) override
     {
+        if (g_script.failingCreations > 0)
+        {
+            --g_script.failingCreations;
+            return D3DERR_NOTAVAILABLE;
+        }
         D3DPRESENT_PARAMETERS shownInWindow = *pp;
         shownInWindow.Windowed = TRUE;
         shownInWindow.FullScreen_RefreshRateInHz = 0;
@@ -297,6 +303,33 @@ void CheckResetWithoutAnyFogDepthKeepsTheClientsDepth(Direct3DCreate realCreate,
     d3d->Release();
 }
 
+bool CreatedPure(IDirect3DDevice9* dev)
+{
+    D3DDEVICE_CREATION_PARAMETERS created = {};
+    return SUCCEEDED(dev->GetCreationParameters(&created)) && (created.BehaviorFlags & D3DCREATE_PUREDEVICE) != 0;
+}
+
+void CheckRetriedDeviceLogsThePureFlagsItWasCreatedWith(Direct3DCreate realCreate, HWND window)
+{
+    IDirect3D9* d3d = WrapScriptedDirect3D9(realCreate);
+    Config cfg = DeviceConfig(false);
+    vf_test_set_config(&cfg);
+    g_script.failingCreations = 1;
+    D3DPRESENT_PARAMETERS pp = ClientParameters(window, TRUE, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE);
+    IDirect3DDevice9* dev = nullptr;
+    const size_t logStart = water_settings_checks::DllLogSize();
+    const HRESULT hr = d3d->CreateDevice(0, D3DDEVTYPE_HAL, window, kClientDeviceFlags, &pp, &dev);
+    const std::string log = runtime_cost::LogWrittenSince(logStart);
+    Check(SUCCEEDED(hr) && dev && CreatedPure(dev) &&
+              runtime_cost::HasLine(log, "CreateDevice with fog parameters failed (0x8876086A); retrying unchanged") &&
+              runtime_cost::HasLine(log, "windowed=1 flags 0x52 -> 0x52 ms requested 0") &&
+              LogsClientDepthWithoutFog(log),
+          "a device created again with the game's parameters after the fog device failed is logged with the pure "
+          "device flags 0x52 it was created with");
+    ReleaseDevice(dev);
+    d3d->Release();
+}
+
 void CheckDeviceCreation(Direct3DCreate realCreate, HWND window)
 {
     Config before;
@@ -305,6 +338,7 @@ void CheckDeviceCreation(Direct3DCreate realCreate, HWND window)
     CheckFullscreenAlphaBackBufferAsksForStencilDepth(realCreate, window);
     CheckCreateDeviceWithoutAnyFogDepthKeepsTheClientsDepth(realCreate, window);
     CheckResetWithoutAnyFogDepthKeepsTheClientsDepth(realCreate, window);
+    CheckRetriedDeviceLogsThePureFlagsItWasCreatedWith(realCreate, window);
     vf_test_set_config(&before);
 }
 }
