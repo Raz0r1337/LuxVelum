@@ -122,13 +122,14 @@ jobs:
             exit 0
           fi
           releases=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-            --jq '.[] | select(.prerelease | not) | select(.tag_name | test("^build-[0-9]+$")) |
-                  "\(.tag_name | ltrimstr("build-")) \(.target_commitish)"')
-          number=$(echo "$releases" | awk -v sha="$SHA" '$2 == sha { print $1; exit }')
-          highest=$(echo "$releases" | awk 'NF { print $1 }' | sort -n | tail -n 1)
+            --jq '.[] | select(.prerelease | not) | .tag_name | select(test("^build-[0-9]+$")) | ltrimstr("build-")')
+          tagged=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/build-" \
+            --jq '.[] | "\(.ref | ltrimstr("refs/tags/build-")) \(.object.sha)"')
+          number=$(awk -v sha="$SHA" 'NR == FNR { released[$1]; next }
+            $2 == sha && ($1 in released) { print $1; exit }' <(echo "$releases") <(echo "$tagged"))
+          highest=$(echo "$releases" | awk 'NF' | sort -n | tail -n 1)
           if [ -z "$number" ] && [ "$REFRESH" = "true" ] && [ -n "$highest" ]; then
             number="$highest"
-            gh release delete "build-${number}" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           fi
           if [ -z "$number" ]; then
             number=$(( ${highest:-0} + 1 ))
@@ -155,6 +156,14 @@ jobs:
             echo "D3D9 graphics checks and in-game validation were not run."
           } > notes.md
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            if [ "$REFRESH" = "true" ]; then
+              if ! gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}" \
+                -f sha="$SHA" -F force=true --silent; then
+                echo "::error::the tag ${tag} could not be moved to ${short}; the release stays as it was"
+                exit 1
+              fi
+              gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "$title" --notes-file notes.md
+            fi
             gh release upload "$tag" LuxVelum-Win32.zip --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$tag" LuxVelum-Win32.zip --repo "$GITHUB_REPOSITORY" \
