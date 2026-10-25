@@ -123,6 +123,17 @@ StatusLog g_waterLog;
 unsigned g_drawnWaterClassesTextMask = 0;
 char g_drawnWaterClassesText[kDrawnWaterClassesTextSize] = "";
 
+uintptr_t ExportedGetProcAddress(const char* moduleName)
+{
+    HMODULE module = GetModuleHandleA(moduleName);
+    return module ? reinterpret_cast<uintptr_t>(GetProcAddress(module, "GetProcAddress")) : 0;
+}
+
+const char* DescribeGetProcAddressSlot(GetProcAddressSlotHolds holds)
+{
+    return holds == GetProcAddressSlotHolds::LoaderThunk ? "the loader thunk" : "the resolved GetProcAddress";
+}
+
 FARPROC WINAPI GetProcAddressFilter(HMODULE module, LPCSTR name)
 {
     FARPROC proc = GetProcAddress(module, name);
@@ -1541,13 +1552,26 @@ bool ReplaceSlots(const PointerSlot (&slots)[N])
 }
 }
 
+GetProcAddressSlotHolds ClassifyGetProcAddressSlot(uintptr_t value)
+{
+    if (value == engine::kGetProcAddressThunk)
+        return GetProcAddressSlotHolds::LoaderThunk;
+    const uintptr_t resolved[] = {ExportedGetProcAddress("kernel32.dll"), ExportedGetProcAddress("kernelbase.dll")};
+    for (uintptr_t getProcAddress : resolved)
+        if (getProcAddress && value == getProcAddress)
+            return GetProcAddressSlotHolds::ResolvedGetProcAddress;
+    return GetProcAddressSlotHolds::ForeignCode;
+}
+
 bool InstallEngineHooks()
 {
     auto* slot = reinterpret_cast<GetProcAddressFn*>(engine::kGetProcAddressSlot);
-    uintptr_t current = reinterpret_cast<uintptr_t>(*slot);
-    if (current != engine::kGetProcAddressThunk)
+    const uintptr_t current = reinterpret_cast<uintptr_t>(*slot);
+    const GetProcAddressSlotHolds holds = ClassifyGetProcAddressSlot(current);
+    if (holds == GetProcAddressSlotHolds::ForeignCode)
     {
-        VF_LOG_ERROR("GetProcAddress slot holds 0x%08X (expected the loader thunk 0x%08X); hooks not installed",
+        VF_LOG_ERROR("GetProcAddress slot holds 0x%08X (neither the loader thunk 0x%08X nor the resolved "
+                     "GetProcAddress); hooks not installed",
                      static_cast<unsigned>(current), static_cast<unsigned>(engine::kGetProcAddressThunk));
         return false;
     }
@@ -1561,10 +1585,10 @@ bool InstallEngineHooks()
     if (!SitesHoldTheClientCalls(sites, "world render") || !PatchCallSites(sites))
         return false;
     *slot = &GetProcAddressFilter;
-    VF_LOG_INFO("engine hooks installed: GetProcAddress filter, world render 0x%08X, opaque 0x%08X, liquid 0x%08X, "
-                "world done 0x%08X, world text 0x%08X",
-                static_cast<unsigned>(engine::kWorldRenderSite), static_cast<unsigned>(engine::kOpaqueM2PassSite),
-                static_cast<unsigned>(engine::kLiquidSurfaceSite),
+    VF_LOG_INFO("engine hooks installed: GetProcAddress filter over %s, world render 0x%08X, opaque 0x%08X, liquid "
+                "0x%08X, world done 0x%08X, world text 0x%08X",
+                DescribeGetProcAddressSlot(holds), static_cast<unsigned>(engine::kWorldRenderSite),
+                static_cast<unsigned>(engine::kOpaqueM2PassSite), static_cast<unsigned>(engine::kLiquidSurfaceSite),
                 static_cast<unsigned>(engine::kScreenEffectsSite), static_cast<unsigned>(engine::kWorldTextDrawSite));
     return true;
 }

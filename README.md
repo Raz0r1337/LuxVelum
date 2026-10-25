@@ -509,7 +509,11 @@ Engine notes behind the code:
   calls the liquid surface pass `0x77F020` (no arguments, outside liquid only). `0x4F9281` (`E8 8A 7D 3C 00`)
   calls FFX end `0x8C1010` (no arguments); the thunk renders the fog, then tail-jumps to it.
 - Loader slot. On disk `[0xB2ED98]` holds the delay-load thunk `0x41C654`, which pushes the slot (`0x41C65F`)
-  before resolving it; `0x41C673` jumps through it. The hooks install only while the slot still holds the thunk.
+  before resolving it; `0x41C673` jumps through it. The hooks install while the slot holds the thunk or, when the
+  loader in `Wow.exe` runs after the client's first call through it, the `GetProcAddress` the thunk resolved
+  (kernel32's or KernelBase's export; the filter calls its own import either way). Any other value is another hook,
+  and nothing is patched; `LuxVelum.log` names the state it found. A `Direct3DCreate9` resolved before the DLL loaded
+  is not wrapped, and the hooks then find no fog device.
 - Matrices. `0x6821A4` reads the camera-relative view matrix at Gx `+0x1B00 + 64·[+0x1AF8]` and then the projection at
   `+0xF88`. The engine builds its projection with `0x6BF370` (OpenGL depth range, w = view z); the D3D backend
   converts it.

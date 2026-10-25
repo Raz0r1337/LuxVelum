@@ -9,6 +9,7 @@
 #include "fullscreen_triangle.h"
 #include "gpu_timing.h"
 #include "grading_renderer.h"
+#include "hooks.h"
 #include "light_on_screen.h"
 #include "local_light_stabiliser.h"
 #include "log.h"
@@ -38,6 +39,7 @@
 #include <vector>
 
 extern "C" __declspec(dllimport) IDirect3D9* __cdecl vf_test_wrap_direct3d9(IDirect3D9*(WINAPI*)(UINT), UINT);
+extern "C" __declspec(dllimport) int __cdecl vf_test_get_proc_address_slot_holds(uintptr_t);
 extern "C" __declspec(dllimport) void __cdecl vf_test_set_config(const Config*);
 extern "C" __declspec(dllimport) void __cdecl vf_test_get_config(Config*);
 extern "C" __declspec(dllimport) int __cdecl vf_test_render(const FrameInputs*, const char**);
@@ -1957,6 +1959,42 @@ void CheckLightProjectsOntoTheViewport()
           "beside or behind the camera is not in front");
 }
 
+uintptr_t ExportedGetProcAddress(const char* moduleName)
+{
+    HMODULE module = GetModuleHandleA(moduleName);
+    return module ? reinterpret_cast<uintptr_t>(GetProcAddress(module, "GetProcAddress")) : 0;
+}
+
+FARPROC WINAPI ForeignGetProcAddressHook(HMODULE module, LPCSTR name)
+{
+    return GetProcAddress(module, name);
+}
+
+bool SlotHolds(uintptr_t value, GetProcAddressSlotHolds expected)
+{
+    return vf_test_get_proc_address_slot_holds(value) == static_cast<int>(expected);
+}
+
+void CheckGetProcAddressSlotStates()
+{
+    const uintptr_t kernel32 = ExportedGetProcAddress("kernel32.dll");
+    const uintptr_t kernelBase = ExportedGetProcAddress("kernelbase.dll");
+    const uintptr_t foreign[] = {0, reinterpret_cast<uintptr_t>(&ForeignGetProcAddressHook),
+                                 engine::kGetProcAddressThunk + 1, engine::kGetProcAddressSlot};
+    bool foreignRefused = true;
+    for (uintptr_t value : foreign)
+        foreignRefused = SlotHolds(value, GetProcAddressSlotHolds::ForeignCode) && foreignRefused;
+    std::printf("     kernel32 GetProcAddress 0x%08X, KernelBase GetProcAddress 0x%08X\n",
+                static_cast<unsigned>(kernel32), static_cast<unsigned>(kernelBase));
+    Check(SlotHolds(engine::kGetProcAddressThunk, GetProcAddressSlotHolds::LoaderThunk) && kernel32 &&
+              SlotHolds(kernel32, GetProcAddressSlotHolds::ResolvedGetProcAddress) &&
+              (!kernelBase || SlotHolds(kernelBase, GetProcAddressSlotHolds::ResolvedGetProcAddress)) &&
+              foreignRefused,
+          "the GetProcAddress slot takes the filter while it holds the client's loader thunk or, when the DLL "
+          "loads after the client's first call through it, the resolved GetProcAddress, and refuses any other "
+          "address");
+}
+
 void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring& shippedIni)
 {
     const std::wstring savedIni = FullPath(outDir + L"\\saved.ini");
@@ -2805,6 +2843,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     water_settings_checks::CheckWaterSettings(outDir, FullPath(iniPath));
     transparent_fog_checks::CheckTransparentFogSetting(outDir, FullPath(iniPath));
     CheckLightProjectsOntoTheViewport();
+    CheckGetProcAddressSlotStates();
 
     if (cpuOnly)
     {

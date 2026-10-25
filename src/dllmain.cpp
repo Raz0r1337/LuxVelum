@@ -120,6 +120,11 @@ extern "C" IDirect3D9* __cdecl vf_test_wrap_direct3d9(Direct3DCreate9Fn realCrea
     return WrappedDirect3DCreate9(sdkVersion);
 }
 
+extern "C" int __cdecl vf_test_get_proc_address_slot_holds(uintptr_t value)
+{
+    return static_cast<int>(ClassifyGetProcAddressSlot(value));
+}
+
 extern "C" void __cdecl vf_test_set_config(const Config* cfg)
 {
     GlobalConfig().Override(*cfg);

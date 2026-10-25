@@ -11,6 +11,14 @@ namespace engine
 struct StockFog;
 }
 
+enum class GetProcAddressSlotHolds : int
+{
+    LoaderThunk,
+    ResolvedGetProcAddress,
+    ForeignCode,
+};
+
+GetProcAddressSlotHolds ClassifyGetProcAddressSlot(uintptr_t value);
 bool InstallEngineHooks();
 void EnableForeverLookOnHookedClient();
 bool InstallTransparentFogHooks();
