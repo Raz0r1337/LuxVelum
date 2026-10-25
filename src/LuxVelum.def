@@ -79,3 +79,4 @@ EXPORTS
     vf_test_drawn_glow_compensation
     vf_test_fail_fog_pass
     vf_test_fail_grading_pass
+    vf_test_fog_history_valid

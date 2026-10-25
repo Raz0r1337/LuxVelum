@@ -1220,6 +1220,14 @@ bool Renderer::Render(IDirect3DDevice9* dev, const SceneDepth& depth, const Fram
 
 bool Renderer::RenderGodRaysAfterWorld(IDirect3DDevice9* dev, const SceneDepth& depth)
 {
+    const bool historyValid = m_historyValid;
+    const bool drawn = DrawLateGodRays(dev, depth);
+    m_historyValid = historyValid;
+    return drawn;
+}
+
+bool Renderer::DrawLateGodRays(IDirect3DDevice9* dev, const SceneDepth& depth)
+{
     m_skip = "";
     const GodRayFrame rays = m_lateGodRays;
     m_lateGodRays = {};

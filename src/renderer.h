@@ -29,6 +29,7 @@ public:
     const StockFogFit& LastStockFogFit() const { return m_stockFogFit; }
     const char* LastSkipReason() const { return m_skip; }
     bool AdaptiveLightingHistory() const { return m_adaptiveLightingHistory; }
+    bool HistoryValid() const { return m_historyValid; }
     IDirect3DPixelShader9* DrawnMarch() const { return m_drawnMarch; }
     IDirect3DPixelShader9* DrawnComposite() const { return m_drawnComposite; }
     IDirect3DPixelShader9* DrawnSplitComposite() const { return m_drawnSplitComposite; }
@@ -66,6 +67,7 @@ private:
 
     template <typename Passes>
     bool WithClientStateSaved(IDirect3DDevice9* dev, const SceneDepth& depth, Passes passes);
+    bool DrawLateGodRays(IDirect3DDevice9* dev, const SceneDepth& depth);
     void PrepareFullscreenPasses(IDirect3DDevice9* dev);
     void CopySceneForGodRays(IDirect3DDevice9* dev, IDirect3DSurface9* target, const D3DVIEWPORT9& vp);
     void DrawGodRayMask(IDirect3DDevice9* dev, IDirect3DTexture9* depthTexture, const GodRayFrame& rays);

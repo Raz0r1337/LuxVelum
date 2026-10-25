@@ -65,6 +65,8 @@ constexpr const char* kEarlyCompositeDepthUnboundLine =
     "transparent fog: the early composite was skipped: fog depth surface not bound; the fog is drawn after the world";
 constexpr float kRaysOn = 1.0f;
 constexpr const char* kFogPassFaultLine = "exception 0xE0564646 in world hook; fog disabled for this session";
+constexpr float kTemporalOn = 0.85f;
+constexpr const char* kLateRaysDepthUnboundLine = "god rays after the world skipped: fog depth surface not bound";
 constexpr uint32_t kSentinelEsi = 0x51515151u;
 constexpr uint32_t kSentinelEdi = 0x5D5D5D5Du;
 constexpr uint32_t kSentinelEbx = 0x5B5B5B5Bu;
@@ -751,6 +753,7 @@ struct FrameOptions
     bool captureAfterLiquid = false;
     bool keepStateAround = false;
     bool unbindDepthAtLiquidEnd = false;
+    bool unbindDepthAtWorldDone = false;
     bool readDepthAtLiquidEnd = false;
     const DepthTexel* depthTexels = nullptr;
     void (*drawOverBackdrop)(Harness& h) = nullptr;
@@ -799,12 +802,12 @@ bool KeepsState(Harness& h, const View& v, void (*entry)())
     return kept;
 }
 
-void EndLiquidWithDepthUnbound(Harness& h)
+void CallWithDepthUnbound(Harness& h, void (*entry)())
 {
     IDirect3DSurface9* bound = nullptr;
     h.dev->GetDepthStencilSurface(&bound);
     h.dev->SetDepthStencilSurface(nullptr);
-    vf_test_hook_liquid_end();
+    entry();
     h.dev->SetDepthStencilSurface(bound);
     if (bound)
         bound->Release();
@@ -814,7 +817,7 @@ void EndLiquid(Harness& h, const View& v, const FrameOptions& options, HookedFra
 {
     const int before = g_glarePasses;
     if (options.unbindDepthAtLiquidEnd)
-        EndLiquidWithDepthUnbound(h);
+        CallWithDepthUnbound(h, &vf_test_hook_liquid_end);
     else if (options.keepStateAround)
         frame.stateKept = KeepsState(h, v, &vf_test_hook_liquid_end) && frame.stateKept;
     else
@@ -861,7 +864,9 @@ HookedFrame RenderHookedFrame(Harness& h, const View& v, const Config& cfg, cons
     frame.glarePassesAtOwnCall = g_glarePasses - beforeOwnCall;
     if (options.worldText)
         CallWorldTextThunk(*options.worldText);
-    if (options.keepStateAround)
+    if (options.unbindDepthAtWorldDone)
+        CallWithDepthUnbound(h, &vf_test_hook_world_done);
+    else if (options.keepStateAround)
         frame.stateKept = KeepsState(h, v, &vf_test_hook_world_done) && frame.stateKept;
     else
         vf_test_hook_world_done();
@@ -1058,6 +1063,30 @@ void CheckGodRaysAfterTheWorld(Harness& h)
     Check(wholeFrameDifference <= kMaxLateRayDifference,
           "the god rays drawn after the early composite come from the scene before the fog, as the single "
           "composite's do, and match them");
+}
+
+void CheckFailedLateGodRaysKeepTheFogHistory(Harness& h)
+{
+    const View v;
+    Config cfg = HookConfig(true);
+    cfg.godRays = kRaysOn;
+    cfg.temporal = kTemporalOn;
+    cfg.logLevel = static_cast<int>(LogLevel::Info);
+    RenderSettledHookedFrame(h, v, cfg, FrameOptions());
+    const bool keptAfterDrawnRays = vf_test_fog_history_valid() != 0;
+    FrameOptions depthUnbound;
+    depthUnbound.unbindDepthAtWorldDone = true;
+    const size_t start = water_settings_checks::DllLogSize();
+    RenderHookedFrame(h, v, cfg, depthUnbound);
+    const bool keptAfterFailedRays = vf_test_fog_history_valid() != 0;
+    const size_t skipped =
+        water_settings_checks::CountOf(runtime_cost::LogWrittenSince(start), kLateRaysDepthUnboundLine);
+    std::printf("     fog history after late god rays drawn: %s; after late god rays skipped (%zu lines \"%s\"): %s\n",
+                keptAfterDrawnRays ? "valid" : "discarded", skipped, kLateRaysDepthUnboundLine,
+                keptAfterFailedRays ? "valid" : "discarded");
+    Check(keptAfterDrawnRays && skipped == 1 && keptAfterFailedRays,
+          "with TransparentFog=1, Temporal>0 and god rays, late god rays that fail at the end of the world leave "
+          "the fog's temporal history valid for the next frame: the late pass never touches the fog targets");
 }
 
 Config LampLitConfig()
@@ -1508,6 +1537,7 @@ void CheckTransparentFog(Harness& h)
     CheckEarlyCompositeMatchesWholeFrame(h);
     CheckTransparentsFoggedAtOwnDepth(h);
     CheckGodRaysAfterTheWorld(h);
+    CheckFailedLateGodRaysKeepTheFogHistory(h);
     CheckFittedColourCarriesThePointLights(h);
     CheckHookedFogRestoresState(h);
     CheckFogDrawnBeforeWorldText(h);
