@@ -204,11 +204,12 @@ saturate((coverage − 0.5)/0.5)` from the Classic lights' share of the blend, a
 writes the day/night glow, and writes nothing under the ghost effect or an unexpected effect graph. `GlowCompensation`
 uses the byte the composite receives, so a glow above 1, which wraps, is compensated as drawn.
 `ColorGrading` passes a copy of the world viewport through the blended 32-entry curve per channel at the end of the
-world render, before names and the interface, writing `lerp(scene, curve(scene), ColorGrading·t)` with the display
-dither; the ghost view, the view under water and a view without a grading key are left alone. The grading rereads
-the 8-bit frame, and its curve (0.97 to 1.22 codes per code between codes 25 and 60 in all eight shipped curves)
-would round the dithered fog into steps again: on the halo profile without the client's glow, grading at strength 1
-without a dither of its own left 0.155 codes rms and about 7 coherent edges per curve, with it 0.046 and none.
+world render, after the world-name text (`0x4F9218`) and the glow, before the later name/icon pass (`0x4FB042`) and the
+interface, writing `lerp(scene, curve(scene), ColorGrading·t)` with the display dither; the ghost view, the view under
+water and a view without a grading key are left alone. The grading rereads the 8-bit frame, and its curve (0.97 to 1.22
+codes per code between codes 25 and 60 in all eight shipped curves) would round the dithered fog into steps again: on
+the halo profile without the client's glow, grading at strength 1 without a dither of its own left 0.155 codes rms and
+about 7 coherent edges per curve, with it 0.046 and none.
 
 **Transparent fog.** Fog drawn once after the world gives every see-through effect the fog of the surface behind
 it, where the stock client fogs it by its own distance. With `TransparentFog=1`, above water, the glare and the fog

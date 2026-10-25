@@ -290,8 +290,9 @@ bool DrawGlowAndGrading(Config& c)
                           "coverage. Off: the client's glow");
     changed |= Slider("Colour grading", c.colorGrading, 0.0f, 1.0f, "%.2f",
                       "Strength of the modern client's colour curve for the lights around the camera: brighter "
-                      "midtones, and the brightest highlights clipped to white. Names, the interface, the ghost view "
-                      "and the view under water are not graded. 0 = off");
+                      "midtones, and the brightest highlights clipped to white. It grades the 3D view after the glow, "
+                      "names drawn in the world included; the interface, the ghost view and the view under water are "
+                      "not graded. 0 = off");
     return changed;
 }
 
