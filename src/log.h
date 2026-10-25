@@ -12,7 +12,8 @@ struct LogFile
     std::string path;
 };
 
-LogFile OpenLogFile(const std::string& path, unsigned long processId);
+LogFile OpenLogFile(const std::string& path);
+std::string HeldLogNotice(const std::string& heldPath, const std::string& slotPath, unsigned long processId);
 void LogOpen(const char* path);
 const char* LogPath();
 void LogSetLevel(int level);

@@ -899,8 +899,11 @@ It also times the harbour in a full storm and the colour grading pass; `--sample
 
 Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then copy `LuxVelum.dll`,
 `LuxVelum.ini`, `fogdata.bin` and `waterdata.bin` next to `Wow.exe`. Remove `LuxVelum.dll` to uninstall; the patched
-`Wow.exe` then starts without it. The DLL writes `LuxVelum.log` next to itself. A second client started from the
-same folder while the first is running writes `LuxVelum-<process id>.log` instead and names it in its first line.
+`Wow.exe` then starts without it. The DLL writes `LuxVelum.log` next to itself. A client started from the same
+folder while another holds that file writes the first free one of `LuxVelum-2.log` to `LuxVelum-8.log` instead, and
+its first line names that file and the client's process id. A slot held by a running client is left as it is; a free
+one is reused and overwritten, so the clients of one folder share at most eight log files. A ninth client running
+beside eight others writes no log.
 Delete the `version.dll` of an earlier package: one from CoAVolFog or Luxveil keeps the client from starting once its
 old DLL is gone, and one from LuxVelum once its DLL no longer exports `vf_loader_anchor`.
 To keep the settings of an earlier Luxveil or CoAVolFog install, leave out `LuxVelum.ini`: on its first start the DLL

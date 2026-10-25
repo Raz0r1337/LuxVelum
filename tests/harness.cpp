@@ -2754,8 +2754,8 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "multisampling_checks.h"
 #include "device_creation_checks.h"
 
-constexpr unsigned long kFirstClientProcessId = 4141;
 constexpr unsigned long kSecondClientProcessId = 4242;
+constexpr int kLastLogSlot = 8;
 
 std::string WrittenAndClosed(LogFile& log, const char* line)
 {
@@ -2767,21 +2767,128 @@ std::string WrittenAndClosed(LogFile& log, const char* line)
     return line;
 }
 
-void CheckSecondClientWritesItsOwnLog(const std::wstring& outDir)
+std::string WrittenAndKeptOpen(LogFile& log, const char* line)
 {
-    const std::wstring folder = FullPath(outDir + L"\\two-clients");
+    if (!log.file)
+        return std::string();
+    std::fputs(line, log.file);
+    std::fflush(log.file);
+    return line;
+}
+
+void CloseLogs(std::vector<LogFile>& logs)
+{
+    for (LogFile& log : logs)
+        if (log.file)
+            std::fclose(log.file);
+    logs.clear();
+}
+
+std::vector<std::wstring> LogFilesIn(const std::wstring& folder)
+{
+    std::vector<std::wstring> names;
+    WIN32_FIND_DATAW found = {};
+    const HANDLE search = FindFirstFileW((folder + L"\\*.log").c_str(), &found);
+    if (search == INVALID_HANDLE_VALUE)
+        return names;
+    do
+        names.push_back(found.cFileName);
+    while (FindNextFileW(search, &found));
+    FindClose(search);
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+std::wstring EmptyLogFolder(const std::wstring& outDir, const wchar_t* name)
+{
+    const std::wstring folder = FullPath(outDir + L"\\" + name);
     CreateDirectoryW(folder.c_str(), nullptr);
+    for (const std::wstring& log : LogFilesIn(folder))
+        DeleteFileW((folder + L"\\" + log).c_str());
+    return folder;
+}
+
+std::wstring SlotLog(const std::wstring& folder, int slot)
+{
+    return folder + L"\\LuxVelum-" + std::to_wstring(slot) + L".log";
+}
+
+void CheckSecondClientWritesTheSecondSlot(const std::wstring& outDir)
+{
+    const std::wstring folder = EmptyLogFolder(outDir, L"two-clients");
     const std::wstring shared = folder + L"\\LuxVelum.log";
-    const std::wstring own = folder + L"\\LuxVelum-" + std::to_wstring(kSecondClientProcessId) + L".log";
-    DeleteFileW(own.c_str());
-    LogFile first = OpenLogFile(NarrowPath(shared), kFirstClientProcessId);
-    LogFile second = OpenLogFile(NarrowPath(shared), kSecondClientProcessId);
+    const std::wstring own = SlotLog(folder, 2);
+    LogFile first = OpenLogFile(NarrowPath(shared));
+    LogFile second = OpenLogFile(NarrowPath(shared));
     const std::string firstLine = WrittenAndClosed(first, "first client");
     const std::string secondLine = WrittenAndClosed(second, "second client");
     Check(first.path == NarrowPath(shared) && second.path == NarrowPath(own) && !firstLine.empty() &&
               ReadText(shared) == firstLine && !secondLine.empty() && ReadText(own) == secondLine,
-          "a second client started from the same folder writes LuxVelum-<process id>.log and leaves the first "
-          "client's LuxVelum.log intact");
+          "a second client started from the same folder writes LuxVelum-2.log and leaves the first client's "
+          "LuxVelum.log intact");
+}
+
+void CheckHeldSlotIsSkippedUntouched(const std::wstring& outDir)
+{
+    const std::wstring folder = EmptyLogFolder(outDir, L"three-clients");
+    const std::string shared = NarrowPath(folder + L"\\LuxVelum.log");
+    std::vector<LogFile> clients = {OpenLogFile(shared), OpenLogFile(shared)};
+    const std::string secondLine = WrittenAndKeptOpen(clients[1], "second client");
+    LogFile third = OpenLogFile(shared);
+    const std::string thirdLine = WrittenAndClosed(third, "third client");
+    CloseLogs(clients);
+    Check(!secondLine.empty() && ReadText(SlotLog(folder, 2)) == secondLine &&
+              third.path == NarrowPath(SlotLog(folder, 3)) && !thirdLine.empty() &&
+              ReadText(SlotLog(folder, 3)) == thirdLine,
+          "a third client skips the second client's held LuxVelum-2.log without truncating it and writes "
+          "LuxVelum-3.log");
+}
+
+void CheckFreedSlotIsReused(const std::wstring& outDir)
+{
+    const std::wstring folder = EmptyLogFolder(outDir, L"reused-slot");
+    const std::string shared = NarrowPath(folder + L"\\LuxVelum.log");
+    std::vector<LogFile> running = {OpenLogFile(shared)};
+    LogFile exited = OpenLogFile(shared);
+    WrittenAndClosed(exited, "exited client");
+    LogFile next = OpenLogFile(shared);
+    const std::string nextLine = WrittenAndClosed(next, "next client");
+    CloseLogs(running);
+    const std::vector<std::wstring> expected = {L"LuxVelum-2.log", L"LuxVelum.log"};
+    Check(exited.path == NarrowPath(SlotLog(folder, 2)) && next.path == exited.path && !nextLine.empty() &&
+              ReadText(SlotLog(folder, 2)) == nextLine && LogFilesIn(folder) == expected,
+          "a client started after another has exited reuses and truncates its LuxVelum-2.log, so no new log "
+          "file appears");
+}
+
+void CheckNoLogWhenEverySlotIsHeld(const std::wstring& outDir)
+{
+    const std::wstring folder = EmptyLogFolder(outDir, L"every-slot-held");
+    const std::string shared = NarrowPath(folder + L"\\LuxVelum.log");
+    std::vector<LogFile> holders;
+    for (int client = 1; client <= kLastLogSlot; ++client)
+        holders.push_back(OpenLogFile(shared));
+    const bool everyHolderLogs =
+        std::all_of(holders.begin(), holders.end(), [](const LogFile& log) { return log.file != nullptr; });
+    LogFile ninth = OpenLogFile(shared);
+    const bool ninthLogs = ninth.file != nullptr;
+    WrittenAndClosed(ninth, "ninth client");
+    CloseLogs(holders);
+    const size_t files = LogFilesIn(folder).size();
+    std::printf("     %zu log files with LuxVelum.log and every slot held\n", files);
+    Check(everyHolderLogs && !ninthLogs && files == static_cast<size_t>(kLastLogSlot),
+          "with LuxVelum.log and LuxVelum-2.log to LuxVelum-8.log held, a ninth client writes no log and adds no "
+          "file");
+}
+
+void CheckHeldLogNoticeNamesTheSlotAndProcess()
+{
+    const std::string notice =
+        HeldLogNotice("C:\\WoW\\LuxVelum.log", "C:\\WoW\\LuxVelum-2.log", kSecondClientProcessId);
+    std::printf("     %s\n", notice.c_str());
+    Check(notice.find("C:\\WoW\\LuxVelum.log") == 0 && notice.find("C:\\WoW\\LuxVelum-2.log") != std::string::npos &&
+              notice.find("process " + std::to_string(kSecondClientProcessId)) != std::string::npos,
+          "the first line of a slot log names the held LuxVelum.log, the slot file and the client's process id");
 }
 
 void CheckFogLogRefusesASecondWriter()
@@ -2922,7 +3029,11 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckGetProcAddressSlotStates();
     device_creation_checks::CheckDisplayFormats();
     multisampling_checks::CheckNvapiLoadsWithoutKb2533623();
-    CheckSecondClientWritesItsOwnLog(outDir);
+    CheckSecondClientWritesTheSecondSlot(outDir);
+    CheckHeldSlotIsSkippedUntouched(outDir);
+    CheckFreedSlotIsReused(outDir);
+    CheckNoLogWhenEverySlotIsHeld(outDir);
+    CheckHeldLogNoticeNamesTheSlotAndProcess();
     CheckFogLogRefusesASecondWriter();
 
     if (cpuOnly)
