@@ -273,7 +273,8 @@ bool DrawLight(Config& c)
                       "Radial rays from the bright sky around the sun, 0 = off");
     changed |= Toggle("Glow compensation", c.glowCompensation,
                       "Pre-compensate the fog for the client's full-screen glow, which otherwise bleaches bright fog "
-                      "around the sun to white");
+                      "around the sun to white. The fog itself only with linear light, while it blends over a copy "
+                      "of the scene; otherwise only the god rays are compensated");
     return changed;
 }
 

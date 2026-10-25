@@ -157,8 +157,10 @@ Fog renders once after the world, including its late geometry and the native sun
 effects and the UI. While it draws, the stock fog is pushed out of range for the world render and restored
 afterwards; frames without volumetric fog keep the stock fog, and an unexpected draw failure restores it on the
 next frame. The client's glow (`screen + g·blur²`, with `g` from the day/night light) runs afterwards and would
-bleach bright fog to white, so fogged pixels are pre-compensated with the live glow amount. God rays use the
-remaining display highlight range after the glow and need a scene copy; without one they are omitted.
+bleach bright fog to white, so fogged pixels are pre-compensated with the live glow amount while the fog blends in
+linear light over a scene copy (`ColorSpace=1`). The gamma blends (`ColorSpace=0`) and the fixed-function blend
+without a scene copy leave the fog uncompensated; only the god rays are compensated there. God rays use the remaining
+display highlight range after the glow and need a scene copy; without one they are omitted.
 
 **God-ray mask.** The rays are blurred at a quarter of the viewport's resolution, so each mask texel stands for a 4x4
 block of screen pixels. The mask used to test that block for sky with one depth tap and take its colour from a 4:1
@@ -924,7 +926,7 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `InteriorAware`, `InteriorDensity` | 1, 0.15 | Fade outdoor layers indoors, keeping this fraction of their density |
 | `InteriorFarFog` | 1.0 | Native distance-fog density retained indoors (0..1); lower values clear dungeon haze |
 | `GodRays` | 0 | Radial sky rays, 0 = off |
-| `GlowCompensation` | 1 | Pre-compensate the fog for the client's glow |
+| `GlowCompensation` | 1 | Pre-compensate for the client's glow: the fog with `ColorSpace=1`, else only the god rays |
 | `ForeverGlow` | 0 | 1 gives the client's glow Forever's per-light amount where Classic lights cover the camera |
 | `ColorGrading` | 0 | Strength 0..1 of Forever's per-light colour curve over the 3D view; 0 = off |
 | `FarClipMax` | 1583 | Continent view distance up to 1583 yd, within `farclip`; 0 keeps Ascension's 791 cap |
