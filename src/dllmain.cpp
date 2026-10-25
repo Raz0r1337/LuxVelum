@@ -507,6 +507,11 @@ extern "C" D3DFORMAT __cdecl vf_test_display_format_for(D3DFORMAT backBufferForm
     return DisplayFormatFor(backBufferFormat);
 }
 
+extern "C" void __cdecl vf_test_fail_depth_creation(int failing)
+{
+    FailDepthCreation(failing != 0);
+}
+
 extern "C" void __cdecl vf_test_water_ripple_stats(WaterRippleStats* out)
 {
     ReadWaterRippleStats(LatestFogDevice(), *out);

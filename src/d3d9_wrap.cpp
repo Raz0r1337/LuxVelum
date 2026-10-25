@@ -74,6 +74,7 @@ bool HasEightBitStencil(D3DFORMAT format)
 
 Direct3DCreate9Fn g_realCreate = nullptr;
 bool g_fogAllowedOnNewDevices = false;
+bool g_depthCreationFails = false;
 FogDevice* g_latestFogDevice = nullptr;
 FogDevice* g_devices[kMaxDevices] = {};
 
@@ -111,6 +112,13 @@ struct MultisampleDecision
     DepthCopyMethod method = DepthCopyMethod::None;
     const char* off = "";
 };
+
+enum class DepthBinding
+{
+    Intz,
+    Fallback,
+    Unbound,
+};
 }
 
 class FogDevice final : public IDirect3DDevice9
@@ -121,7 +129,7 @@ public:
 
     bool FogActive() const { return m_fog && m_depthTexture; }
     IDirect3DDevice9* Real() const { return m_real; }
-    bool CreateDepth();
+    DepthBinding CreateDepth();
     bool CopyMultisampledDepth(DepthCopyMethod method, const D3DPRESENT_PARAMETERS& used);
     void KeepSingleSampled(const char* why);
     const MultisamplingStatus& Multisampling() const { return m_multisampling; }
@@ -536,6 +544,7 @@ private:
     ~FogDevice();
     void ReleaseDepth();
     bool BindFallbackDepth();
+    HRESULT ResetUnchanged(D3DPRESENT_PARAMETERS* pp, const D3DPRESENT_PARAMETERS& requested);
     SceneDepth Depth() const;
     bool DepthWriteOverridden() const { return m_suppressDepthWrite || m_forceDepthWrite || m_waterForcesDepthWrite; }
     DWORD DepthWriteToApply() const
@@ -779,6 +788,8 @@ private:
 
     FogDevice* CreateMultisampledFogDevice(UINT adapter, D3DDEVTYPE type, HWND window, DWORD flags,
                                            D3DPRESENT_PARAMETERS& used, DepthCopyMethod method, const char*& off);
+    FogDevice* CreateSingleSampledFogDevice(UINT adapter, D3DDEVTYPE type, HWND window, DWORD flags,
+                                            const D3DPRESENT_PARAMETERS& requested, D3DPRESENT_PARAMETERS& used);
 
     D3DFORMAT AdapterFormat(UINT adapter, const D3DPRESENT_PARAMETERS& pp)
     {
@@ -847,6 +858,30 @@ FogDevice* WrappedD3D9::CreateMultisampledFogDevice(UINT adapter, D3DDEVTYPE typ
     return nullptr;
 }
 
+FogDevice* WrappedD3D9::CreateSingleSampledFogDevice(UINT adapter, D3DDEVTYPE type, HWND window, DWORD flags,
+                                                     const D3DPRESENT_PARAMETERS& requested,
+                                                     D3DPRESENT_PARAMETERS& used)
+{
+    used = requested;
+    ApplyFogParameters(used);
+    IDirect3DDevice9* real = nullptr;
+    const HRESULT hr = m_real->CreateDevice(adapter, type, window, flags, &used, &real);
+    if (FAILED(hr))
+    {
+        VF_LOG_ERROR("CreateDevice with fog parameters failed (0x%08lX); retrying unchanged", hr);
+        return nullptr;
+    }
+    auto* device = new FogDevice(this, real, true, requested.AutoDepthStencilFormat, adapter, type);
+    const DepthBinding depth = device->CreateDepth();
+    if (depth == DepthBinding::Fallback)
+        VF_LOG_ERROR("fog depth could not be created; fog disabled for this device");
+    if (depth != DepthBinding::Unbound)
+        return device;
+    VF_LOG_ERROR("neither the fog depth nor a fallback depth could be created; retrying unchanged");
+    device->Release();
+    return nullptr;
+}
+
 HRESULT WrappedD3D9::CreateDevice(UINT adapter, D3DDEVTYPE type, HWND window, DWORD flags,
                                   D3DPRESENT_PARAMETERS* pp, IDirect3DDevice9** out)
 {
@@ -870,23 +905,16 @@ HRESULT WrappedD3D9::CreateDevice(UINT adapter, D3DDEVTYPE type, HWND window, DW
         device = CreateMultisampledFogDevice(adapter, type, window, usedFlags, used, decision.method, decision.off);
     if (!device)
     {
-        used = requested;
-        if (fog)
-            ApplyFogParameters(used);
-        IDirect3DDevice9* real = nullptr;
-        hr = m_real->CreateDevice(adapter, type, window, usedFlags, &used, &real);
-        if (FAILED(hr) && fog)
+        device = fog ? CreateSingleSampledFogDevice(adapter, type, window, usedFlags, requested, used) : nullptr;
+        if (!device)
         {
-            VF_LOG_ERROR("CreateDevice with fog parameters failed (0x%08lX); retrying unchanged", hr);
-            fog = false;
             used = requested;
+            IDirect3DDevice9* real = nullptr;
             hr = m_real->CreateDevice(adapter, type, window, flags, &used, &real);
+            if (FAILED(hr))
+                return hr;
+            device = new FogDevice(this, real, false, requested.AutoDepthStencilFormat, adapter, type);
         }
-        if (FAILED(hr))
-            return hr;
-        device = new FogDevice(this, real, fog, requested.AutoDepthStencilFormat, adapter, type);
-        if (fog && !device->CreateDepth())
-            VF_LOG_ERROR("fog depth could not be created; fog disabled for this device");
         device->KeepSingleSampled(decision.off);
     }
     CopyBackParameters(pp, used);
@@ -1000,15 +1028,16 @@ bool FogDevice::BindFallbackDepth()
     backBuffer->Release();
     IDirect3DSurface9* depth = nullptr;
     D3DFORMAT format = m_depthFormat != D3DFMT_UNKNOWN ? m_depthFormat : D3DFMT_D24S8;
-    if (FAILED(m_real->CreateDepthStencilSurface(desc.Width, desc.Height, format, D3DMULTISAMPLE_NONE, 0, FALSE,
-                                                 &depth, nullptr)))
+    if (g_depthCreationFails || FAILED(m_real->CreateDepthStencilSurface(desc.Width, desc.Height, format,
+                                                                         D3DMULTISAMPLE_NONE, 0, FALSE, &depth,
+                                                                         nullptr)))
         return false;
-    m_real->SetDepthStencilSurface(depth);
+    const bool bound = SUCCEEDED(m_real->SetDepthStencilSurface(depth));
     depth->Release();
-    return true;
+    return bound;
 }
 
-bool FogDevice::CreateDepth()
+DepthBinding FogDevice::CreateDepth()
 {
     ReleaseDepth();
     IDirect3DSurface9* backBuffer = nullptr;
@@ -1018,18 +1047,18 @@ bool FogDevice::CreateDepth()
         backBuffer->GetDesc(&desc);
         backBuffer->Release();
     }
-    if (desc.Width && SUCCEEDED(m_real->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, kIntz,
-                                                      D3DPOOL_DEFAULT, &m_depthTexture, nullptr)) &&
+    if (desc.Width && !g_depthCreationFails &&
+        SUCCEEDED(m_real->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, kIntz, D3DPOOL_DEFAULT,
+                                        &m_depthTexture, nullptr)) &&
         SUCCEEDED(m_depthTexture->GetSurfaceLevel(0, &m_depthSurface)) &&
         SUCCEEDED(m_real->SetDepthStencilSurface(m_depthSurface)))
-        return true;
+        return DepthBinding::Intz;
 
     ReleaseDepth();
     m_fog = false;
     if (g_latestFogDevice == this)
         g_latestFogDevice = nullptr;
-    BindFallbackDepth();
-    return false;
+    return BindFallbackDepth() ? DepthBinding::Fallback : DepthBinding::Unbound;
 }
 
 HRESULT FogDevice::QueryInterface(REFIID riid, void** out)
@@ -1108,12 +1137,30 @@ HRESULT FogDevice::Reset(D3DPRESENT_PARAMETERS* pp)
         return hr;
     }
     CopyBackParameters(pp, used);
-    if (!CreateDepth())
+    const DepthBinding depth = CreateDepth();
+    if (depth == DepthBinding::Unbound)
+        return ResetUnchanged(pp, requested);
+    if (depth == DepthBinding::Fallback)
         VF_LOG_ERROR("fog depth could not be recreated after Reset; fog disabled");
     KeepSingleSampled(decision.off);
     LogReset(m_real, requested, used, FogActive());
     if (FogActive())
         LogMultisampling(m_multisampling);
+    return hr;
+}
+
+HRESULT FogDevice::ResetUnchanged(D3DPRESENT_PARAMETERS* pp, const D3DPRESENT_PARAMETERS& requested)
+{
+    VF_LOG_ERROR("neither the fog depth nor a fallback depth could be created after Reset; resetting unchanged");
+    D3DPRESENT_PARAMETERS unchanged = requested;
+    const HRESULT hr = m_real->Reset(&unchanged);
+    *pp = unchanged;
+    if (FAILED(hr))
+    {
+        VF_LOG_ERROR("Reset failed (0x%08lX)", hr);
+        return hr;
+    }
+    LogReset(m_real, requested, unchanged, false);
     return hr;
 }
 
@@ -1209,6 +1256,11 @@ IDirect3D9* WINAPI WrappedDirect3DCreate9(UINT sdkVersion)
 void AllowFogOnNewDevices(bool allowedOnNewDevices)
 {
     g_fogAllowedOnNewDevices = allowedOnNewDevices;
+}
+
+void FailDepthCreation(bool failing)
+{
+    g_depthCreationFails = failing;
 }
 
 FogDevice* LatestFogDevice()

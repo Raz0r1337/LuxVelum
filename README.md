@@ -455,7 +455,9 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
   The `INTZ` and D24S8 support checks pass a fullscreen back buffer's display format as the adapter format:
   X8R8G8B8 for A8R8G8B8 and X1R5G5B5 for A1R5G5B5, since D3D9 displays no alpha and DXVK refuses those formats as
   adapter formats. Which format the client asks for in fullscreen is not confirmed; windowed devices use the
-  desktop's mode.
+  desktop's mode. Without `INTZ` the wrapper binds a plain depth of the game's format and turns the fog off; when
+  that cannot be created either, it creates or resets the device again with the game's own parameters, so the
+  game keeps its automatic depth.
 - **Hooks.** Five 5-byte call displacements: the world render call (`0x4FB03D`, stock-fog override and restore),
   after the opaque M2 pass (`0x4F911D`, captures camera inputs), the liquid surface pass (`0x4F9170`, forces
   depth writes), world-name text (`0x7E5818`, draws the fog unless it already composited this frame, then

@@ -17,6 +17,7 @@ void SetRealDirect3DCreate9(Direct3DCreate9Fn fn);
 IDirect3D9* WINAPI WrappedDirect3DCreate9(UINT sdkVersion);
 
 void AllowFogOnNewDevices(bool allowedOnNewDevices);
+void FailDepthCreation(bool failing);
 
 class FogDevice;
 FogDevice* LatestFogDevice();

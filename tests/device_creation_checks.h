@@ -244,12 +244,67 @@ void CheckFullscreenAlphaBackBufferAsksForStencilDepth(Direct3DCreate realCreate
     d3d->Release();
 }
 
+bool LogsClientDepthWithoutFog(const std::string& log)
+{
+    return runtime_cost::HasLine(log, "depth requested D24X8 used D24X8 fog=0");
+}
+
+void CheckCreateDeviceWithoutAnyFogDepthKeepsTheClientsDepth(Direct3DCreate realCreate, HWND window)
+{
+    IDirect3D9* d3d = WrapScriptedDirect3D9(realCreate);
+    Config cfg = DeviceConfig(false);
+    vf_test_set_config(&cfg);
+    D3DPRESENT_PARAMETERS pp = ClientParameters(window, TRUE, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE);
+    IDirect3DDevice9* dev = nullptr;
+    const size_t logStart = water_settings_checks::DllLogSize();
+    vf_test_fail_depth_creation(1);
+    const HRESULT hr = d3d->CreateDevice(0, D3DDEVTYPE_HAL, window, kClientDeviceFlags, &pp, &dev);
+    vf_test_fail_depth_creation(0);
+    const std::string log = runtime_cost::LogWrittenSince(logStart);
+    Check(SUCCEEDED(hr) && dev && BoundDepthFormat(dev) == kClientDepthFormat && pp.EnableAutoDepthStencil &&
+              runtime_cost::HasLine(log, "neither the fog depth nor a fallback depth could be created") &&
+              LogsClientDepthWithoutFog(log),
+          "when neither INTZ nor a fallback depth can be created, CreateDevice creates the device again with the "
+          "game's own parameters, so the game draws with its D24X8 auto depth and without fog");
+    ReleaseDevice(dev);
+    d3d->Release();
+}
+
+void CheckResetWithoutAnyFogDepthKeepsTheClientsDepth(Direct3DCreate realCreate, HWND window)
+{
+    IDirect3D9* d3d = WrapScriptedDirect3D9(realCreate);
+    Config cfg = DeviceConfig(false);
+    vf_test_set_config(&cfg);
+    D3DPRESENT_PARAMETERS pp = ClientParameters(window, TRUE, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE);
+    IDirect3DDevice9* dev = nullptr;
+    const HRESULT created = d3d->CreateDevice(0, D3DDEVTYPE_HAL, window, kClientDeviceFlags, &pp, &dev);
+    const bool fogBefore = SUCCEEDED(created) && dev && BoundDepthFormat(dev) == kIntz;
+    HRESULT reset = E_FAIL;
+    std::string log;
+    if (fogBefore)
+    {
+        const size_t logStart = water_settings_checks::DllLogSize();
+        vf_test_fail_depth_creation(1);
+        reset = dev->Reset(&pp);
+        vf_test_fail_depth_creation(0);
+        log = runtime_cost::LogWrittenSince(logStart);
+    }
+    Check(fogBefore && SUCCEEDED(reset) && BoundDepthFormat(dev) == kClientDepthFormat && pp.EnableAutoDepthStencil &&
+              pp.AutoDepthStencilFormat == kClientDepthFormat && LogsClientDepthWithoutFog(log),
+          "when neither INTZ nor a fallback depth can be created after Reset, the device is reset again with the "
+          "game's own parameters, so the game draws with its D24X8 auto depth and without fog");
+    ReleaseDevice(dev);
+    d3d->Release();
+}
+
 void CheckDeviceCreation(Direct3DCreate realCreate, HWND window)
 {
     Config before;
     vf_test_get_config(&before);
     CheckFullscreenAlphaBackBufferKeepsTheFog(realCreate, window);
     CheckFullscreenAlphaBackBufferAsksForStencilDepth(realCreate, window);
+    CheckCreateDeviceWithoutAnyFogDepthKeepsTheClientsDepth(realCreate, window);
+    CheckResetWithoutAnyFogDepthKeepsTheClientsDepth(realCreate, window);
     vf_test_set_config(&before);
 }
 }
