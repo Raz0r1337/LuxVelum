@@ -2365,6 +2365,12 @@ void CheckOverlayInput(Harness& h)
           "with Overlay=0 the overlay key reaches the client");
     Config on = {};
     vf_test_set_config(&on);
+    PressHotkey(h.window, key);
+    const bool reopened = vf_test_overlay_visible() == 1;
+    PressHotkey(h.window, key);
+    Check(reopened && vf_test_overlay_visible() == 0 && g_clientInput.keyDowns == 2,
+          "with Overlay set back to 1 while the game runs the overlay key opens and closes the overlay again, "
+          "without a restart");
 }
 
 void CheckHotkeyCharactersSwallowedOnlyWhileTheHotkeyIsTyped(Harness& h)
