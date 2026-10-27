@@ -7,6 +7,7 @@
 #include "forever_look.h"
 #include "grading_renderer.h"
 #include "hooks.h"
+#include "install_paths.h"
 #include "log.h"
 #include "noise_volume.h"
 #include "overlay.h"
@@ -68,18 +69,20 @@ bool PinnedInTheProcess()
 void Attach(HMODULE module)
 {
     const bool pinned = PinnedInTheProcess();
-    std::string dir = ModuleDirectory(module);
-    LogOpen((dir + "LuxVelum.log").c_str());
-    const char* adoptedFrom = AdoptEarlierSettings(dir);
-    GlobalConfig().Load(dir + "LuxVelum.ini");
+    const std::string dir = ModuleDirectory(module);
+    const InstallPaths paths = ClientInstallPaths(dir);
+    LogOpen(paths.log.c_str());
+    const char* adoptedFrom = AdoptEarlierSettings(dir, paths.ini);
+    GlobalConfig().Load(paths.ini);
     const Config& cfg = GlobalConfig().Get();
-    VF_LOG_INFO("LuxVelum loaded from %s", dir.c_str());
+    VF_LOG_INFO("LuxVelum loaded from %s; settings %s, fog data %s, water data %s", dir.c_str(), paths.ini.c_str(),
+                paths.fogData.c_str(), paths.waterData.c_str());
     if (!pinned)
         VF_LOG_ERROR("LuxVelum.dll could not pin itself in the process; unloading it would leave the hooks calling "
                      "unmapped code");
     if (adoptedFrom)
-        VF_LOG_INFO("settings taken over from %s into LuxVelum.ini", adoptedFrom);
-    GlobalFogData().Load(dir + "fogdata.bin");
+        VF_LOG_INFO("settings taken over from %s into %s", adoptedFrom, paths.ini.c_str());
+    GlobalFogData().Load(paths.fogData);
 
     if (!engine::IsSupportedClient())
     {
@@ -108,7 +111,7 @@ void Attach(HMODULE module)
         EnableForeverLookOnHookedClient();
     }
     if (engineHooks && InstallWaterHooks())
-        GlobalWaterData().Load(dir + "waterdata.bin");
+        GlobalWaterData().Load(paths.waterData);
     InstallFarClipHooks();
 }
 

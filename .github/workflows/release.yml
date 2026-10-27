@@ -49,9 +49,11 @@ jobs:
         run: |
           $package = 'build/package'
           New-Item -ItemType Directory -Path $package | Out-Null
-          $files = 'LuxVelum.dll', 'LuxVelum.ini', 'fogdata.bin', 'waterdata.bin'
+          $files = 'LuxVelum.dll', 'WTF/LuxVelum.ini', 'Data/fogdata.bin', 'Data/waterdata.bin'
           foreach ($file in $files) {
-            Copy-Item -LiteralPath "build/Release/$file" -Destination $package -ErrorAction Stop
+            $destination = "$package/$file"
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
+            Copy-Item -LiteralPath "build/Release/$file" -Destination $destination -ErrorAction Stop
           }
           Copy-Item -LiteralPath README.md, LICENSE -Destination $package -ErrorAction Stop
           Copy-Item -LiteralPath build/_deps/imgui-src/LICENSE.txt -Destination "$package/Dear-ImGui-LICENSE.txt"
@@ -79,7 +81,7 @@ jobs:
           path: |
             build/Testing/Temporary/
             build/cpu-harness-out/harness.log
-            build/Release/LuxVelum.log
+            build/Release/Logs/LuxVelum.log
           if-no-files-found: ignore
           retention-days: 7
 
@@ -145,13 +147,16 @@ jobs:
             echo "without it \`LuxVelum.dll\` is never loaded and no \`LuxVelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`, replacing \`LuxVelum.dll\`, \`LuxVelum.ini\` (the default settings), \`fogdata.bin\` and"
-            echo "\`waterdata.bin\`. The package has no \`version.dll\` any more: delete the \`version.dll\` of an"
-            echo "earlier package, also one from LuxVelum, or the client does not start."
-            echo "To keep your settings from Luxveil or CoAVolFog, leave"
-            echo "out \`LuxVelum.ini\`: an existing \`Luxveil.ini\`, else \`CoAVolFog.ini\`, is then taken over on"
-            echo "the first start. The old \`Luxveil.*\` and \`CoAVolFog.*\` DLL, INI and log files are no longer"
-            echo "used and can be deleted."
+            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
+            echo "into \`Data\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is written to"
+            echo "\`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the \`version.dll\` of"
+            echo "an earlier package, also one from LuxVelum, or the client does not start."
+            echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
+            echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
+            echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
+            echo "earlier package next to \`Wow.exe\`, and the old \`Luxveil.*\` and \`CoAVolFog.*\` files, are then"
+            echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\LuxVelum.log\` names it as"
+            echo "taken over, or a later reset of \`WTF\` takes it over again."
             echo "\`BUILD.txt\` names the commit."
             echo
             echo "Validation: build, source comments and CPU harness passed in [run ${RUN_NUMBER}](${RUN_URL})."
@@ -325,13 +330,16 @@ jobs:
             echo "without it \`LuxVelum.dll\` is never loaded and no \`LuxVelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`, replacing \`LuxVelum.dll\`, \`LuxVelum.ini\` (the default settings), \`fogdata.bin\` and"
-            echo "\`waterdata.bin\`. The package has no \`version.dll\` any more: delete the \`version.dll\` of an"
-            echo "earlier package, also one from LuxVelum, or the client does not start."
-            echo "To keep your settings from Luxveil or CoAVolFog, leave"
-            echo "out \`LuxVelum.ini\`: an existing \`Luxveil.ini\`, else \`CoAVolFog.ini\`, is then taken over on"
-            echo "the first start. The old \`Luxveil.*\` and \`CoAVolFog.*\` DLL, INI and log files are no longer"
-            echo "used and can be deleted."
+            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
+            echo "into \`Data\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is written to"
+            echo "\`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the \`version.dll\` of"
+            echo "an earlier package, also one from LuxVelum, or the client does not start."
+            echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
+            echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
+            echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
+            echo "earlier package next to \`Wow.exe\`, and the old \`Luxveil.*\` and \`CoAVolFog.*\` files, are then"
+            echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\LuxVelum.log\` names it as"
+            echo "taken over, or a later reset of \`WTF\` takes it over again."
             echo "\`BUILD.txt\` names the commit."
             echo
             echo "Validation: build, source comments and CPU harness passed in [run ${RUN_NUMBER}](${RUN_URL})."

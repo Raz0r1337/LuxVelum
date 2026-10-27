@@ -405,7 +405,7 @@ void CheckWaterLogPolicy()
 
 size_t DllLogSize()
 {
-    return ReadText(runtime_cost::FogLogBesideTheFogDll()).size();
+    return ReadText(runtime_cost::FogDllLog()).size();
 }
 
 void CheckFogDivesLeaveTheSkipBudget()

@@ -154,6 +154,7 @@ add_library(LuxVelum SHARED
     src/gpu_timing.cpp
     src/grading_renderer.cpp
     src/hooks.cpp
+    src/install_paths.cpp
     src/light_on_screen.cpp
     src/local_light_stabiliser.cpp
     src/log.cpp
@@ -180,18 +181,19 @@ target_link_libraries(LuxVelum PRIVATE kernel32 user32 imgui)
 add_executable(vfog_harness tests/harness.cpp src/client_code.cpp src/client_light_stay.cpp
                src/client_map.cpp src/client_ripple_sprites.cpp src/config.cpp src/engine_actors.cpp
                src/engine_lights.cpp src/light_on_screen.cpp src/local_light_stabiliser.cpp
-               src/fog_data.cpp src/fog_model.cpp src/gpu_timing.cpp src/log.cpp src/noise_volume.cpp
-               src/transparent_fog.cpp src/water_contacts.cpp src/water_data.cpp src/water_spectrum.cpp
-               src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)
+               src/fog_data.cpp src/fog_model.cpp src/gpu_timing.cpp src/install_paths.cpp src/log.cpp
+               src/noise_volume.cpp src/transparent_fog.cpp src/water_contacts.cpp src/water_data.cpp
+               src/water_spectrum.cpp src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(vfog_harness PRIVATE LuxVelum user32 ole32 windowscodecs)
 add_custom_target(luxvelum_runtime_files ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:LuxVelum>
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:LuxVelum>/WTF $<TARGET_FILE_DIR:LuxVelum>/Data
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
-            ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
-            $<TARGET_FILE_DIR:LuxVelum>
-    COMMENT "Copying LuxVelum.ini, fogdata.bin and waterdata.bin beside LuxVelum.dll"
+            $<TARGET_FILE_DIR:LuxVelum>/WTF
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
+            ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin $<TARGET_FILE_DIR:LuxVelum>/Data
+    COMMENT "Copying LuxVelum.ini into WTF and fogdata.bin and waterdata.bin into Data beside LuxVelum.dll"
     VERBATIM)
 add_dependencies(LuxVelum luxvelum_runtime_files)
 add_dependencies(vfog_harness luxvelum_runtime_files)

@@ -124,5 +124,5 @@ private:
     Config m_logged;
 };
 
-const char* AdoptEarlierSettings(const std::string& directory);
+const char* AdoptEarlierSettings(const std::string& directory, const std::string& ini);
 ConfigStore& GlobalConfig();

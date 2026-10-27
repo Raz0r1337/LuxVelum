@@ -3,9 +3,11 @@
 Atmospheric Immersion for Project Reforged — WoW 3.3.5.
 
 LuxVelum is a fork of [CoAVolFog](https://github.com/jealous-sound/coa-vfog): volumetric fog and modern water for the
-Ascension/CoA 3.3.5a (build 12340) Direct3D 9 client. Its files are `LuxVelum.dll`, `LuxVelum.ini` and `LuxVelum.log`
-(`CoAVolFog.*` before TEST Build-24-11, `Luxveil.*` in TEST Build-24-11 and 24-12); without a `LuxVelum.ini` it takes
-over an existing `Luxveil.ini`, else `CoAVolFog.ini`, on its first start.
+Ascension/CoA 3.3.5a (build 12340) Direct3D 9 client. It installs as `LuxVelum.dll` next to `Wow.exe`, its settings
+`WTF\LuxVelum.ini` and its data `Data\fogdata.bin` and `Data\waterdata.bin`, and writes `Logs\LuxVelum.log`
+(`CoAVolFog.*` before TEST Build-24-11, `Luxveil.*` in TEST Build-24-11 and 24-12, all next to `Wow.exe` in earlier
+packages); without a `WTF\LuxVelum.ini` it takes over an existing `LuxVelum.ini` next to `Wow.exe`, else `Luxveil.ini`
+or `CoAVolFog.ini`.
 
 It consists of a loader, a D3D9 device wrapper with a readable depth buffer, world-render hooks, a per-pixel
 ray-marching fog renderer and a water renderer. Fog layers come from the Classic client's own
@@ -20,7 +22,7 @@ textures.
 [jealous-sound](https://github.com/jealous-sound/coa-vfog); this fork, LuxVelum, only tries to adapt it to Project
 Reforged. I have no background in volumetric lighting or fog effects, so while I do my best, I cannot guarantee that a
 change here does not make things worse instead of better. If in doubt, leave LuxVelum disabled (`Enable=0` in
-`LuxVelum.ini`).
+`WTF\LuxVelum.ini`).
 
 This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), development on `st0ny-dev`, releases from
 `st0ny-main`) builds on
@@ -813,11 +815,11 @@ Engine notes behind the code:
 `Ctrl+F7` (`OverlayKey`) shows and hides a Dear ImGui window over the game. On laptops whose F-keys send media keys by
 default, hold Fn (the log names the key that arrived). The window edits every setting below except `Enable`,
 `EngineHooks`, `Overlay` and `OverlayKey`, and the next frame uses the change.
-**Save** writes the settings changed in the window back to `LuxVelum.ini`, keeping the comments and every other line;
-settings not changed in the window keep what the file holds. **Revert** reloads the file, and a hand edit of the file
-also replaces unsaved changes. The window shows whether the fog drew in the last frame, or why it did not. It also shows
-whether the game's multisampling is kept, or why it is off (`Multisampling` applies later, see Settings). It can be
-moved and resized, and keeps its place and size for the session.
+**Save** writes the settings changed in the window back to `WTF\LuxVelum.ini`, keeping the comments and every other
+line; settings not changed in the window keep what the file holds. **Revert** reloads the file, and a hand edit of the
+file also replaces unsaved changes. The window shows whether the fog drew in the last frame, or why it did not. It also
+shows whether the game's multisampling is kept, or why it is off (`Multisampling` applies later, see Settings). It can
+be moved and resized, and keeps its place and size for the session.
 
 While the window is open, clicks and the wheel go to it only while the cursor is over it or a drag started on
 it, and keys only while one of its text fields is active (Ctrl+click on a slider). The hotkey never reaches the
@@ -836,9 +838,10 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-Outputs in `build/Release`: `LuxVelum.dll` and `vfog_harness.exe`, with `LuxVelum.ini`, `fogdata.bin` and
-`waterdata.bin` copied beside them on every build, also of `--target LuxVelum` alone and when only the INI or a data
-file has changed.
+Outputs in `build/Release`: `LuxVelum.dll` and `vfog_harness.exe`, laid out like a client folder with `LuxVelum.ini`
+copied into `WTF` and `fogdata.bin` and `waterdata.bin` into `Data` on every build, also of `--target LuxVelum` alone
+and when only the INI or a data file has changed. The DLL the harness loads reads them there and writes
+`Logs\LuxVelum.log`.
 
 ### Download a CI build
 
@@ -848,8 +851,8 @@ push to `main` (including merged pull requests), on pull requests targeting `mai
 merged into `main`; select a branch to rebuild that revision.
 
 Open a successful run and download its `LuxVelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a
-ZIP containing `LuxVelum.dll`, `LuxVelum.ini`, `fogdata.bin`, `waterdata.bin`, the README, licenses and a
-`BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
+ZIP containing `LuxVelum.dll`, `WTF/LuxVelum.ini`, `Data/fogdata.bin`, `Data/waterdata.bin`, the README, licenses and
+a `BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
 rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision.
 
 On a push to the release branch `st0ny-main`, and on a manual run of that branch, a second job publishes the same
@@ -922,28 +925,37 @@ and wading-in units at `WaterRipples=0.5`, each as the shaded frame, its normals
 
 `vfog_harness --scene performance` times the fog passes at 1920×1080 at each quality on one street: derived
 layers with no point lights, eight flood lights or eight street lamps, Classic layers at the harbour with and
-without the lamps (skipped if `fogdata.bin` beside `LuxVelum.dll` does not resolve the harbour), and the shipped
+without the lamps (skipped if the `fogdata.bin` of `LuxVelum.dll` does not resolve the harbour), and the shipped
 `LogLevel=1`. It prints `quality,case,point_lights,median_ms,p95_ms` of GPU time; this is a controlled renderer
 cost, not a game frame-rate test.
 It also times the harbour in a full storm and the colour grading pass; `--samples 4` creates a 4x device.
 
 ## Install
 
-Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then copy `LuxVelum.dll`,
-`LuxVelum.ini`, `fogdata.bin` and `waterdata.bin` next to `Wow.exe`. Remove `LuxVelum.dll` to uninstall; the patched
-`Wow.exe` then starts without it. The DLL writes `LuxVelum.log` next to itself. A client started from the same
-folder while another holds that file writes the first free one of `LuxVelum-2.log` to `LuxVelum-8.log` instead, and
-its first line names that file and the client's process id. A slot held by a running client is left as it is; a free
-one is reused and overwritten, so the clients of one folder share at most eight log files. A ninth client running
-beside eight others writes no log.
+Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then unzip the package into
+the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin` and `waterdata.bin` into `Data` and
+`LuxVelum.ini` into `WTF`, the client's own folders for its data and settings. Remove `LuxVelum.dll` to uninstall; the
+patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the client's `Logs` folder and makes `Logs`
+and `WTF` when they are missing; where it cannot, the log and the settings stay next to `LuxVelum.dll`. A `fogdata.bin`
+or `waterdata.bin` missing from `Data` is still read from next to `LuxVelum.dll`, where earlier packages put it. The
+start-up line `LuxVelum loaded from` names the settings and data files in use. Deleting the `WTF` folder to reset the
+client deletes LuxVelum's settings too: the next start takes over an earlier INI still next to `Wow.exe` again, as
+below, or else runs on the built-in defaults until `WTF\LuxVelum.ini` is unzipped from the package again. A client
+started from the same folder while another holds the log writes the first free one of `LuxVelum-2.log` to
+`LuxVelum-8.log` beside it instead, and its first line names that file and the client's process id.
+A slot held by a running client is left as it is; a free one is reused and overwritten, so the clients of one folder
+share at most eight log files. A ninth client running beside eight others writes no log.
 Delete the `version.dll` of an earlier package: one from CoAVolFog or Luxveil keeps the client from starting once its
 old DLL is gone, and one from LuxVelum once its DLL no longer exports `vf_loader_anchor`.
-To keep the settings of an earlier Luxveil or CoAVolFog install, leave out `LuxVelum.ini`: on its first start the DLL
-then copies `Luxveil.ini`, or without it `CoAVolFog.ini`, to `LuxVelum.ini` with its section renamed and logs which file
-it took; an existing `LuxVelum.ini` is never replaced. A file saved as UTF-8 or Unicode (UTF-16) and a section header
-followed by more text are taken over too; a file without its `[Luxveil]` or `[CoAVolFog]` section is skipped with a log
-line, and the next one is tried. The old `Luxveil.dll`, `Luxveil.ini`, `Luxveil.log`, `CoAVolFog.dll`, `CoAVolFog.ini`
-and `CoAVolFog.log` are no longer used and can be deleted.
+To keep the settings of an earlier install, leave out `WTF\LuxVelum.ini`: on its next start the DLL then copies the
+`LuxVelum.ini` next to `Wow.exe` of an earlier package, also one with the `[Luxvelum]` section of the builds before the
+`LuxVelum` spelling, or without it `Luxveil.ini`, or `CoAVolFog.ini`, into `WTF\LuxVelum.ini` with its section renamed
+and logs which file it took; an existing `WTF\LuxVelum.ini` is never replaced, and the earlier file stays as it was. A
+file saved as UTF-8 or Unicode (UTF-16) and a section header followed by more text are taken over too; a file without
+its section is skipped with a log line, and the next one is tried. The `LuxVelum.ini`, `LuxVelum.log`, `fogdata.bin` and
+`waterdata.bin` of an earlier package next to `Wow.exe`, and the old `Luxveil.dll`, `Luxveil.ini`, `Luxveil.log`,
+`CoAVolFog.dll`, `CoAVolFog.ini` and `CoAVolFog.log`, are then no longer used and can be deleted; delete the earlier INI
+once the log names it as taken over, so that a later reset of `WTF` does not bring it back.
 
 ## Steam Deck and Linux (Proton)
 
@@ -962,6 +974,7 @@ Other Linux hardware and Proton/DXVK versions have not been verified by this tes
 
 ## Log
 
+The log is `Logs\LuxVelum.log` in the client folder.
 At `LogLevel=1` the log holds a frame summary on the first frame, whenever the viewport or far clip changes, and
 every 60 s (`LogLevel=2` adds one every 600 frames). Its first line ends with the median GPU time of the fog
 passes since the previous summary, for example
@@ -990,7 +1003,7 @@ are logged with the feature they leave off.
 
 ## Settings
 
-`LuxVelum.ini` is re-read within a second while the game runs (except `Enable`, `EngineHooks` and `LightStay`);
+`WTF\LuxVelum.ini` is re-read within a second while the game runs (except `Enable`, `EngineHooks` and `LightStay`);
 its comments describe every key. In the game, `Ctrl+F7` opens the same settings in a window (see In-game settings).
 
 | Key | Default | Meaning |

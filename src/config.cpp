@@ -14,7 +14,6 @@ namespace
 {
 constexpr const char* kSection = "LuxVelum";
 constexpr const char* kSectionLine = "[LuxVelum]";
-constexpr const char* kIniName = "LuxVelum.ini";
 constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
 constexpr const char* kUtf16LeBom = "\xFF\xFE";
 
@@ -25,6 +24,7 @@ struct EarlierSettings
 };
 
 constexpr EarlierSettings kEarlierSettings[] = {
+    {"LuxVelum.ini", "LuxVelum"},
     {"Luxveil.ini", "Luxveil"},
     {"CoAVolFog.ini", "CoAVolFog"},
 };
@@ -684,9 +684,8 @@ Config ConfigStore::ReadFile() const
     return c;
 }
 
-const char* AdoptEarlierSettings(const std::string& directory)
+const char* AdoptEarlierSettings(const std::string& directory, const std::string& ini)
 {
-    const std::string ini = directory + kIniName;
     if (GetFileAttributesA(ini.c_str()) != INVALID_FILE_ATTRIBUTES)
         return nullptr;
     for (const EarlierSettings& earlier : kEarlierSettings)
