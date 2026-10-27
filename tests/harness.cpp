@@ -2735,6 +2735,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "display_dither_checks.h"
 #include "temporal_quality_checks.h"
 #include "runtime_quality_checks.h"
+#include "god_ray_shaft_checks.h"
 #include "lighting_history_checks.h"
 #include "runtime_cost_checks.h"
 #include "water_data_checks.h"
@@ -3143,6 +3144,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckTemporalFallbackNoise(h.dev);
     CheckLightDisappearanceHistory(h);
     CheckSunOccluderLeavesFogLit(h);
+    god_ray_shafts::CheckGodRaysAddOnlyShafts(h, outDir);
     classic_phase::CheckSunsetHaloKeepsItsHue(h, FullPath(iniPath));
     water_fft_checks::CheckWaterFft(h.dev);
     water_mask_packing_checks::CheckWaveFoamMaskPacking(h.dev);

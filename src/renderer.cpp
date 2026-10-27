@@ -44,6 +44,7 @@
 #include "ps_ray_blur.h"
 #include "ps_ray_composite.h"
 #include "ps_ray_mask.h"
+#include "ps_ray_shafts.h"
 #include "ps_silhouette_mask.h"
 #include "ps_split_composite_high.h"
 #include "ps_split_composite_low.h"
@@ -89,6 +90,7 @@ constexpr float kRayThreshold = 0.12f;
 constexpr float kRayStep = 0.075f;
 constexpr float kRayDecay = 0.9f;
 constexpr int kRayTaps = 8;
+constexpr int kShaftRays = 0;
 constexpr float kHistoryMaxSeconds = 0.25f;
 constexpr float kHistoryMaxMove = 30.0f;
 constexpr float kHistoryMinForwardDot = 0.70710678f;
@@ -527,6 +529,7 @@ void Renderer::ReleaseAll()
     m_splitCompositesUnavailable = false;
     SafeRelease(m_rayMask);
     SafeRelease(m_rayBlur);
+    SafeRelease(m_rayShafts);
     SafeRelease(m_rayComposite);
     SafeRelease(m_probe);
     SafeRelease(m_decl);
@@ -676,6 +679,7 @@ bool Renderer::EnsureShaders(IDirect3DDevice9* dev)
         {"ps_lit_noisy_composite_high", g_ps_lit_noisy_composite_high, &m_litNoisyComposite[2]},
         {"ps_ray_mask", g_ps_ray_mask, &m_rayMask},
         {"ps_ray_blur", g_ps_ray_blur, &m_rayBlur},
+        {"ps_ray_shafts", g_ps_ray_shafts, &m_rayShafts},
         {"ps_ray_composite", g_ps_ray_composite, &m_rayComposite},
     };
     static const D3DVERTEXELEMENT9 kElements[] = {
@@ -1352,6 +1356,16 @@ void Renderer::DrawGodRayMask(IDirect3DDevice9* dev, IDirect3DTexture9* depthTex
         DrawFullscreenTriangle(dev);
         step /= kRayTaps;
     }
+
+    SetTarget(dev, m_rays[kShaftRays]);
+    dev->SetPixelShader(m_rayShafts);
+    const Float4 shafts[2] = {
+        {sunUv[0] * m_rayW, sunUv[1] * m_rayH, 0.0f, 0.0f},
+        {static_cast<float>(m_rayW), static_cast<float>(m_rayH), 1.0f / m_rayW, 1.0f / m_rayH},
+    };
+    dev->SetPixelShaderConstantF(9, &shafts[0].x, 2);
+    BindTexture(dev, 0, m_rays[1 - kShaftRays], true);
+    DrawFullscreenTriangle(dev);
 }
 
 bool Renderer::DrawGodRaysOverScene(IDirect3DDevice9* dev, const SceneDepth& depth, IDirect3DSurface9* target,
@@ -1380,7 +1394,7 @@ bool Renderer::DrawGodRaysOverScene(IDirect3DDevice9* dev, const SceneDepth& dep
         {rays.sunPx[0], rays.sunPx[1], 0.0f, rays.glowToCompensate},
     };
     dev->SetPixelShaderConstantF(96, &composite[0].x, 3);
-    BindTexture(dev, 2, m_rays[1], true);
+    BindTexture(dev, 2, m_rays[kShaftRays], true);
     BindTexture(dev, 3, m_sceneCopy, false);
     DrawFullscreenTriangle(dev);
     return true;
@@ -1602,7 +1616,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     dev->SetPixelShaderConstantF(96, &composite[0].x, 3);
     BindTexture(dev, 0, depthTexture, false);
     BindTexture(dev, 1, fogResult, false);
-    BindTexture(dev, 2, m_rays[1], true);
+    BindTexture(dev, 2, m_rays[kShaftRays], true);
     BindTexture(dev, 3, sceneBlend ? m_sceneCopy : nullptr, false);
     BindTexture(dev, 4, m_marchTarget, false);
     if (splitSamples)

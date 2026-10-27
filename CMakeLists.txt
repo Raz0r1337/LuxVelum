@@ -103,6 +103,7 @@ vf_shader(ps_lit_noisy_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTE
 vf_shader(ps_silhouette_mask vf_silhouette_mask.hlsl ps_3_0 /DLOCAL_LIGHTS=0)
 vf_shader(ps_ray_mask vf_ray_mask.hlsl ps_3_0)
 vf_shader(ps_ray_blur vf_ray_blur.hlsl ps_3_0)
+vf_shader(ps_ray_shafts vf_ray_shafts.hlsl ps_3_0)
 vf_shader(ps_ray_composite vf_ray_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0)
 vf_shader(ps_probe vf_probe.hlsl ps_3_0)
 vf_shader(ps_depth_check vf_depth_check.hlsl ps_3_0)

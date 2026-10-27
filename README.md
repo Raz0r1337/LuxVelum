@@ -66,7 +66,8 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
   authored mean and drifts along world +X; the distance fog stays smooth so it cannot uncover the far clip. This
   is an artistic control, not a reconstruction of Classic's authored noise.
   Layers with authored noise use that instead.
-- **God rays** (optional): a radial blur of the bright sky around the sun.
+- **God rays** (optional): shafts of light through gaps in trees and other occluders in front of the sun, from a
+  radial blur of the bright sky; an open sky gets none.
 - **Modern water** on lakes, rivers, the sea and indoor pools: FFT waves from Forever's wave tiles, refraction,
   depth absorption and in-scattering, foam on wave crests, along shores and in shallow water, a sun or moon glint,
   and reflections of the scene with the sky as a fallback. The zone's own water colours can tint it
@@ -180,6 +181,19 @@ the average of what the old mask took, so the rays keep their strength and lose 
 already contains the branch, a dark occluder weighs more than its area, as before. The mask grows from 47 to 213
 instruction slots and 2 to 20 texture reads at a sixteenth of the screen's pixels, and the copy adds one 8-bit target of
 a quarter of the viewport's area.
+
+**God-ray shafts.** A tester found that the God rays slider brightened the whole sky around the sun like Sun
+scatter (2026-10-27): the radial blur of an open sky is a round glow, and the rays only showed as the edges of the
+occluders cut into it. A third pass after the blur now keeps only the shafts. For each ray texel it reads the blurred
+rays along an arc around the sun, twelve taps 2.5 degrees apart on each side, takes the dimmest tap on each side and
+adds what the texel holds above the brighter of the two. A glow that is the same all around the sun, and the one-sided
+edge of a horizon or a mountain, add nothing; a gap between trunks or leaves, with shadow on both sides, adds its
+shaft. So God rays never darken and leave the sun's glow to Sun scatter and the client; within 30 degrees of a gap
+that spans the whole arc, next to the sun, they add nothing either. The pass reads 25 bilinear taps at a sixteenth
+of the screen's pixels and writes into the blur's first target, which both composites read. The harness renders the
+sun over an open sky, behind thirteen trunks and behind a canopy of leaves at God rays 0, 1 and 4 and saves the
+images: at 4 the open sky changed by 41/255 on average before (up to 94/255), and by 0.06/255 (up to 3/255) now,
+while the shafts between the trunks reach 0.35 in luma and nothing darkens (Wine's Direct3D on llvmpipe).
 
 **Display dither.** The fog is marched and filtered in 16-bit float and blended in 32-bit float, but the composite
 writes 8-bit codes into the client's back buffer. Where a gradient falls slowly, as in the dark outer halo of the sun
