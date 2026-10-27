@@ -270,8 +270,8 @@ bool DrawLight(Config& c)
                       "the fog between you and the light; below 0 the fog behind the light, steeply brighter toward "
                       "-0.9. The modern client uses one such value for all its lights; 0.3 is a calibration");
     changed |= Slider("God rays", c.godRays, 0.0f, 4.0f, "%.2f",
-                      "Shafts of light through gaps in trees and other things in front of the sun, 0 = off. An open "
-                      "sky gets none; the glow around the sun is Sun scatter's");
+                      "Shafts of light through gaps in trees, buildings and terrain in front of the sun, 0 = off. An "
+                      "open sky, its clouds included, gets none; the glow around the sun is Sun scatter's");
     changed |= Toggle("Glow compensation", c.glowCompensation,
                       "Pre-compensate the fog for the client's full-screen glow, which otherwise bleaches bright fog "
                       "around the sun to white. The fog itself only with linear light, while it blends over a copy "
