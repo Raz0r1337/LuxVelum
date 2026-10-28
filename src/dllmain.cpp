@@ -8,6 +8,7 @@
 #include "grading_renderer.h"
 #include "hooks.h"
 #include "install_paths.h"
+#include "lamp_data.h"
 #include "log.h"
 #include "noise_volume.h"
 #include "overlay.h"
@@ -75,14 +76,15 @@ void Attach(HMODULE module)
     const char* adoptedFrom = AdoptEarlierSettings(dir, paths.ini);
     GlobalConfig().Load(paths.ini);
     const Config& cfg = GlobalConfig().Get();
-    VF_LOG_INFO("LuxVelum loaded from %s; settings %s, fog data %s, water data %s", dir.c_str(), paths.ini.c_str(),
-                paths.fogData.c_str(), paths.waterData.c_str());
+    VF_LOG_INFO("LuxVelum loaded from %s; settings %s, fog data %s, water data %s, lamp data %s", dir.c_str(),
+                paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str(), paths.lampData.c_str());
     if (!pinned)
         VF_LOG_ERROR("LuxVelum.dll could not pin itself in the process; unloading it would leave the hooks calling "
                      "unmapped code");
     if (adoptedFrom)
         VF_LOG_INFO("settings taken over from %s into %s", adoptedFrom, paths.ini.c_str());
     GlobalFogData().Load(paths.fogData);
+    GlobalLampCatalog().Load(paths.lampData);
 
     if (!engine::IsSupportedClient())
     {

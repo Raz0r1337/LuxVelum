@@ -1,5 +1,6 @@
 #include "local_light_stabiliser.h"
 
+#include "lamp_feed.h"
 #include "log.h"
 
 #include <algorithm>
@@ -40,11 +41,20 @@ float EasedFade(float weight)
     return weight * weight * (3.0f - 2.0f * weight);
 }
 
+bool HasNativeCandidates(const LocalLightInputs& lights)
+{
+    const uint32_t count = std::min(lights.candidateCount, kLocalLightCandidatePool);
+    for (uint32_t i = 0; i < count; ++i)
+        if (!CatalogLampId(lights.candidates[i].nativeId))
+            return true;
+    return false;
+}
+
 bool StructuralFailure(const LocalLightInputs& lights)
 {
-    return lights.candidateCount == 0 && (lights.capture == LocalLightCapture::DamagedTable ||
-                                          lights.capture == LocalLightCapture::TableChanged ||
-                                          lights.capture == LocalLightCapture::ReadFault);
+    return !HasNativeCandidates(lights) && (lights.capture == LocalLightCapture::DamagedTable ||
+                                            lights.capture == LocalLightCapture::TableChanged ||
+                                            lights.capture == LocalLightCapture::ReadFault);
 }
 
 bool PersistentFailure(const LocalLightInputs& lights)
