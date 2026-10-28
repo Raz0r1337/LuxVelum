@@ -16,6 +16,7 @@ struct FrameInputs
     float glProjection[16];
     float camPos[3];
     float camTarget[3];
+    float cameraFocus[3];
     D3DVIEWPORT9 viewport;
     float dayFraction;
     float toLight[3];
@@ -114,6 +115,7 @@ struct CodeRange
 
 bool IsSupportedClient();
 void ChooseCurrentMap();
+void ChooseCameraFocus();
 int CurrentMapId();
 void* GameD3DDevice();
 bool CameraInLiquid();

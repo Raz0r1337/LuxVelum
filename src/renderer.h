@@ -1,5 +1,6 @@
 #pragma once
 
+#include "character_on_screen.h"
 #include "config.h"
 #include "engine.h"
 #include "fog_data.h"
@@ -64,6 +65,7 @@ private:
         float strength = 0.0f;
         float colour[3] = {};
         float glowToCompensate = 0.0f;
+        CharacterOnScreen character = {};
     };
 
     template <typename Passes>
@@ -143,6 +145,7 @@ private:
     IDirect3DTexture9* m_history[2] = {};
     IDirect3DTexture9* m_historyDepth = nullptr;
     IDirect3DTexture9* m_rays[2] = {};
+    IDirect3DTexture9* m_raysOpenWithoutTheCharacter[2] = {};
     IDirect3DTexture9* m_raySource = nullptr;
     IDirect3DTexture9* m_sceneCopy = nullptr;
     IDirect3DTexture9* m_localLightData = nullptr;

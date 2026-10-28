@@ -206,6 +206,37 @@ trunks and behind a canopy of leaves at God rays 0, 1 and 4 and saves the images
 41/255 on average before (up to 94/255) and the dusk sky by 47/255 (up to 109/255), both by 0/255 now, while the
 shafts between the trunks reach 0.35 in luma and nothing darkens (Wine's Direct3D on llvmpipe).
 
+**The own character.** A tester found rays on and around the own character that moved with it, and none from the sun
+over the open plains of the Barrens and Durotar (2026-10-28). The character stands in front of the sun more often than
+any tree: the mask counted it as an occluder like any other, and the shaft pass kept the open sky on both sides of it as
+a gap, so rays fanned out around the character wherever it walked, and over an open plain they were all there was. The
+DLL now reads the position of the unit the camera follows at `0xCD7778` (the camera position when the code that stores
+it there differs, see the evidence below) and treats an upright cylinder around it as the character: 3 yards in radius,
+from half a yard below the focus to 5 yards above. Each test rebuilds the world position of a depth sample from its
+pixel and depth and checks it against the cylinder, after a screen rectangle around the projected box that holds the
+cylinder; when a corner of that box comes within a quarter yard of the camera's plane, the rectangle is the whole
+viewport. The mask writes a second target, the sky share with the character's samples counted as open, which the radial
+blur carries along with the first; the shaft pass takes the minima along its arcs from it and the texel's own share from
+the first, so the character no longer makes a gap, and trunks behind and beside it keep their shafts. Both composites
+draw no rays on the character's pixels, so those shafts do not shine through it. A camera zoomed in closer than 3 yards
+beside the focus, within the cylinder's height, narrows the cylinder to stay a quarter yard clear of it; below three
+quarters of a yard, as in first person, beyond 100 yards and for an unreadable focus nothing is excluded. The harness
+renders a character 8 yards ahead, just below the sun, 2.5 yards beside it over the ground, in front of the thirteen
+trunks and between trunks 4 yards to either side at its own distance, and 2 yards ahead, at God rays 4: without the
+focus, which is the old behaviour, the sky around it changed by up to 42/255 and 93/255 and the character brightened by
+up to 113/255, and at 2 yards by up to 96/255 when the cylinder switched off instead of narrowing; with it all four stay
+at 0/255, the far trunks' shafts still reach 0.35 in luma, and the near trunks' shafts reach 0.059 with or without the
+character. A first version tested a screen rectangle and a band of depth instead of the cylinder; that region reaches
+far beyond 3 yards at the sides and covers every surface near the camera when zoomed in, and the near trunks' shafts
+fell to 0.012. The mask grows from 216 to 729 instruction slots at a sixteenth of the screen's pixels, the blur from 42
+to 66, the late composite from 51 to 94 and the composite from 1005 to 1040 (medium quality), and the second share takes
+two more 8-bit targets of a sixteenth of the viewport's area; the state block now also restores `c100`–`c102`. On a
+device without two simultaneous render targets the character casts shafts again, which the log says; only the rays on
+its own pixels stay off. Mounts and vehicles larger than the cylinder, other players and creatures still cast shafts,
+ground and leaves inside the cylinder count as open sky, and the composites test one depth per pixel, so under
+multisampling the rays' edge along the character is not antialiased. An open plain with nothing in front of the sun has
+no shafts by design; the glow around the sun there is Sun scatter's and the client's.
+
 **Display dither.** The fog is marched and filtered in 16-bit float and blended in 32-bit float, but the composite
 writes 8-bit codes into the client's back buffer. Where a gradient falls slowly, as in the dark outer halo of the sun
 and the moon, one code spans many pixels (about 11 px at code 40 and 18 px at code 33 in a tester's moon screenshot), so
@@ -536,6 +567,7 @@ Gx is the graphics device `[0xC5DF88]`.
 | View, projection | Gx `+0x1B00 + 64·[+0x1AF8]`, `+0xF88`; copies at `0xADF5E8`, `0xADF628` |
 | World viewport depth range (MinZ, MaxZ) | Gx `+0xF80` |
 | Camera position / look-at target | `0xCD8F5C`, `0xCD8F68` |
+| Camera focus: the unit the camera follows | `0xCD7778` (stored by `0x780860`), else the camera position |
 | Current map | `0xADFBC4` (read by the far clip setter), else `0xAB63BC` |
 | Day fraction | `0xD38B04` |
 | Stock fog groups: colour, start, end (read by the render callbacks) | `0xD38B8C`–`0xD38B94`, `0xD38BA0`–`0xD38BA8` |
@@ -704,6 +736,15 @@ Engine notes behind the code:
   from `0xADFBC4` while those bytes match and from `0xAB63BC` otherwise (the log says which). Lumenveil reports −1 at
   `0xAB63BC` after a ship or zeppelin trip; with −1 the fog took no Classic data and Azeroth's region settings,
   Northrend's density and lamps included.
+- Camera focus. The look-at target `0xCD8F68` is the camera position plus its forward row, one yard ahead
+  (`0x4FA7C1`–`0x4FA80F`, camera vtable `0xA1EA54` slot 1 `0x600C20`); logged frames show 1.00 yd between the two. The
+  world render looks up the object whose GUID the active camera `[[0xB7436C] + 0x7E20]` follows (`camera + 0x88`,
+  `0x4FA664`–`0x4FA696`), and when `[camera + 0x48]` is 0 and the object exists it takes the object's position
+  (`0x4FAAA0`, `8B 8F 20 7E 00 00 83 79 48 00 75 13 85 DB 74 0F`; vtable `+0x2C` at `0x4FAAB0`), else the camera
+  position, as the third argument of `0x7831A0` (`0x4FAADF`). `0x7831A0` hands it to `0x780860` (`0x7831F0`,
+  `0x783209`), which first stores it at `0xCD7778`–`0xCD7780` (`0x780871`, `A3 78 77 CD 00 8B 4F 04 89 0D 7C 77 CD 00`;
+  `0x78087F`, `8B 57 08 89 15 80 77 CD 00`); nothing else writes there. The DLL reads the focus there while both stores
+  match, and the camera position otherwise (the log says which).
 - Far clip. The clamp `0x780770` is cdecl `float(float farclip, int mapId)`, result in ST0, caller pops; it
   bounds the value to `[0xA3E708]` (183.33) .. `[0xA3E710]` (1583.33). Its calls at `0x780810` (in the
   `farclip` CVar setter `0x780800`, also reached from Extensions.dll on zone changes) and `0x781444` (map load

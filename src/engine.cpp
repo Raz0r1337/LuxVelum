@@ -1,5 +1,6 @@
 #include "engine.h"
 
+#include "client_camera_focus.h"
 #include "client_map.h"
 #include "local_light_stabiliser.h"
 
@@ -245,6 +246,7 @@ uint32_t g_opaqueCaptures = 0;
 constexpr int32_t kUnreadableMap = -1;
 
 uintptr_t g_currentMap = kLoadingScreenMap;
+uintptr_t g_cameraFocus = kCameraPosition;
 
 template <typename T>
 T Read(uintptr_t address)
@@ -432,6 +434,7 @@ bool BuildFrameInputsUnsafe(FrameInputs& out, bool withPointLights, const PointL
     out.viewport = g_opaque.viewport;
     ReadFloats(kCameraPosition, out.camPos, 3);
     ReadFloats(kCameraTarget, out.camTarget, 3);
+    ReadFloats(g_cameraFocus, out.cameraFocus, 3);
 
     out.dayFraction = Read<float>(kDayFraction);
     float dayStart = Read<float>(kSunDayStart);
@@ -771,6 +774,18 @@ void ChooseCurrentMap()
         VF_LOG_ERROR("the far clip setter's map read at 0x%08X differs from the 12340 client; the map id is read from "
                      "the loading screen's 0x%08X, which holds -1 after a ship or zeppelin trip",
                      static_cast<unsigned>(kFarClipSetterMapRead), static_cast<unsigned>(kLoadingScreenMap));
+}
+
+void ChooseCameraFocus()
+{
+    g_cameraFocus = CameraFocusReadable({}) ? kCameraFocus : kCameraPosition;
+    if (g_cameraFocus == kCameraFocus)
+        VF_LOG_INFO("camera focus read from 0x%08X, the position of the unit the camera follows",
+                    static_cast<unsigned>(kCameraFocus));
+    else
+        VF_LOG_ERROR("the camera focus stores at 0x%08X and 0x%08X differ from the 12340 client; the own character "
+                     "casts god-ray shafts",
+                     static_cast<unsigned>(kCameraFocusStore), static_cast<unsigned>(kCameraFocusHeightStore));
 }
 
 int CurrentMapId()

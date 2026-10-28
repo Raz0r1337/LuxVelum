@@ -40,22 +40,23 @@ reverse-engineering evidence.
 
 - `proxy/` — the optional `version.dll` loader that forwards to the system copy.
 - `src/` — `d3d9_wrap` (device wrapper, INTZ depth), `msaa_depth` (multisampled depth copy into INTZ: NVAPI, RESZ,
-  self-test), `hooks` (call-site thunks), `engine` (client addresses and frame inputs), `engine_actors` (unit walk
-  for water contacts), `engine_lights` (point-light table walk, view-frustum test, ranked candidate pool),
-  `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `client_code` (client
-  code views and byte guards), `client_light_stay` (the in-memory lightstay byte), `client_map` (the map id the far
-  clip setter reads, the loading screen's as fallback), `fog_data` (Classic fog data),
-  `fog_model` (layer parameters), `renderer` (passes), `light_on_screen` (the sun's or moon's position on screen),
-  `fullscreen_triangle` (the triangle every full-screen pass draws, its edges outside the viewport),
-  `transparent_fog` (linear stock fog fitted to the volumetric fog for see-through models after the early composite),
-  `overlay` (ImGui settings window: input chaining, drawing at `Present`), `settings_panel` (its widgets), `config`,
-  `install_paths` (the client folder's `Logs`, `WTF` and `Data\LuxVelum`, the DLL's folder as fallback), `log`,
-  `status_log`; water: `water_data` (Forever presets, FFT tiles, foam masks), `water_classify` (liquid classes),
-  `water_spectrum` and `water_fft` (GPU FFT waves), `water_contacts` (contact tracker, ring impulses at the
-  client's ripple events), `water_ripples` (ripple map simulation), `client_ripple_sprites` (hold on the client's
-  `waterRipples` splash and wake sprites), `water_renderer` (copies, stencil tagging, shading); look: `forever_look`
-  (Forever glow byte before the fog composite, grading decisions at world done and frame end), `grading_renderer`
-  (colour grading pass).
+  self-test), `hooks` (call-site thunks), `engine` (client addresses and frame inputs), `engine_actors` (unit walk for
+  water contacts), `engine_lights` (point-light table walk, view-frustum test, ranked candidate pool),
+  `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `client_code` (client code
+  views and byte guards), `client_light_stay` (the in-memory lightstay byte), `client_map` (the map id the far clip
+  setter reads, the loading screen's as fallback), `client_camera_focus` (the position of the unit the camera follows,
+  the camera position as fallback), `fog_data` (Classic fog data), `fog_model` (layer parameters), `renderer` (passes),
+  `light_on_screen` (the sun's or moon's position on screen), `character_on_screen` (the own character's cylinder around
+  the camera focus and its box on screen, kept out of the god rays), `fullscreen_triangle` (the triangle every
+  full-screen pass draws, its edges outside the viewport), `transparent_fog` (linear stock fog fitted to the volumetric
+  fog for see-through models after the early composite), `overlay` (ImGui settings window: input chaining, drawing at
+  `Present`), `settings_panel` (its widgets), `config`, `install_paths` (the client folder's `Logs`, `WTF` and
+  `Data\LuxVelum`, the DLL's folder as fallback), `log`, `status_log`; water: `water_data` (Forever presets, FFT tiles,
+  foam masks), `water_classify` (liquid classes), `water_spectrum` and `water_fft` (GPU FFT waves), `water_contacts`
+  (contact tracker, ring impulses at the client's ripple events), `water_ripples` (ripple map simulation),
+  `client_ripple_sprites` (hold on the client's `waterRipples` splash and wake sprites), `water_renderer` (copies,
+  stencil tagging, shading); look: `forever_look` (Forever glow byte before the fog composite, grading decisions at
+  world done and frame end), `grading_renderer` (colour grading pass).
 - `shaders/` — the ps_3_0 passes: `vf_*` fog (march, temporal, composite and its multisampled silhouette split, god
   rays and their late composite after an early one, depth probe and depth-copy check), `vw_*` water (FFT, ripple
   step, depth copy, shading) and `vp_grade` (colour grading). Among the includes, `vf_pixel_noise` holds the pixel

@@ -100,6 +100,7 @@ void Attach(HMODULE module)
         return;
     }
     engine::ChooseCurrentMap();
+    engine::ChooseCameraFocus();
     const bool engineHooks = InstallEngineHooks();
     AllowFogOnNewDevices(engineHooks);
     if (cfg.lightStay)

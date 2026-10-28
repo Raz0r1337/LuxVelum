@@ -1,3 +1,5 @@
+#include "character_on_screen.h"
+#include "client_camera_focus.h"
 #include "client_light_stay.h"
 #include "client_map.h"
 #include "client_ripple_sprites.h"
@@ -398,7 +400,7 @@ Rgb SampleRgb(const Image& img, int cx, int cy, int radius)
 }
 
 constexpr DWORD kFogPassTextureStages = 11;
-constexpr UINT kFogPassPixelConstants = 100;
+constexpr UINT kFogPassPixelConstants = 103;
 
 struct Sentinel
 {
@@ -658,6 +660,9 @@ FrameInputs MakeInputs(const float* view, const float* proj, Vec3 eye, Vec3 at, 
     in.camTarget[0] = eye.x + f.x * 6;
     in.camTarget[1] = eye.y + f.y * 6;
     in.camTarget[2] = eye.z - 6;
+    in.cameraFocus[0] = eye.x;
+    in.cameraFocus[1] = eye.y;
+    in.cameraFocus[2] = eye.z;
     in.viewport = vp;
     in.dayFraction = 0.75f;
     Vec3 sun = Norm({1.0f, 0.12f, 0.16f});
@@ -2884,6 +2889,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "local_light_stabiliser_checks.h"
 #include "client_light_stay_checks.h"
 #include "client_map_checks.h"
+#include "camera_focus_checks.h"
 #include "noise_variation_checks.h"
 #include "classic_phase_checks.h"
 #include "march_layer_checks.h"
@@ -3209,6 +3215,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         local_light_stabiliser_checks::CheckLocalLightStabiliser();
         client_light_stay_checks::CheckClientLightStay();
         client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
+        camera_focus_checks::CheckTheFocusFollowsTheClientStores();
+        camera_focus_checks::CheckTheCharacterBoxFollowsTheFocus();
         CheckInteriorFogInputs();
         water_contact_checks::CheckWaterContacts();
         CheckTheDllStaysLoadedAfterFreeLibrary(outDir);
@@ -3293,6 +3301,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     local_light_stabiliser_checks::CheckLocalLightStabiliser();
     client_light_stay_checks::CheckClientLightStay();
     client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
+    camera_focus_checks::CheckTheFocusFollowsTheClientStores();
+    camera_focus_checks::CheckTheCharacterBoxFollowsTheFocus();
     CheckInteriorFogInputs();
     CheckNoiseVariation(h.dev);
     authored_noise::CheckAuthoredNoiseOnTheGpu(h.dev);
@@ -3308,6 +3318,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckLightDisappearanceHistory(h);
     CheckSunOccluderLeavesFogLit(h);
     god_ray_shafts::CheckGodRaysAddOnlyShafts(h, outDir);
+    god_ray_shafts::CheckTheOwnCharacterCastsNoShafts(h, outDir);
+    god_ray_shafts::CheckTrunksBesideTheOwnCharacterKeepTheirShafts(h, outDir);
     classic_phase::CheckSunsetHaloKeepsItsHue(h, FullPath(iniPath));
     water_fft_checks::CheckWaterFft(h.dev);
     water_mask_packing_checks::CheckWaveFoamMaskPacking(h.dev);
