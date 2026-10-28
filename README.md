@@ -287,8 +287,9 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
 ## How it attaches
 
 - **Loader.** `Wow.exe` loads `LuxVelum.dll` at startup, before the client resolves Direct3D, through the LuxVelum
-  loader of St0ny's AIO WoW EXE Patcher; `DllMain` does the rest and no export is called. Earlier packages loaded it
-  through a `version.dll` proxy and a static import of its `vf_loader_anchor` export, which the DLL no longer has.
+  loader of St0ny's AIO WoW EXE Patcher; `DllMain` does the rest and no export is called. A `Wow.exe` without that
+  patch loads it through the optional `version.dll` proxy instead: all 17 exports forward lazily to the system copy,
+  and its static import of the `vf_loader_anchor` export loads `LuxVelum.dll` before the client starts.
 - **D3D9.** The client resolves `Direct3DCreate9` through the delay-loaded `GetProcAddress` slot `[0xB2ED98]`.
   The DLL points that slot at a filter that returns a wrapped `IDirect3D9`. No d3d9 code is patched, so DXVK or
   other `d3d9.dll` builds keep working underneath.
@@ -611,8 +612,8 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-Outputs in `build/Release`: `LuxVelum.dll` and `vfog_harness.exe`, with `LuxVelum.ini`, `fogdata.bin` and
-`waterdata.bin` copied beside them.
+Outputs in `build/Release`: `LuxVelum.dll`, the optional `version.dll` loader and `vfog_harness.exe`, with
+`LuxVelum.ini`, `fogdata.bin` and `waterdata.bin` copied beside them.
 
 ### Download a CI build
 
@@ -624,20 +625,21 @@ merged into `main`; select a branch to rebuild that revision.
 Open a successful run and download its `LuxVelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a
 ZIP containing `LuxVelum.dll`, `LuxVelum.ini`, `fogdata.bin`, `waterdata.bin`, the README, licenses and a
 `BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
-rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision.
+rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision. The optional
+`version.dll` loader comes with the licence as a second artifact, `LuxVelum-version-dll-Win32-<commit>`.
 
-On a push to the release branch `st0ny-main`, and on a manual run of that branch, a second job publishes the same
-files as a GitHub release `build-<n>` titled `LuxVelum Build-<n> (st0ny-main <commit>)` with the asset
-`LuxVelum-Win32.zip`, which needs no login to download, and then deletes every other release with its tag, test
-releases included, so the fork keeps only the newest build at `releases/latest/download/LuxVelum-Win32.zip`. `<n>`
-counts on from the highest `build-<n>` release; a rerun of a commit that already has one refreshes it. A manual run
-of `st0ny-main` with `refresh` set rebuilds the highest `build-<n>` at the new commit under the same `<n>`; a push
-whose commit message carries `[skip ci]` runs nothing, so a fix can join the current release this way. On a push to
-the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every `build-<n>-test` release
-and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes `build-<n+1>-test` as a pre-release titled
-`LuxVelum TEST Build-<n+1> (st0ny-dev <commit>)`, which never becomes `releases/latest`. A build whose branch has
-already moved on to a newer commit gets no release and deletes nothing; other branches and pull requests publish
-none.
+On a push to the release branch `st0ny-main`, and on a manual run of that branch, a second job publishes the same files
+as a GitHub release `build-<n>` titled `LuxVelum Build-<n> (st0ny-main <commit>)` with the assets `LuxVelum-Win32.zip`
+and `LuxVelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence), which need no login to
+download, and then deletes every other release with its tag, test releases included, so the fork keeps only the newest
+build at `releases/latest/download/LuxVelum-Win32.zip`. `<n>` counts on from the highest `build-<n>` release; a rerun of
+a commit that already has one refreshes it. A manual run of `st0ny-main` with `refresh` set rebuilds the highest
+`build-<n>` at the new commit under the same `<n>`; a push whose commit message carries `[skip ci]` runs nothing, so a
+fix can join the current release this way. On a push to the development branch `st0ny-dev`, and on a manual run of it, a
+test job deletes every `build-<n>-test` release and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes
+`build-<n+1>-test` as a pre-release titled `LuxVelum TEST Build-<n+1> (st0ny-dev <commit>)`, which never becomes
+`releases/latest`. A build whose branch has already moved on to a newer commit gets no release and deletes nothing;
+other branches and pull requests publish none.
 
 CI uses Windows Server 2022, MSVC 2022 and `fxc` to build Win32 Release, then runs the comment check and the CPU
 harness. The CPU harness exercises the existing data, fog model, local-light/interior, settings persistence (with the
@@ -685,10 +687,14 @@ It also times the harbour in a full storm and the colour grading pass; `--sample
 ## Install
 
 Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then copy `LuxVelum.dll`,
-`LuxVelum.ini`, `fogdata.bin` and `waterdata.bin` next to `Wow.exe`. Remove `LuxVelum.dll` to uninstall; the patched
-`Wow.exe` then starts without it. The DLL writes `LuxVelum.log` next to itself.
-Delete the `version.dll` of an earlier package: one from CoAVolFog or Luxveil keeps the client from starting once its
-old DLL is gone, and one from LuxVelum once its DLL no longer exports `vf_loader_anchor`.
+`LuxVelum.ini`, `fogdata.bin` and `waterdata.bin` next to `Wow.exe`. Without the patch, unzip
+`LuxVelum-version-dll-Win32.zip` next to `Wow.exe` as well: its `version.dll` loads `LuxVelum.dll`, and a patched
+`Wow.exe` does not need it. Remove `LuxVelum.dll` to uninstall, with the `version.dll` loader too, which keeps the
+client from starting on its own; the patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` next to
+itself.
+Delete the `version.dll` of a CoAVolFog or Luxveil package: it keeps the client from starting once its old DLL is gone.
+The `version.dll` of an earlier LuxVelum package loads this `LuxVelum.dll` too; Build-1 before this loader shipped
+none, and its `LuxVelum.dll` lacked the `vf_loader_anchor` export it needs.
 To keep the settings of an earlier Luxveil or CoAVolFog install, leave out `LuxVelum.ini`: on its first start the DLL
 then copies `Luxveil.ini`, or without it `CoAVolFog.ini`, to `LuxVelum.ini` with its section renamed and logs which file
 it took; an existing `LuxVelum.ini` is never replaced. The old `Luxveil.dll`, `Luxveil.ini`, `Luxveil.log`,
@@ -697,10 +703,11 @@ it took; an existing `LuxVelum.ini` is never replaced. The old `Luxveil.dll`, `L
 ## Steam Deck and Linux (Proton)
 
 Install the files as above. With the loader in `Wow.exe` no `WINEDLLOVERRIDES` launch option should be needed; this has
-not been tested on Proton yet. A Steam Deck test on 8 October 2026 (Proton with DXVK, AMD VanGogh, 1280x800), then
-through a `version.dll` proxy and `WINEDLLOVERRIDES=version=n,b`, loaded the DLL and installed all hooks. DXVK copied
-the multisampled depth through `RESZ` into `INTZ`, passing the depth-copy self-test, so the default `Multisampling=1`
-worked on this device.
+not been tested on Proton yet. The optional `version.dll` loader needs the launch option
+`WINEDLLOVERRIDES=version=n,b %command%`, so that Proton loads it before its builtin version library. A Steam Deck test
+on 8 October 2026 (Proton with DXVK, AMD VanGogh, 1280x800), then through a `version.dll` proxy and
+`WINEDLLOVERRIDES=version=n,b`, loaded the DLL and installed all hooks. DXVK copied the multisampled depth through
+`RESZ` into `INTZ`, passing the depth-copy self-test, so the default `Multisampling=1` worked on this device.
 
 With `Quality=2` and the game's Multisampling set to 2x, the tested scene held 60 fps at 69% GPU utilisation,
 914 MHz and 2.8 W. At 8x, median GPU costs were 6.47 ms per frame for fog and 2.81 ms for water; GPU
