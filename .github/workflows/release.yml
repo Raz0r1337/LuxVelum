@@ -64,12 +64,23 @@ jobs:
             'Validation: build, source comments and CPU harness passed.'
             'D3D9 graphics checks and in-game validation were not run.'
           ) | Set-Content -Path "$package/BUILD.txt" -Encoding utf8
+          $loader = 'build/loader-package'
+          New-Item -ItemType Directory -Path $loader | Out-Null
+          Copy-Item -LiteralPath build/Release/version.dll, LICENSE -Destination $loader -ErrorAction Stop
 
       - name: Upload install archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: LuxVelum-Win32-${{ github.sha }}
           path: build/package/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the optional version.dll loader
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: LuxVelum-version-dll-Win32-${{ github.sha }}
+          path: build/loader-package/
           if-no-files-found: error
           retention-days: 30
 
@@ -102,10 +113,16 @@ jobs:
           name: LuxVelum-Win32-${{ github.sha }}
           path: package
 
+      - name: Download the optional version.dll loader
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: LuxVelum-version-dll-Win32-${{ github.sha }}
+          path: loader
+
       - name: Zip install files
         run: |
-          cd package
-          zip -r ../LuxVelum-Win32.zip .
+          (cd package && zip -r ../LuxVelum-Win32.zip .)
+          (cd loader && zip -r ../LuxVelum-version-dll-Win32.zip .)
 
       - name: Create or refresh the release
         id: publish
@@ -143,14 +160,15 @@ jobs:
             echo "Win32 Release build of \`${BRANCH}\` at ${short}."
             echo
             echo "Patch \`Wow.exe\` once with the LuxVelum loader of St0ny's AIO WoW EXE Patcher (see"
-            echo "[Install](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${SHA}/README.md#install) in \`README.md\`):"
-            echo "without it \`LuxVelum.dll\` is never loaded and no \`LuxVelum.log\` is written."
+            echo "[Install](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${SHA}/README.md#install) in \`README.md\`),"
+            echo "or use the optional \`version.dll\` loader below instead: without one of them \`LuxVelum.dll\` is"
+            echo "never loaded and no \`LuxVelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
             echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
             echo "into \`Data\\LuxVelum\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is"
-            echo "written to \`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the"
-            echo "\`version.dll\` of an earlier package, also one from LuxVelum, or the client does not start."
+            echo "written to \`Logs\\LuxVelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
+            echo "or the client does not start."
             echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
             echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
             echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
@@ -159,6 +177,13 @@ jobs:
             echo "taken over, or a later reset of \`WTF\` takes it over again."
             echo "\`BUILD.txt\` names the commit."
             echo
+            echo "Optional: \`LuxVelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
+            echo "without the LuxVelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
+            echo "system's \`version.dll\` and loads \`LuxVelum.dll\` before the client starts. On Linux with Proton"
+            echo "or Wine, also set the launch option \`WINEDLLOVERRIDES=version=n,b %command%\`. A patched"
+            echo "\`Wow.exe\` does not need it. Remove \`version.dll\` together with \`LuxVelum.dll\` to uninstall:"
+            echo "left on its own, it keeps the client from starting."
+            echo
             echo "Validation: build, source comments and CPU harness passed in [run ${RUN_NUMBER}](${RUN_URL})."
             echo "D3D9 graphics checks and in-game validation were not run."
           } > notes.md
@@ -166,7 +191,7 @@ jobs:
             echo "LuxVelum Build-${number} (${BRANCH} ${short})"
           }
           create_release() {
-            gh release create "$tag" LuxVelum-Win32.zip --repo "$GITHUB_REPOSITORY" \
+            gh release create "$tag" LuxVelum-Win32.zip LuxVelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
               --target "$SHA" --title "$(release_title)" --notes-file notes.md
           }
           move_tag() {
@@ -227,12 +252,14 @@ jobs:
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "$(release_title)" \
               --notes-file notes.md
             swap_in_replacement_zip
+            gh release upload "$tag" LuxVelum-version-dll-Win32.zip --clobber --repo "$GITHUB_REPOSITORY"
           }
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             if [ "$REFRESH" = "true" ]; then
               refresh_release
             else
-              gh release upload "$tag" LuxVelum-Win32.zip --clobber --repo "$GITHUB_REPOSITORY"
+              gh release upload "$tag" LuxVelum-Win32.zip LuxVelum-version-dll-Win32.zip --clobber \
+                --repo "$GITHUB_REPOSITORY"
             fi
           else
             create_release
@@ -273,10 +300,16 @@ jobs:
           name: LuxVelum-Win32-${{ github.sha }}
           path: package
 
+      - name: Download the optional version.dll loader
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: LuxVelum-version-dll-Win32-${{ github.sha }}
+          path: loader
+
       - name: Zip install files
         run: |
-          cd package
-          zip -r ../LuxVelum-Win32.zip .
+          (cd package && zip -r ../LuxVelum-Win32.zip .)
+          (cd loader && zip -r ../LuxVelum-version-dll-Win32.zip .)
 
       - name: Replace the test release
         env:
@@ -326,14 +359,15 @@ jobs:
             echo "version; the current release stays at releases/latest."
             echo
             echo "Patch \`Wow.exe\` once with the LuxVelum loader of St0ny's AIO WoW EXE Patcher (see"
-            echo "[Install](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${SHA}/README.md#install) in \`README.md\`):"
-            echo "without it \`LuxVelum.dll\` is never loaded and no \`LuxVelum.log\` is written."
+            echo "[Install](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${SHA}/README.md#install) in \`README.md\`),"
+            echo "or use the optional \`version.dll\` loader below instead: without one of them \`LuxVelum.dll\` is"
+            echo "never loaded and no \`LuxVelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
             echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
             echo "into \`Data\\LuxVelum\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is"
-            echo "written to \`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the"
-            echo "\`version.dll\` of an earlier package, also one from LuxVelum, or the client does not start."
+            echo "written to \`Logs\\LuxVelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
+            echo "or the client does not start."
             echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
             echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
             echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
@@ -342,11 +376,18 @@ jobs:
             echo "taken over, or a later reset of \`WTF\` takes it over again."
             echo "\`BUILD.txt\` names the commit."
             echo
+            echo "Optional: \`LuxVelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
+            echo "without the LuxVelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
+            echo "system's \`version.dll\` and loads \`LuxVelum.dll\` before the client starts. On Linux with Proton"
+            echo "or Wine, also set the launch option \`WINEDLLOVERRIDES=version=n,b %command%\`. A patched"
+            echo "\`Wow.exe\` does not need it. Remove \`version.dll\` together with \`LuxVelum.dll\` to uninstall:"
+            echo "left on its own, it keeps the client from starting."
+            echo
             echo "Validation: build, source comments and CPU harness passed in [run ${RUN_NUMBER}](${RUN_URL})."
             echo "D3D9 graphics checks and in-game validation were not run."
           } > notes.md
-          gh release create "$tag" LuxVelum-Win32.zip --repo "$GITHUB_REPOSITORY" --prerelease --latest=false \
-            --target "$SHA" --title "$title" --notes-file notes.md
+          gh release create "$tag" LuxVelum-Win32.zip LuxVelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
+            --prerelease --latest=false --target "$SHA" --title "$title" --notes-file notes.md
           released=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
             --jq '.[] | select(.prerelease | not) | .tag_name | select(test("^build-[0-9]+$")) | ltrimstr("build-")' |
             sort -n | tail -n 1)

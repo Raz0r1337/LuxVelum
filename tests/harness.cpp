@@ -2413,6 +2413,57 @@ void CheckTheDllUsesTheClientFolders()
           "Data\\LuxVelum\\fogdata.bin and Data\\LuxVelum\\waterdata.bin there");
 }
 
+constexpr const char* kVersionDllExports[] = {
+    "GetFileVersionInfoA",       "GetFileVersionInfoByHandle", "GetFileVersionInfoExA",
+    "GetFileVersionInfoExW",     "GetFileVersionInfoSizeA",    "GetFileVersionInfoSizeExA",
+    "GetFileVersionInfoSizeExW", "GetFileVersionInfoSizeW",    "GetFileVersionInfoW",
+    "VerFindFileA",              "VerFindFileW",               "VerInstallFileA",
+    "VerInstallFileW",           "VerLanguageNameA",           "VerLanguageNameW",
+    "VerQueryValueA",            "VerQueryValueW",
+};
+
+using VersionInfoSizeFn = DWORD(WINAPI*)(LPCWSTR, LPDWORD);
+
+std::wstring HarnessFolder()
+{
+    wchar_t path[MAX_PATH] = {};
+    const DWORD length = GetModuleFileNameW(nullptr, path, MAX_PATH);
+    const std::wstring exe(path, length);
+    return exe.substr(0, exe.find_last_of(L"\\/") + 1);
+}
+
+DWORD VersionInfoSizeThrough(HMODULE module, const std::wstring& file)
+{
+    const auto size =
+        module ? reinterpret_cast<VersionInfoSizeFn>(GetProcAddress(module, "GetFileVersionInfoSizeW")) : nullptr;
+    DWORD handle = 0;
+    return size ? size(file.c_str(), &handle) : 0;
+}
+
+void CheckTheVersionDllLoader()
+{
+    wchar_t systemFolder[MAX_PATH] = {};
+    GetSystemDirectoryW(systemFolder, MAX_PATH);
+    const std::wstring system = systemFolder;
+    HMODULE loader = LoadLibraryW((HarnessFolder() + L"version.dll").c_str());
+    HMODULE systemCopy = LoadLibraryW((system + L"\\version.dll").c_str());
+    int exported = 0;
+    for (const char* name : kVersionDllExports)
+        exported += loader && GetProcAddress(loader, name) ? 1 : 0;
+    const std::wstring probe = system + L"\\kernel32.dll";
+    const DWORD throughLoader = VersionInfoSizeThrough(loader, probe);
+    const DWORD fromSystem = VersionInfoSizeThrough(systemCopy, probe);
+    const bool anchored = GetProcAddress(GetModuleHandleW(L"LuxVelum.dll"), "vf_loader_anchor") != nullptr;
+    std::printf("     version.dll beside the harness: %d of %zu exports, kernel32.dll version info %lu bytes through "
+                "it and %lu through the system copy, LuxVelum.dll %s vf_loader_anchor\n",
+                exported, std::size(kVersionDllExports), throughLoader, fromSystem,
+                anchored ? "exports" : "lacks");
+    Check(loader && loader != systemCopy && exported == static_cast<int>(std::size(kVersionDllExports)) &&
+              fromSystem > 0 && throughLoader == fromSystem && anchored,
+          "the optional version.dll loader exports all 17 functions of the system copy and forwards to it, and "
+          "LuxVelum.dll exports the vf_loader_anchor it imports");
+}
+
 struct ClientInput
 {
     int keyDowns = 0;
@@ -3130,6 +3181,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckEarlierSettingsAreTakenOverWhateverTheirShape(outDir, FullPath(iniPath));
     CheckClientInstallLayout(outDir, FullPath(iniPath));
     CheckTheDllUsesTheClientFolders();
+    CheckTheVersionDllLoader();
     CheckFogDataBounds(outDir, dataPath);
     forever_look_checks::CheckForeverGlow();
     forever_look_checks::CheckLookSettings(outDir, FullPath(iniPath));

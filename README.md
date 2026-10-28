@@ -473,8 +473,9 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
 ## How it attaches
 
 - **Loader.** `Wow.exe` loads `LuxVelum.dll` at startup, before the client resolves Direct3D, through the LuxVelum
-  loader of St0ny's AIO WoW EXE Patcher; `DllMain` does the rest and no export is called. Earlier packages loaded it
-  through a `version.dll` proxy and a static import of its `vf_loader_anchor` export, which the DLL no longer has.
+  loader of St0ny's AIO WoW EXE Patcher; `DllMain` does the rest and no export is called. A `Wow.exe` without that
+  patch loads it through the optional `version.dll` proxy instead: all 17 exports forward lazily to the system copy,
+  and its static import of the `vf_loader_anchor` export loads `LuxVelum.dll` before the client starts.
   Loaded with `LoadLibraryA`, the DLL pins itself before it patches anything, so no `FreeLibrary` can unmap the code
   the hooks call, and an exception during start-up is logged and leaves the load successful with the hooks installed
   so far.
@@ -838,10 +839,10 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-Outputs in `build/Release`: `LuxVelum.dll` and `vfog_harness.exe`, laid out like a client folder with `LuxVelum.ini`
-copied into `WTF` and `fogdata.bin` and `waterdata.bin` into `Data\LuxVelum` on every build, also of `--target LuxVelum`
-alone and when only the INI or a data file has changed. The DLL the harness loads reads them there and writes
-`Logs\LuxVelum.log`.
+Outputs in `build/Release`: `LuxVelum.dll`, the optional `version.dll` loader and `vfog_harness.exe`, laid out like a
+client folder with `LuxVelum.ini` copied into `WTF` and `fogdata.bin` and `waterdata.bin` into `Data\LuxVelum` on every
+build, also of `--target LuxVelum` alone and when only the INI or a data file has changed. The DLL the harness loads
+reads them there and writes `Logs\LuxVelum.log`.
 
 ### Download a CI build
 
@@ -853,22 +854,24 @@ merged into `main`; select a branch to rebuild that revision.
 Open a successful run and download its `LuxVelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a ZIP
 containing `LuxVelum.dll`, `WTF/LuxVelum.ini`, `Data/LuxVelum/fogdata.bin`, `Data/LuxVelum/waterdata.bin`, the README,
 licenses and a `BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
-rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision.
+rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision. The optional
+`version.dll` loader comes with the licence as a second artifact, `LuxVelum-version-dll-Win32-<commit>`.
 
-On a push to the release branch `st0ny-main`, and on a manual run of that branch, a second job publishes the same
-files as a GitHub release `build-<n>` titled `LuxVelum Build-<n> (st0ny-main <commit>)` with the asset
-`LuxVelum-Win32.zip`, which needs no login to download, and then deletes every other release with its tag, test
-releases included, so the fork keeps only the newest build at `releases/latest/download/LuxVelum-Win32.zip`. `<n>`
-counts on from the highest `build-<n>` release; a rerun for the commit that a `build-<n>` tag already points at
-uploads the zip to that release again. A manual run of `st0ny-main` with `refresh` set rebuilds the highest
-`build-<n>` at the new commit under the same `<n>`: it moves the tag to the commit and replaces the title, notes and
-zip of the release in place, so the release is never deleted and keeps its publication date. GitHub may refuse to
-move a tag with the workflow's `GITHUB_TOKEN` when files under `.github/workflows` changed since the tagged commit; a
-refresh whose tag cannot be moved publishes the commit as `build-<n+1>` instead, as a push would, and `build-<n>` is
-deleted only once `build-<n+1>` exists. A refresh uploads the new zip as `LuxVelum-Win32.new.zip` before it moves
-the tag, then renames the old zip away, gives the new one its name and deletes the old one, so the download is
-missing only between those two renames, never while an upload runs; if the upload fails, the release stays as it
-was. A push whose commit message carries `[skip ci]` runs nothing, so a fix can join the current release this way.
+On a push to the release branch `st0ny-main`, and on a manual run of that branch, a second job publishes the same files
+as a GitHub release `build-<n>` titled `LuxVelum Build-<n> (st0ny-main <commit>)` with the assets `LuxVelum-Win32.zip`
+and `LuxVelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence), which need no login to
+download, and then deletes every other release with its tag, test releases included, so the fork keeps only the newest
+build at `releases/latest/download/LuxVelum-Win32.zip`. `<n>` counts on from the highest `build-<n>` release; a rerun
+for the commit that a `build-<n>` tag already points at uploads both zips to that release again. A manual run of
+`st0ny-main` with `refresh` set rebuilds the highest `build-<n>` at the new commit under the same `<n>`: it moves the
+tag to the commit and replaces the title, notes and zips of the release in place, so the release is never deleted and
+keeps its publication date. GitHub may refuse to move a tag with the workflow's `GITHUB_TOKEN` when files under
+`.github/workflows` changed since the tagged commit; a refresh whose tag cannot be moved publishes the commit as
+`build-<n+1>` instead, as a push would, and `build-<n>` is deleted only once `build-<n+1>` exists. A refresh uploads the
+new zip as `LuxVelum-Win32.new.zip` before it moves the tag, then renames the old zip away, gives the new one its name
+and deletes the old one, so the download is missing only between those two renames, never while an upload runs; if the
+upload fails, the release stays as it was. A push whose commit message carries `[skip ci]` runs nothing, so a fix can
+join the current release this way.
 On a push to the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every test release
 (`build-<n>-test` or `build-<n>-<k>-test`) and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes
 `build-<n+1>-<k>-test` as a pre-release titled `LuxVelum TEST Build-<n+1>-<k> (st0ny-dev <commit>)`, which never
@@ -934,19 +937,23 @@ It also times the harbour in a full storm and the colour grading pass; `--sample
 
 Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then unzip the package into
 the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin` and `waterdata.bin` into `Data\LuxVelum` and
-`LuxVelum.ini` into `WTF`, in the client's own folders for its data and settings. Remove `LuxVelum.dll` to uninstall;
-the patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the client's `Logs` folder and makes
-`Logs` and `WTF` when they are missing; where it cannot, the log and the settings stay next to `LuxVelum.dll`. A
-`fogdata.bin` or `waterdata.bin` missing from `Data\LuxVelum` is still read from next to `LuxVelum.dll`, where earlier
-packages put it. The start-up line `LuxVelum loaded from` names the settings and data files in use. Deleting the `WTF`
-folder to reset the client deletes LuxVelum's settings too: the next start takes over an earlier INI still next to
-`Wow.exe` again, as below, or else runs on the built-in defaults until `WTF\LuxVelum.ini` is unzipped from the package
-again. A client started from the same folder while another holds the log writes the first free one of `LuxVelum-2.log`
-to `LuxVelum-8.log` beside it instead, and its first line names that file and the client's process id.
+`LuxVelum.ini` into `WTF`, in the client's own folders for its data and settings. Without the patch, unzip
+`LuxVelum-version-dll-Win32.zip` next to `Wow.exe` as well: its `version.dll` loads `LuxVelum.dll`, and a patched
+`Wow.exe` does not need it. Remove `LuxVelum.dll` to uninstall, with the `version.dll` loader too, which keeps the
+client from starting on its own; the patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the
+client's `Logs` folder and makes `Logs` and `WTF` when they are missing; where it cannot, the log and the settings stay
+next to `LuxVelum.dll`. A `fogdata.bin` or `waterdata.bin` missing from `Data\LuxVelum` is still read from next to
+`LuxVelum.dll`, where earlier packages put it. The start-up line `LuxVelum loaded from` names the settings and data
+files in use. Deleting the `WTF` folder to reset the client deletes LuxVelum's settings too: the next start takes over
+an earlier INI still next to `Wow.exe` again, as below, or else runs on the built-in defaults until `WTF\LuxVelum.ini`
+is unzipped from the package again. A client started from the same folder while another holds the log writes the first
+free one of `LuxVelum-2.log` to `LuxVelum-8.log` beside it instead, and its first line names that file and the client's
+process id.
 A slot held by a running client is left as it is; a free one is reused and overwritten, so the clients of one folder
 share at most eight log files. A ninth client running beside eight others writes no log.
-Delete the `version.dll` of an earlier package: one from CoAVolFog or Luxveil keeps the client from starting once its
-old DLL is gone, and one from LuxVelum once its DLL no longer exports `vf_loader_anchor`.
+Delete the `version.dll` of a CoAVolFog or Luxveil package: it keeps the client from starting once its old DLL is gone.
+The `version.dll` of an earlier LuxVelum package loads this `LuxVelum.dll` too; Build-1 and TEST Build-2-1 to 2-3
+shipped none, and their `LuxVelum.dll` lacked the `vf_loader_anchor` export it needs.
 To keep the settings of an earlier install, leave out `WTF\LuxVelum.ini`: on its next start the DLL then copies the
 `LuxVelum.ini` next to `Wow.exe` of an earlier package, also one with the `[Luxvelum]` section of the builds before the
 `LuxVelum` spelling, or without it `Luxveil.ini`, or `CoAVolFog.ini`, into `WTF\LuxVelum.ini` with its section renamed
@@ -960,10 +967,11 @@ once the log names it as taken over, so that a later reset of `WTF` does not bri
 ## Steam Deck and Linux (Proton)
 
 Install the files as above. With the loader in `Wow.exe` no `WINEDLLOVERRIDES` launch option should be needed; this has
-not been tested on Proton yet. A Steam Deck test on 8 October 2026 (Proton with DXVK, AMD VanGogh, 1280x800), then
-through a `version.dll` proxy and `WINEDLLOVERRIDES=version=n,b`, loaded the DLL and installed all hooks. DXVK copied
-the multisampled depth through `RESZ` into `INTZ`, passing the depth-copy self-test, so the default `Multisampling=1`
-worked on this device.
+not been tested on Proton yet. The optional `version.dll` loader needs the launch option
+`WINEDLLOVERRIDES=version=n,b %command%`, so that Proton loads it before its builtin version library. A Steam Deck test
+on 8 October 2026 (Proton with DXVK, AMD VanGogh, 1280x800), then through a `version.dll` proxy and
+`WINEDLLOVERRIDES=version=n,b`, loaded the DLL and installed all hooks. DXVK copied the multisampled depth through
+`RESZ` into `INTZ`, passing the depth-copy self-test, so the default `Multisampling=1` worked on this device.
 
 With `Quality=2` and the game's Multisampling set to 2x, the tested scene held 60 fps at 69% GPU utilisation,
 914 MHz and 2.8 W. At 8x, median GPU costs were 6.47 ms per frame for fog and 2.81 ms for water; GPU
