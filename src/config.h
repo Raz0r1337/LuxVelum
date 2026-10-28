@@ -7,6 +7,9 @@ constexpr float kEngineFarClipMax = 1583.33f;
 constexpr float kFarClipMaxKeepsClientCap = 0.0f;
 constexpr float kRegionLocalLightsMax = 128.0f;
 constexpr float kRegionLocalLightsSliderMax = 96.0f;
+constexpr float kLampIntensityMax = 8.0f;
+constexpr float kLampDistanceMin = 50.0f;
+constexpr float kLampDistanceMax = 1000.0f;
 
 constexpr unsigned kVirtualKeyF7 = 0x76;
 
@@ -59,6 +62,9 @@ struct Config
     bool localLights = true;
     float localLightIntensity = 1.0f;
     float localLightPhase = 0.3f;
+    bool lampData = true;
+    float lampIntensity = 1.0f;
+    float lampDistance = 250.0f;
     bool interiorAware = true;
     float interiorDensity = 0.15f;
     float interiorFarFog = 1.0f;

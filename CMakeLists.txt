@@ -157,6 +157,8 @@ add_library(LuxVelum SHARED
     src/grading_renderer.cpp
     src/hooks.cpp
     src/install_paths.cpp
+    src/lamp_data.cpp
+    src/lamp_feed.cpp
     src/light_on_screen.cpp
     src/local_light_stabiliser.cpp
     src/log.cpp
@@ -188,8 +190,9 @@ add_executable(vfog_harness tests/harness.cpp src/character_on_screen.cpp src/cl
                src/client_code.cpp src/client_light_stay.cpp src/client_map.cpp src/client_ripple_sprites.cpp
                src/config.cpp src/engine_actors.cpp src/engine_lights.cpp src/light_on_screen.cpp
                src/local_light_stabiliser.cpp src/fog_data.cpp src/fog_model.cpp src/gpu_timing.cpp
-               src/install_paths.cpp src/log.cpp src/noise_volume.cpp src/transparent_fog.cpp src/water_contacts.cpp
-               src/water_data.cpp src/water_spectrum.cpp src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)
+               src/install_paths.cpp src/lamp_data.cpp src/lamp_feed.cpp src/log.cpp src/noise_volume.cpp
+               src/transparent_fog.cpp src/water_contacts.cpp src/water_data.cpp src/water_spectrum.cpp
+               src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(vfog_harness PRIVATE LuxVelum user32 ole32 windowscodecs)
@@ -214,6 +217,7 @@ add_test(NAME vfog_harness
             --data ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
             --ini ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
             --water-data ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
+            --lamp-data ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/lampdata-fixture.bin
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 set_tests_properties(vfog_harness PROPERTIES LABELS gpu)
 add_test(NAME cpu_harness
@@ -221,6 +225,7 @@ add_test(NAME cpu_harness
             --data ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
             --ini ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
             --water-data ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
+            --lamp-data ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/lampdata-fixture.bin
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 set_tests_properties(cpu_harness PROPERTIES LABELS cpu)
 
@@ -229,4 +234,9 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME comments
         COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_comments.py
                 --root ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME lamp_tools
+        COMMAND Python3::Interpreter -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tests/tools
+                -t ${CMAKE_CURRENT_SOURCE_DIR}/tests/tools -v)
+    set_tests_properties(lamp_tools PROPERTIES LABELS cpu
+        ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/tools;PYTHONDONTWRITEBYTECODE=1")
 endif()

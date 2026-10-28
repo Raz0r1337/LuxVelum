@@ -50,9 +50,23 @@ def c_like_comments(source):
         yield line_of(source, match.start()), text
 
 
+def python_notice_lines(source):
+    lines = source.split('\n')
+    first = next((index for index, line in enumerate(lines) if line.strip()), len(lines))
+    block = []
+    for index in range(first, len(lines)):
+        if not lines[index].lstrip().startswith('#'):
+            break
+        block.append(index)
+    if any(LEGAL_NOTICE.search(lines[index]) for index in block):
+        return {index + 1 for index in block}
+    return set()
+
+
 def python_comments(source):
+    notice = python_notice_lines(source)
     for token in tokenize.generate_tokens(io.StringIO(source).readline):
-        if token.type != tokenize.COMMENT:
+        if token.type != tokenize.COMMENT or token.start[0] in notice:
             continue
         shebang = token.start == (1, 0) and token.string.startswith('#!')
         encoding = token.start[0] <= 2 and re.fullmatch(r'#.*coding[:=]\s*[-\w.]+.*', token.string)

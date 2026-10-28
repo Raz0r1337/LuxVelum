@@ -60,6 +60,9 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
 - **Local lights**: up to eight native point lights in view scatter into the medium with the client's constant,
   linear and quadratic attenuation. Light/ray intersections preserve small light volumes between march samples.
   Every light scatters with one shared phase (`LocalLightPhase`), and one brighter than 1 keeps its intensity.
+- **Lamps from the game files** (`LampData=1`): lamps whose model carries no light of its own, as many Project
+  Reforged HD models, glow in the fog like the client's lights and share their eight slots, from a `lampdata.bin` that
+  `tools/extract_lamps.py` makes from the player's own archives (see Lamps from the game files).
 - **Interior transitions**: the camera's native WMO blend reduces outdoor layers and sunlight while preserving
   the interior's native fog colour and range.
 - **Authored noise** (optional, off by default): drifting fog banks where the Classic layers carry the modern
@@ -500,6 +503,100 @@ scattering colours from `Color[1]`/`Color[2]` with `Float[2]`/`Float[1]`, scatte
 shore and wave foam `Float[7..19]`, sun and reflection roughness `Float[27]`/`Float[29]` and reflection strength
 `Float[30]`; tile size, amplitude, wind alignment and multiplier from `FFTTile` fields 0–3 and the foam and oxygen
 rates from fields 4–9. The water is tuned by eye against this mapping, not matched to Forever captures.
+
+## Lamps from the game files
+
+Many Project Reforged HD models carry no M2 light of their own, so the client registers no point light for them and
+their flames do not glow in the fog. `tools/extract_lamps.py` finds such lamps in the player's own MPQ archives and
+writes `Data\LuxVelum\lampdata.bin`. The DLL loads it at start-up and, with `LampData=1`, offers the lamps within
+`LampDistance` of the camera as further candidates to the local-light pool, where the eight slots, their hysteresis and
+the shaders stay as they are (see Local lights). The lamps light only the fog.
+
+The tool walks every map of `DBFilesClient\Map.dbc`: the tiles of its WDT, the M2 and WMO placements of each ADT (read
+only up to the end of its placement chunks), doodad set 0 of each WMO plus the set its placement names, and the WMO of a
+global-WMO map. A placement's unique id is placed once per map, although neighbouring tiles repeat it. Each model is
+judged once, from every archive that holds a version of it:
+
+- **authored**: the model has a visible point light that emits. The client lights it itself, so these lamps are
+  written but never offered; the DLL compares them with the client's lights in its calibration line (see Log).
+- **restored**: a custom patch replaced the model with one without an emitting point light, as many HD models do, and
+  the highest-priority stock version that differs has one. Its lights are taken when the two bounding boxes agree
+  (centres within 2 yd, each extent within half to twice the other); otherwise the census notes `boxes differ`.
+- **flame**, **name** and **emissive**, Everwood's rules: the strongest additive fire emitter, whose size times the
+  fourth root of its peak rate picks a candle, torch, brazier or bonfire strength and reach; else a lamp name (lantern,
+  sconce, chandelier and others) placed at the model's largest unlit batch or the top of its box; else a model in a lamp
+  folder with a glowing, unlit, see-through batch. Broken or unlit models, names ending in `Off` and light beams get
+  no name or emissive lamp, and nothing under `Spells\` glows.
+
+A light or emitter sits where its bone holds it in the rest pose (the first key of sequence 0). Placements follow
+TrinityCore's map extractor: internal position `(P.z, P.x, P.y)`, rotation `Rz(R[1]) · Ry(R[0]) · Rx(R[2])`, world
+`(MID − x, MID − y, z)` with `MID = 32 · 533.33333`, and a WMO doodad's quaternion inside its WMO's rotation. A lamp's
+colour is its light's diffuse or its rule's colour, times its intensity and the placement's scale, as the client's
+diffuse includes the model scale (see World lights); its reach is the light's attenuation end (12 yd without one) or its
+rule's reach, times the scale. Lamps of one route and kind closer than 0.5 yd keep the brightest. `lampdata.bin` holds
+the archives it was made from with their sizes, then per map its lamps sorted into 133.33-yd cells (256 per side) for
+the DLL's radius query. The DLL rejects the whole file when a count, an order or any lamp's position, reach (above 0, at
+most 200 yd), colour (0..64), kind or route is out of range; the tool brings a longer reach or a brighter colour into
+range, drops a lamp it cannot store and checks the file the same way before it writes it.
+
+Run the tool from the client folder with Python 3.8 or later (standard library only) and the `tools` folder of this
+repository:
+
+```powershell
+python C:\LuxVelum\tools\extract_lamps.py --data Data
+```
+
+It prints the archive chain and one line per map with its tiles, placements and lamps by route, and writes
+`Data\LuxVelum\lampdata.bin` and the census `Data\LuxVelum\lamps-census.txt`; the next start of the client reads the
+lamps. `--out` and `--census` write elsewhere, `--maps 0,1,530,571` walks only those maps, `--locale enUS` picks the
+locale folder (by default the one holding its `locale-xxXX.MPQ`, enUS first), and `--model World\...\Lamp.m2` describes
+a model and stops: every archive version with its lights, emitters and batches, and the verdict. The exit code is 0 on
+success, 1 when no archive or no `Map.dbc` is found and 2 for a usage error. Run it again when the client's archives
+change; the DLL's debug log names the archives the file was made from.
+
+**Archive order.** A file comes from the archive of highest priority that holds it; a deletion marker there hides the
+lower ones. The tool follows the client's order, lowest priority first: `common.MPQ`, `common-2.MPQ`, `expansion.MPQ`,
+`lichking.MPQ`; in the locale folder `locale-`, `speech-`, `expansion-locale-`, `lichking-locale-`, `expansion-speech-`
+and `lichking-speech-<locale>.MPQ`; `patch.MPQ`, `patch-2.MPQ`, `patch-3.MPQ`; `<locale>\patch-<locale>.MPQ`, `-2` and
+`-3`; then the custom patches `patch-?.MPQ` with one character other than 2 and 3, digits before letters, and last
+`<locale>\patch-<locale>-?.MPQ` in the same way. The first four groups are stock, the rest custom; any other `.MPQ` is
+ignored and listed. Where a client loads its archives in another order, list them in a text file, one path relative to
+`Data` per line, lowest priority first (blank lines and lines starting with `#` are skipped), and pass it with
+`--archives order.txt`; its archives count as custom unless named like a stock one. The reader decodes zlib, bzip2 and
+PKWARE implode; a file packed otherwise (Huffman, ADPCM, sparse, LZMA) or an incremental patch file is counted as
+unreadable. An archive that cannot be opened is skipped and listed as unreadable, and a table cut short by the end of
+its file is cut to its whole entries, as StormLib does, and noted.
+
+**Census.** `lamps-census.txt` lists the archives, stock or custom with their sizes, and the ignored ones; per map its
+tiles, placements, WMO placements, lamps by route and missing or unreadable files; and every model that looks like a
+lamp by its name or folder, got a lamp or carries light blocks in any version, most placed first, with its archive
+versions and their light counts, the lights of its top and stock versions, its route, its placements per map and notes
+such as `boxes differ`, `dead blocks`, `no skin`, `missing file` or a parse error.
+
+**Settings.** `LampData=1` offers the lamps, 0 leaves only the client's own lights. `LampIntensity` (1, 0..8) scales
+their brightness after the linear-light conversion, as `LocalLightIntensity` does, on top of it and the region's
+local lights. `LampDistance` (250, 50..1000 yd) bounds
+their distance from the camera; farther finds more and costs more time. A lamp within 3 yd of one of the client's own
+lights in the pool steps aside while that light is there; once the same light has stayed put beside it (within
+0.25 yd) for 60 captures, the lamp is left to it until the next map, so the two never take turns, and a light that
+only passes by gives the lamp back. When the 24-candidate pool is full, a lamp the pool's weakest candidate outranks
+is counted as outranked and skips the ranking. Offered lamps use the
+attenuation 0, 0.7, 0.03 (constant, linear, quadratic) taken as the client's fixed point-light falloff; the calibration
+line logs the first native light's attenuation to check it.
+
+**Limits.** The lamps light only the fog: no ground, wall or model around them is lit, and their glow needs fog
+density, so in clear air, or with a low `Density` or region density, it is faint or gone. Positions use the rest pose,
+so an animated lantern glows where it hangs at rest, and flame and name lamps sit where the rules put them. Their colour
+and strength come from the rules, not from the model's art. `lampdata.bin` is made on the player's PC from the player's
+own game files and is not shipped: it is in neither this repository nor the release zip, and CMake does not copy it. The
+tool and the DLL side are checked offline only, by the Python tests on archives the tests build and by the harness's
+checks of the loader, the feed and the stabiliser; neither has run on a real client's archives or in the game, so the
+transforms and the archive order stay unconfirmed until an owner test's calibration line agrees.
+
+The flame, name and emissive rules of `tools/lamp_rules.py` are ported from
+[Everwood](https://github.com/pkuzic/benilla-everwood_graphics) (`fire_light.rs`, `flicker.rs`), Copyright (c) 2026
+Sam, under the MIT licence (`tools/LICENSE-Everwood-MIT.txt`). The softening of cold flame colours, the clamp of a
+far-off flame into the model's box and the colour choice among visible keys are LuxVelum's own.
 
 ## How it attaches
 
@@ -947,6 +1044,17 @@ optics against a CPU reference, fault recovery) and the water settings. They do 
 performance. It writes `before.png`, `after.png`,
 `overlay.png` and the debug views to `build/harness-out`.
 
+`lamp_tools` runs the Python tests in `tests/tools` on archives and game files the tests build byte by byte: the MPQ
+reader and archive order, the file formats, the placement transforms and world walk, the lamp rules, the writer and an
+end-to-end run of `extract_lamps.py`, census and `--model` included. `cpu_harness` and `vfog_harness` load
+`tests/data/lampdata-fixture.bin` (`--lamp-data`), which the Python writer makes from a fixed lamp list, and check it
+against the same lamps laid out by the harness, byte for byte; `tests/tools/lamp_data_fixture.py`, run with `tools` on
+`PYTHONPATH`, writes it again. Without CMake the Python tests run with:
+
+```powershell
+$env:PYTHONPATH = "tools"; python -m unittest discover -s tests/tools -t tests/tools
+```
+
 Further suites check the authored noise and `ClassicPhase`, the transparent fog, glow and grading through the hooks, a
 4x device (`SKIP` without a copy method), and the ripples. The display dither checks draw an opaque fog ramp from code
 30 to 38 through each composite, both fixed-function blends and the late god-ray composite: every column must average to
@@ -984,7 +1092,9 @@ the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin` and `wat
 client from starting on its own; the patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the
 client's `Logs` folder and makes `Logs` and `WTF` when they are missing; where it cannot, the log and the settings stay
 next to `LuxVelum.dll`. A `fogdata.bin` or `waterdata.bin` missing from `Data\LuxVelum` is still read from next to
-`LuxVelum.dll`, where earlier packages put it. The start-up line `LuxVelum loaded from` names the settings and data
+`LuxVelum.dll`, where earlier packages put it. The package holds no `lampdata.bin`: `tools/extract_lamps.py` writes it
+into `Data\LuxVelum` from the client's own archives (see Lamps from the game files), and without it only the client's
+own lights glow. The start-up line `LuxVelum loaded from` names the settings and data
 files in use. Deleting the `WTF` folder to reset the client deletes LuxVelum's settings too: the next start takes over
 an earlier INI still next to `Wow.exe` again, as below, or else runs on the built-in defaults until `WTF\LuxVelum.ini`
 is unzipped from the package again. A client started from the same folder while another holds the log writes the first
@@ -1050,6 +1160,15 @@ Each device creation and `Reset` logs the adapter, the sample count requested an
 and the depth copy method with its self-test result or why multisampling is off. Guarded client bytes that differ
 are logged with the feature they leave off.
 
+At start-up `lamp data: <n> lamps on <m> maps in <c> cells from <s> archives` gives the lamps of `lampdata.bin` by
+route; otherwise `no lamp data at <path>; only the client's own lights glow` or why the file is invalid. `LogLevel=2`
+adds its source archives. While lamps are in the pool, the `local lights:` summary adds `lampdata.bin lamps: <n>
+uploaded, <m> in view`. At `LogLevel=2` each light's line ends with `; from lampdata.bin` for a lamp, and at most every
+60 s, when they changed, `lamp data on map <id>: ...` counts the lamps near the camera, offered and held back, and
+`lamp data calibration: ...` tells how many of the client's lights in the pool have an authored lamp within 1 yd, the
+median distance to the nearest within 5 yd and the first native light's attenuation. This checks the tool's
+transforms against the client's own lights.
+
 ## Settings
 
 `WTF\LuxVelum.ini` is re-read within a second while the game runs (except `Enable`, `EngineHooks` and `LightStay`);
@@ -1082,6 +1201,9 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `ClassicPhase` | 0 | Classic sun and moon scattering: 0 phase peaks at 1 toward the light, 1 energy-normalised |
 | `LocalLights`, `LocalLightIntensity` | 1, 1 | Scatter up to eight world point lights in view; intensity 0..8 |
 | `LocalLightPhase` | 0.3 | Henyey–Greenstein g of every point light in the fog, −0.9..0.9 (a calibration) |
+| `LampData` | 1 | Lamps from `Data\LuxVelum\lampdata.bin` glow in the fog with the local lights; 0 = off |
+| `LampIntensity` | 1 | Brightness of those lamps in the fog, 0..8 |
+| `LampDistance` | 250 | How far from the camera those lamps are offered, 50..1000 yd |
 | `InteriorAware`, `InteriorDensity` | 1, 0.15 | Fade outdoor layers indoors, keeping this fraction of their density |
 | `InteriorFarFog` | 1.0 | Native distance-fog density retained indoors (0..1); lower values clear dungeon haze |
 | `GodRays` | 0 | Shafts of light through gaps in trees, buildings and terrain in front of the sun, 0 = off |
@@ -1157,6 +1279,9 @@ Forever in the game, so by default colours still differ from Classic.
   Transparent fog), M2 effects above water, those the client draws unfogged included, take one line fitted to the fog
   of the first 100 yd, or of a longer range when the fog in those is thin, which cannot follow height fog and fully
   fogs effects past its end (500–900 yd in tests), so far glows vanish.
+- Lamps from `lampdata.bin` light only the fog, need fog density to show, glow at their models' rest pose and take
+  their colour and strength from rules; the tool and the lamp feed are checked offline only, not on a real client's
+  archives or in the game (see Lamps from the game files).
 - Interior treatment follows the camera's transition weight, not rooms or portals along each ray, so views
   through doorways may differ.
 - The `gxApi d3d9ex` path is not wrapped (fog and the settings window stay off there). The settings window also
@@ -1189,3 +1314,6 @@ with the World of Warcraft client, and distribute the resulting combination with
 code. GPLv3 continues to apply to CoAVolFog.
 
 LuxVelum is a modified version of CoAVolFog under the same licence and the same additional permission.
+
+The lamp rules in `tools/lamp_rules.py` are ported from Everwood, Copyright (c) 2026 Sam, under the MIT licence; its
+text is in `tools/LICENSE-Everwood-MIT.txt`.

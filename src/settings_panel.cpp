@@ -269,6 +269,17 @@ bool DrawLight(Config& c)
                       "How every point light scatters in the fog: 0 evenly in all directions; toward 0.9 mostly in "
                       "the fog between you and the light; below 0 the fog behind the light, steeply brighter toward "
                       "-0.9. The modern client uses one such value for all its lights; 0.3 is a calibration");
+    changed |= Toggle("Lamps from lampdata.bin", c.lampData,
+                      "Lamps whose model carries no light of its own, as many Project Reforged HD models do, glow in "
+                      "the fog like the client's own point lights and share their eight local lights. "
+                      "tools/extract_lamps.py finds them in your MPQs and writes Data\\LuxVelum\\lampdata.bin, read at "
+                      "start-up. They light only the fog; a lamp beside one of the client's own lights is left to it");
+    changed |= Slider("Lamp intensity", c.lampIntensity, 0.0f, kLampIntensityMax, "%.2f",
+                      "Brightness of the lamps from lampdata.bin in the fog, on top of Local light intensity and the "
+                      "region's local lights");
+    changed |= Slider("Lamp distance", c.lampDistance, kLampDistanceMin, kLampDistanceMax, "%.0f yd",
+                      "How far from the camera lamps from lampdata.bin are looked for; farther finds more of them and "
+                      "costs more time");
     changed |= Slider("God rays", c.godRays, 0.0f, 4.0f, "%.2f",
                       "Shafts of light through gaps in trees, buildings and terrain in front of the sun, 0 = off. An "
                       "open sky, its clouds included, gets none; the glow around the sun is Sun scatter's");

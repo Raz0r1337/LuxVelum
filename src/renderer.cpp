@@ -3,6 +3,7 @@
 #include "fog_data.h"
 #include "fog_model.h"
 #include "fullscreen_triangle.h"
+#include "lamp_feed.h"
 #include "light_on_screen.h"
 #include "noise_volume.h"
 #include "log.h"
@@ -99,6 +100,7 @@ constexpr unsigned kLocalLightSetSettleFrames = 30;
 constexpr uint64_t kLightIdMixMultiplier = 0x9E3779B97F4A7C15ull;
 constexpr unsigned kLightSetCaptureShift = 32;
 constexpr size_t kCaptureRejectionText = 80;
+constexpr size_t kLightPoolText = 160;
 constexpr DWORD kClientRenderTargets = 4;
 
 const D3DRENDERSTATETYPE kRenderStates[] = {
@@ -330,6 +332,12 @@ void DescribeLightPool(const LocalLightInputs& lights, uint32_t uploaded, char* 
     text[0] = '\0';
     if (lights.candidateCount > uploaded)
         written += static_cast<size_t>(std::snprintf(text, size, ", %u in view", lights.candidateCount));
+    const uint32_t pooledLamps =
+        CatalogLampsAmong(lights.candidates, std::min(lights.candidateCount, kLocalLightCandidatePool));
+    if (pooledLamps && written < size)
+        written += static_cast<size_t>(std::snprintf(text + written, size - written,
+                                                     ", lampdata.bin lamps: %u uploaded, %u in view",
+                                                     CatalogLampsAmong(lights.pointLights, uploaded), pooledLamps));
     if ((lights.skippedDisabled || lights.skippedNonPoint) && written < size)
         std::snprintf(text + written, size - written, ", %u disabled and %u non-point nodes skipped",
                       lights.skippedDisabled, lights.skippedNonPoint);
@@ -364,11 +372,11 @@ float CameraDistance(const LocalPointLight& light, const float* camera)
 void LogUploadedLight(uint32_t index, const LocalPointLight& light, const float* camera)
 {
     VF_LOG_DEBUG("  local light %u: at (%.2f %.2f %.2f), %.1f yd; diffuse (%.4g %.4g %.4g), attenuation %.4g %.4g "
-                 "%.4g, enabled %u; uploaded (%.4g %.4g %.4g), reach %.1f yd",
+                 "%.4g, enabled %u; uploaded (%.4g %.4g %.4g), reach %.1f yd%s",
                  index, light.position[0], light.position[1], light.position[2], CameraDistance(light, camera),
                  light.color[0], light.color[1], light.color[2], light.attenuation[0], light.attenuation[1],
                  light.attenuation[2], light.enabled, light.uploadedColor[0], light.uploadedColor[1],
-                 light.uploadedColor[2], light.cutoff);
+                 light.uploadedColor[2], light.cutoff, CatalogLampId(light.nativeId) ? "; from lampdata.bin" : "");
 }
 
 struct CharacterMask
@@ -652,7 +660,7 @@ void Renderer::LogUploadedLocalLights(const FrameInputs& in, const Config& cfg, 
         nearest = std::min(nearest, CameraDistance(lights[i], in.camPos));
     }
     const float* colour = lights[brightest].uploadedColor;
-    char pool[kCaptureRejectionText];
+    char pool[kLightPoolText];
     DescribeLightPool(in.localLights, uploaded, pool, sizeof(pool));
     const PointLightUpload upload = LocalLightUpload(cfg, in.mapId);
     VF_LOG_INFO("local lights: %u uploaded, brightest %s (%.4g %.4g %.4g), nearest %.1f yd, reach x%.3g%s", uploaded,
