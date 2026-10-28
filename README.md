@@ -4,10 +4,10 @@ Atmospheric Immersion for Project Reforged — WoW 3.3.5.
 
 LuxVelum is a fork of [CoAVolFog](https://github.com/jealous-sound/coa-vfog): volumetric fog and modern water for the
 Ascension/CoA 3.3.5a (build 12340) Direct3D 9 client. It installs as `LuxVelum.dll` next to `Wow.exe`, its settings
-`WTF\LuxVelum.ini` and its data `Data\fogdata.bin` and `Data\waterdata.bin`, and writes `Logs\LuxVelum.log`
-(`CoAVolFog.*` before TEST Build-24-11, `Luxveil.*` in TEST Build-24-11 and 24-12, all next to `Wow.exe` in earlier
-packages); without a `WTF\LuxVelum.ini` it takes over an existing `LuxVelum.ini` next to `Wow.exe`, else `Luxveil.ini`
-or `CoAVolFog.ini`.
+`WTF\LuxVelum.ini` and its data `Data\LuxVelum\fogdata.bin` and `Data\LuxVelum\waterdata.bin`, and writes
+`Logs\LuxVelum.log` (`CoAVolFog.*` before TEST Build-24-11, `Luxveil.*` in TEST Build-24-11 and 24-12, all next to
+`Wow.exe` in earlier packages); without a `WTF\LuxVelum.ini` it takes over an existing `LuxVelum.ini` next to `Wow.exe`,
+else `Luxveil.ini` or `CoAVolFog.ini`.
 
 It consists of a loader, a D3D9 device wrapper with a readable depth buffer, world-render hooks, a per-pixel
 ray-marching fog renderer and a water renderer. Fog layers come from the Classic client's own
@@ -839,8 +839,8 @@ cmake --build build --config Release
 ```
 
 Outputs in `build/Release`: `LuxVelum.dll` and `vfog_harness.exe`, laid out like a client folder with `LuxVelum.ini`
-copied into `WTF` and `fogdata.bin` and `waterdata.bin` into `Data` on every build, also of `--target LuxVelum` alone
-and when only the INI or a data file has changed. The DLL the harness loads reads them there and writes
+copied into `WTF` and `fogdata.bin` and `waterdata.bin` into `Data\LuxVelum` on every build, also of `--target LuxVelum`
+alone and when only the INI or a data file has changed. The DLL the harness loads reads them there and writes
 `Logs\LuxVelum.log`.
 
 ### Download a CI build
@@ -850,9 +850,9 @@ push to `main` (including merged pull requests), on pull requests targeting `mai
 **Actions → Windows release build → Run workflow**. The manual button becomes available after the workflow is
 merged into `main`; select a branch to rebuild that revision.
 
-Open a successful run and download its `LuxVelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a
-ZIP containing `LuxVelum.dll`, `WTF/LuxVelum.ini`, `Data/fogdata.bin`, `Data/waterdata.bin`, the README, licenses and
-a `BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
+Open a successful run and download its `LuxVelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a ZIP
+containing `LuxVelum.dll`, `WTF/LuxVelum.ini`, `Data/LuxVelum/fogdata.bin`, `Data/LuxVelum/waterdata.bin`, the README,
+licenses and a `BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
 rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision.
 
 On a push to the release branch `st0ny-main`, and on a manual run of that branch, a second job publishes the same
@@ -933,16 +933,16 @@ It also times the harbour in a full storm and the colour grading pass; `--sample
 ## Install
 
 Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then unzip the package into
-the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin` and `waterdata.bin` into `Data` and
-`LuxVelum.ini` into `WTF`, the client's own folders for its data and settings. Remove `LuxVelum.dll` to uninstall; the
-patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the client's `Logs` folder and makes `Logs`
-and `WTF` when they are missing; where it cannot, the log and the settings stay next to `LuxVelum.dll`. A `fogdata.bin`
-or `waterdata.bin` missing from `Data` is still read from next to `LuxVelum.dll`, where earlier packages put it. The
-start-up line `LuxVelum loaded from` names the settings and data files in use. Deleting the `WTF` folder to reset the
-client deletes LuxVelum's settings too: the next start takes over an earlier INI still next to `Wow.exe` again, as
-below, or else runs on the built-in defaults until `WTF\LuxVelum.ini` is unzipped from the package again. A client
-started from the same folder while another holds the log writes the first free one of `LuxVelum-2.log` to
-`LuxVelum-8.log` beside it instead, and its first line names that file and the client's process id.
+the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin` and `waterdata.bin` into `Data\LuxVelum` and
+`LuxVelum.ini` into `WTF`, in the client's own folders for its data and settings. Remove `LuxVelum.dll` to uninstall;
+the patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the client's `Logs` folder and makes
+`Logs` and `WTF` when they are missing; where it cannot, the log and the settings stay next to `LuxVelum.dll`. A
+`fogdata.bin` or `waterdata.bin` missing from `Data\LuxVelum` is still read from next to `LuxVelum.dll`, where earlier
+packages put it. The start-up line `LuxVelum loaded from` names the settings and data files in use. Deleting the `WTF`
+folder to reset the client deletes LuxVelum's settings too: the next start takes over an earlier INI still next to
+`Wow.exe` again, as below, or else runs on the built-in defaults until `WTF\LuxVelum.ini` is unzipped from the package
+again. A client started from the same folder while another holds the log writes the first free one of `LuxVelum-2.log`
+to `LuxVelum-8.log` beside it instead, and its first line names that file and the client's process id.
 A slot held by a running client is left as it is; a free one is reused and overwritten, so the clients of one folder
 share at most eight log files. A ninth client running beside eight others writes no log.
 Delete the `version.dll` of an earlier package: one from CoAVolFog or Luxveil keeps the client from starting once its

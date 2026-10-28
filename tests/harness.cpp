@@ -2328,10 +2328,10 @@ bool IsFolder(const std::wstring& path)
 std::wstring FreshClientFolder(const std::wstring& outDir, const wchar_t* name)
 {
     const std::wstring dir = FreshTakeoverDirectory(outDir, name);
-    for (const wchar_t* file : {L"\\Logs\\LuxVelum.log", L"\\Data\\fogdata.bin", L"\\Data\\waterdata.bin",
-                                L"\\fogdata.bin", L"\\waterdata.bin"})
+    for (const wchar_t* file : {L"\\Logs\\LuxVelum.log", L"\\Data\\LuxVelum\\fogdata.bin",
+                                L"\\Data\\LuxVelum\\waterdata.bin", L"\\fogdata.bin", L"\\waterdata.bin"})
         DeleteFileW((dir + file).c_str());
-    for (const wchar_t* folder : {L"\\Logs", L"\\WTF", L"\\Data"})
+    for (const wchar_t* folder : {L"\\Logs", L"\\WTF", L"\\Data\\LuxVelum", L"\\Data"})
         if (!RemoveDirectoryW((dir + folder).c_str()))
             DeleteFileW((dir + folder).c_str());
     return dir;
@@ -2345,11 +2345,11 @@ void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& sh
     std::printf("     fresh client folder: log %s, settings %s, fog data %s, water data %s\n", paths.log.c_str(),
                 paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
     Check(paths.log == freshFolder + "Logs\\LuxVelum.log" && paths.ini == freshFolder + "WTF\\LuxVelum.ini" &&
-              paths.fogData == freshFolder + "Data\\fogdata.bin" &&
-              paths.waterData == freshFolder + "Data\\waterdata.bin" && IsFolder(fresh + L"\\Logs") &&
+              paths.fogData == freshFolder + "Data\\LuxVelum\\fogdata.bin" &&
+              paths.waterData == freshFolder + "Data\\LuxVelum\\waterdata.bin" && IsFolder(fresh + L"\\Logs") &&
               IsFolder(fresh + L"\\WTF"),
           "in the client folder the log goes into Logs and the settings into WTF, both made when missing, and the "
-          "fog and water data come from Data");
+          "fog and water data come from Data\\LuxVelum");
 
     const std::wstring earlier = FreshClientFolder(outDir, L"client-earlier-install");
     const std::string earlierFolder = NarrowPath(earlier + L"\\");
@@ -2357,13 +2357,14 @@ void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& sh
     WriteText(earlier + L"\\waterdata.bin", "water");
     const InstallPaths beside = ClientInstallPaths(earlierFolder);
     CreateDirectoryW((earlier + L"\\Data").c_str(), nullptr);
-    WriteText(earlier + L"\\Data\\fogdata.bin", "fog");
+    CreateDirectoryW((earlier + L"\\Data\\LuxVelum").c_str(), nullptr);
+    WriteText(earlier + L"\\Data\\LuxVelum\\fogdata.bin", "fog");
     const InstallPaths partly = ClientInstallPaths(earlierFolder);
     Check(beside.fogData == earlierFolder + "fogdata.bin" && beside.waterData == earlierFolder + "waterdata.bin" &&
-              partly.fogData == earlierFolder + "Data\\fogdata.bin" &&
+              partly.fogData == earlierFolder + "Data\\LuxVelum\\fogdata.bin" &&
               partly.waterData == earlierFolder + "waterdata.bin",
-          "an earlier install's fogdata.bin and waterdata.bin beside LuxVelum.dll are read there until Data holds "
-          "them, and each file in Data wins on its own");
+          "an earlier install's fogdata.bin and waterdata.bin beside LuxVelum.dll are read there until "
+          "Data\\LuxVelum holds them, and each file there wins on its own");
 
     const std::wstring blocked = FreshClientFolder(outDir, L"client-blocked");
     const std::string blockedFolder = NarrowPath(blocked + L"\\");
@@ -2403,13 +2404,13 @@ void CheckTheDllUsesTheClientFolders()
     wchar_t logPath[MAX_PATH] = {};
     MultiByteToWideChar(CP_ACP, 0, log.c_str(), -1, logPath, MAX_PATH);
     const std::string started = "LuxVelum loaded from " + folder + "; settings " + folder +
-                                "WTF\\LuxVelum.ini, fog data " + folder + "Data\\fogdata.bin, water data " + folder +
-                                "Data\\waterdata.bin";
+                                "WTF\\LuxVelum.ini, fog data " + folder + "Data\\LuxVelum\\fogdata.bin, water data " +
+                                folder + "Data\\LuxVelum\\waterdata.bin";
     std::printf("     LuxVelum.dll in %s writes %s\n", folder.c_str(), log.c_str());
     Check(!folder.empty() && log.rfind(folder + "Logs\\LuxVelum", 0) == 0 &&
               ReadText(logPath).find(started) != std::string::npos,
-          "LuxVelum.dll writes its log into the Logs folder beside it and reads WTF\\LuxVelum.ini, Data\\fogdata.bin "
-          "and Data\\waterdata.bin there");
+          "LuxVelum.dll writes its log into the Logs folder beside it and reads WTF\\LuxVelum.ini, "
+          "Data\\LuxVelum\\fogdata.bin and Data\\LuxVelum\\waterdata.bin there");
 }
 
 struct ClientInput
@@ -4169,8 +4170,8 @@ namespace
 int wmain(int argc, wchar_t** argv)
 {
     std::wstring out = L"harness-out";
-    std::string data = "Data\\fogdata.bin";
-    std::string waterData = "Data\\waterdata.bin";
+    std::string data = "Data\\LuxVelum\\fogdata.bin";
+    std::string waterData = "Data\\LuxVelum\\waterdata.bin";
     std::wstring ini = L"WTF\\LuxVelum.ini";
     std::wstring scene;
     D3DMULTISAMPLE_TYPE samples = D3DMULTISAMPLE_NONE;

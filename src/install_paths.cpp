@@ -6,7 +6,7 @@ namespace
 {
 constexpr const char* kLogFolder = "Logs";
 constexpr const char* kSettingsFolder = "WTF";
-constexpr const char* kDataFolder = "Data";
+constexpr const char* kLuxVelumDataFolder = "Data\\LuxVelum";
 constexpr const char* kLogName = "LuxVelum.log";
 constexpr const char* kIniName = "LuxVelum.ini";
 constexpr const char* kFogDataName = "fogdata.bin";
@@ -33,7 +33,7 @@ std::string FolderOrClientFolder(const std::string& clientFolder, const char* fo
 
 std::string DataFile(const std::string& clientFolder, const char* name)
 {
-    const std::string inData = clientFolder + kDataFolder + "\\" + name;
+    const std::string inData = clientFolder + kLuxVelumDataFolder + "\\" + name;
     const std::string besideTheDll = clientFolder + name;
     return !IsFile(inData) && IsFile(besideTheDll) ? besideTheDll : inData;
 }

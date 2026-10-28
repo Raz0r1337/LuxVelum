@@ -49,7 +49,7 @@ jobs:
         run: |
           $package = 'build/package'
           New-Item -ItemType Directory -Path $package | Out-Null
-          $files = 'LuxVelum.dll', 'WTF/LuxVelum.ini', 'Data/fogdata.bin', 'Data/waterdata.bin'
+          $files = 'LuxVelum.dll', 'WTF/LuxVelum.ini', 'Data/LuxVelum/fogdata.bin', 'Data/LuxVelum/waterdata.bin'
           foreach ($file in $files) {
             $destination = "$package/$file"
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
@@ -148,9 +148,9 @@ jobs:
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
             echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
-            echo "into \`Data\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is written to"
-            echo "\`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the \`version.dll\` of"
-            echo "an earlier package, also one from LuxVelum, or the client does not start."
+            echo "into \`Data\\LuxVelum\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is"
+            echo "written to \`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the"
+            echo "\`version.dll\` of an earlier package, also one from LuxVelum, or the client does not start."
             echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
             echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
             echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
@@ -331,9 +331,9 @@ jobs:
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
             echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
-            echo "into \`Data\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is written to"
-            echo "\`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the \`version.dll\` of"
-            echo "an earlier package, also one from LuxVelum, or the client does not start."
+            echo "into \`Data\\LuxVelum\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is"
+            echo "written to \`Logs\\LuxVelum.log\`. The package has no \`version.dll\` any more: delete the"
+            echo "\`version.dll\` of an earlier package, also one from LuxVelum, or the client does not start."
             echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
             echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
             echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"

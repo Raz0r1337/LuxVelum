@@ -29,10 +29,10 @@ the shaders are compiled with `fxc`. `README.md` holds the design and the revers
   in the same way.
 - Ask before launching the game client. Install only when the owner says the client is closed: check that no process
   runs from the client folder and that the installed `WTF\LuxVelum.ini` still matches the repository, then replace
-  `LuxVelum.dll` next to `Wow.exe`, `WTF\LuxVelum.ini`, `Data\fogdata.bin` and `Data\waterdata.bin`. While there is no
-  `WTF\LuxVelum.ini` yet and a `LuxVelum.ini`, `Luxveil.ini` or `CoAVolFog.ini` lies next to `Wow.exe`, leave
-  `WTF\LuxVelum.ini` out so the DLL takes the owner's settings over. After an owner test, read `Logs\LuxVelum.log`
-  in the client folder.
+  `LuxVelum.dll` next to `Wow.exe`, `WTF\LuxVelum.ini`, `Data\LuxVelum\fogdata.bin` and `Data\LuxVelum\waterdata.bin`.
+  While there is no `WTF\LuxVelum.ini` yet and a `LuxVelum.ini`, `Luxveil.ini` or `CoAVolFog.ini` lies next to
+  `Wow.exe`, leave `WTF\LuxVelum.ini` out so the DLL takes the owner's settings over. After an owner test, read
+  `Logs\LuxVelum.log` in the client folder.
 - Keep plans and results in the conversation. Routine edits need no backups, receipts or standalone reports; use Git.
 
 ## Repository layout
@@ -47,7 +47,7 @@ the shaders are compiled with `fxc`. `README.md` holds the design and the revers
   `fullscreen_triangle` (the triangle every full-screen pass draws, its edges outside the viewport),
   `transparent_fog` (linear stock fog fitted to the volumetric fog for see-through models after the early composite),
   `overlay` (ImGui settings window: input chaining, drawing at `Present`), `settings_panel` (its widgets), `config`,
-  `install_paths` (the client folder's `Logs`, `WTF` and `Data`, the DLL's folder as fallback), `log`,
+  `install_paths` (the client folder's `Logs`, `WTF` and `Data\LuxVelum`, the DLL's folder as fallback), `log`,
   `status_log`; water: `water_data` (Forever presets, FFT tiles, foam masks), `water_classify` (liquid classes),
   `water_spectrum` and `water_fft` (GPU FFT waves), `water_contacts` (contact tracker, ring impulses at the
   client's ripple events), `water_ripples` (ripple map simulation), `client_ripple_sprites` (hold on the client's
