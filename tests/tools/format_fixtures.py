@@ -144,6 +144,19 @@ class EmitterSpec:
 
 
 @dataclass
+class KeyTrackSpec:
+    keys_per_sequence: List[List[Sequence]] = field(default_factory=list)
+    global_sequence: int = -1
+    detached: Tuple[int, ...] = ()
+
+
+@dataclass
+class ColorSpec:
+    rgb: KeyTrackSpec = field(default_factory=lambda: KeyTrackSpec([[(1.0, 1.0, 1.0)]]))
+    alpha: KeyTrackSpec = field(default_factory=lambda: KeyTrackSpec([[(32767,)]]))
+
+
+@dataclass
 class SubmeshSpec:
     center: Vec3 = (0.0, 0.0, 0.0)
     index_count: int = 0
@@ -157,6 +170,12 @@ class BatchSpec:
     texture_combo: int = 0
     flags: int = 0
     shader: int = 0
+    color: int = -1
+    texture_count: int = 1
+    texture_coord_combo: int = 0
+    texture_weight_combo: int = 0
+    priority: int = 0
+    layer: int = 0
 
 
 @dataclass
@@ -172,6 +191,12 @@ class M2Spec:
     texture_lookup: List[int] = field(default_factory=list)
     lights: List[LightSpec] = field(default_factory=list)
     emitters: List[EmitterSpec] = field(default_factory=list)
+    global_flags: int = 0
+    colors: List[ColorSpec] = field(default_factory=list)
+    texture_weights: List[KeyTrackSpec] = field(default_factory=list)
+    texture_unit_lookup: List[int] = field(default_factory=list)
+    transparency_lookup: List[int] = field(default_factory=list)
+    combiner_combos: Optional[List[int]] = None
 
 
 def sequence_record(spec: SequenceSpec) -> bytes:
@@ -255,29 +280,47 @@ def records_array(arena: Arena, records: Sequence[bytes]) -> bytes:
     return arena.array(len(records), b"".join(records))
 
 
+def key_track(arena: Arena, layout: str, spec: KeyTrackSpec) -> bytes:
+    return arena.track(layout, spec.keys_per_sequence, spec.global_sequence, spec.detached)
+
+
+def color_record(arena: Arena, spec: ColorSpec) -> bytes:
+    record = key_track(arena, "3f", spec.rgb) + key_track(arena, "h", spec.alpha)
+    assert len(record) == 40
+    return record
+
+
 def m2_bytes(spec: M2Spec) -> bytes:
-    arena = Arena(M2_HEADER_SIZE)
+    header_size = M2_HEADER_SIZE + (8 if spec.combiner_combos is not None else 0)
+    arena = Arena(header_size)
     empty = pack("2I", 0, 0)
     sequences = records_array(arena, [sequence_record(sequence) for sequence in spec.sequences])
     bones = records_array(arena, [bone_record(arena, bone) for bone in spec.bones])
+    colors = records_array(arena, [color_record(arena, color) for color in spec.colors])
     textures = records_array(arena, [texture_record(arena, texture) for texture in spec.textures])
+    weights = records_array(arena, [key_track(arena, "h", weight) for weight in spec.texture_weights])
     materials = records_array(arena, [pack("HH", flags, blend) for flags, blend in spec.materials])
     texture_lookup = records_array(arena, [pack("H", index) for index in spec.texture_lookup])
+    unit_lookup = records_array(arena, [pack("h", index) for index in spec.texture_unit_lookup])
+    transparency_lookup = records_array(arena, [pack("H", index) for index in spec.transparency_lookup])
     lights = records_array(arena, [light_record(arena, light) for light in spec.lights])
     emitters = records_array(arena, [particle_record(arena, emitter) for emitter in spec.emitters])
+    combos = b""
+    if spec.combiner_combos is not None:
+        combos = records_array(arena, [pack("H", combo) for combo in spec.combiner_combos])
     name = arena.string(spec.name)
-    header = (b"MD20" + pack("I", spec.version) + name + pack("I", 0)
+    header = (b"MD20" + pack("I", spec.version) + name + pack("I", spec.global_flags)
               + empty + sequences + empty
               + bones + empty + empty
               + pack("I", 1)
-              + empty + textures + empty + empty + empty
-              + materials + empty + texture_lookup + empty + empty + empty
+              + colors + textures + weights + empty + empty
+              + materials + empty + texture_lookup + unit_lookup + transparency_lookup + empty
               + pack("3f", *spec.bounds_min) + pack("3f", *spec.bounds_max) + pack("f", 2.0)
               + pack("6f", *spec.bounds_min, *spec.bounds_max) + pack("f", 2.0)
               + empty + empty + empty + empty + empty + empty
-              + lights + empty + empty + empty + emitters)
-    assert len(header) == M2_HEADER_SIZE
-    arena.data[:M2_HEADER_SIZE] = header
+              + lights + empty + empty + empty + emitters + combos)
+    assert len(header) == header_size
+    arena.data[:header_size] = header
     return bytes(arena.data)
 
 
@@ -309,8 +352,9 @@ def submesh_record(spec: SubmeshSpec) -> bytes:
 
 
 def batch_record(spec: BatchSpec) -> bytes:
-    record = pack("BbHHHhHHHHHHH", spec.flags, 0, spec.shader, spec.submesh, 0, -1, spec.material, 0, 1,
-                  spec.texture_combo, 0, 0, 0)
+    record = pack("BbHHHhHHHHHHH", spec.flags, spec.priority, spec.shader, spec.submesh, 0, spec.color,
+                  spec.material, spec.layer, spec.texture_count, spec.texture_combo, spec.texture_coord_combo,
+                  spec.texture_weight_combo, 0)
     assert len(record) == 24
     return record
 
@@ -324,6 +368,15 @@ def skin_bytes(submeshes: Sequence[SubmeshSpec], batches: Sequence[BatchSpec]) -
     assert len(header) == SKIN_HEADER_SIZE
     arena.data[:SKIN_HEADER_SIZE] = header
     return bytes(arena.data)
+
+
+def world_map_area_dbc_bytes(areas: Sequence[Tuple[int, int, int, str, float, float, float, float]]) -> bytes:
+    strings = b"\0"
+    records = b""
+    for record_id, map_id, area_id, name, left, right, top, bottom in areas:
+        records += pack("4I4f3i", record_id, map_id, area_id, len(strings), left, right, top, bottom, -1, 0, -1)
+        strings += name.encode("ascii") + b"\0"
+    return pack("4s4I", b"WDBC", len(areas), 11, 44, len(strings)) + records + strings
 
 
 def map_dbc_bytes(maps: Sequence[Tuple[int, str]]) -> bytes:
@@ -421,14 +474,67 @@ class WmoDoodadSpec:
     color: int = 0xFF7F7F7F
 
 
-def wmo_root_bytes(doodad_sets: Sequence[Tuple[str, int, int]], doodads: Sequence[WmoDoodadSpec]) -> bytes:
+@dataclass
+class WmoMaterialSpec:
+    flags: int = 0
+    shader: int = 0
+    blend: int = 0
+    texture: str = ""
+    second_texture: str = ""
+    sidn_color: int = 0
+    diffuse_color: int = 0
+    ground_type: int = 0
+
+
+@dataclass
+class WmoFogSpec:
+    flags: int = 0
+    position: Vec3 = (0.0, 0.0, 0.0)
+    small_radius: float = 0.0
+    large_radius: float = 0.0
+    end: float = 444.5
+    start_factor: float = 0.25
+    color: int = 0xFF000000
+    underwater_end: float = 222.25
+    underwater_start_factor: float = -0.5
+    underwater_color: int = 0xFF000000
+
+
+def wmo_material_record(spec: WmoMaterialSpec, offsets: Dict[str, int]) -> bytes:
+    second = offsets[spec.second_texture] if spec.second_texture else 0
+    record = pack("16I", spec.flags, spec.shader, spec.blend, offsets.get(spec.texture, 0), spec.sidn_color, 0,
+                  second, spec.diffuse_color, spec.ground_type, 0, 0, 0, 0, 0, 0, 0)
+    assert len(record) == 64
+    return record
+
+
+def wmo_fog_record(spec: WmoFogSpec) -> bytes:
+    record = pack("I3f4fIffI", spec.flags, *spec.position, spec.small_radius, spec.large_radius, spec.end,
+                  spec.start_factor, spec.color, spec.underwater_end, spec.underwater_start_factor,
+                  spec.underwater_color)
+    assert len(record) == 48
+    return record
+
+
+def wmo_root_bytes(doodad_sets: Sequence[Tuple[str, int, int]], doodads: Sequence[WmoDoodadSpec],
+                   materials: Sequence[WmoMaterialSpec] = (), fogs: Optional[Sequence[WmoFogSpec]] = None,
+                   flags: int = 0, groups: int = 0) -> bytes:
     names, offsets = string_block([doodad.name for doodad in doodads])
-    mohd = pack("7I", 0, 0, 0, 0, 0, len(doodads), len(doodad_sets)) + pack("4B", 0, 0, 0, 255) + pack("I", 0)
-    mohd += pack("6f", -1.0, -1.0, -1.0, 1.0, 1.0, 1.0) + pack("HH", 0, 0)
+    texture_names = list(dict.fromkeys(name for material in materials
+                                       for name in (material.texture, material.second_texture) if name))
+    textures, texture_offsets = string_block(texture_names)
+    mohd = pack("7I", len(texture_names), groups, 0, 0, 0, len(doodads), len(doodad_sets))
+    mohd += pack("4B", 0, 0, 0, 255) + pack("I", 0)
+    mohd += pack("6f", -1.0, -1.0, -1.0, 1.0, 1.0, 1.0) + pack("HH", flags, 0)
     assert len(mohd) == 64
     mods = b"".join(pack("20s3I", name.encode("ascii"), start, count, 0) for name, start, count in doodad_sets)
     modd = b"".join(pack("I3f4ffI", (doodad.flags << 24) | offset, *doodad.position, *doodad.rotation,
                          doodad.scale, doodad.color) for doodad, offset in zip(doodads, offsets))
-    return (chunk(b"MVER", pack("I", WMO_VERSION)) + chunk(b"MOHD", mohd) + chunk(b"MOTX", b"")
+    momt = b""
+    if materials:
+        texture_offset = dict(zip(texture_names, texture_offsets))
+        momt = chunk(b"MOMT", b"".join(wmo_material_record(material, texture_offset) for material in materials))
+    fog_block = b"\0" * 48 if fogs is None else b"".join(wmo_fog_record(fog) for fog in fogs)
+    return (chunk(b"MVER", pack("I", WMO_VERSION)) + chunk(b"MOHD", mohd) + chunk(b"MOTX", textures) + momt
             + chunk(b"MODS", mods) + chunk(b"MODN", names) + chunk(b"MODD", modd)
-            + chunk(b"MFOG", b"\0" * 48))
+            + chunk(b"MFOG", fog_block))

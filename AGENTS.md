@@ -76,7 +76,9 @@ reverse-engineering evidence.
   `extract_lamps.py` (the command line) on `lamp_mpq` (MPQ reader and archive order), `lamp_formats` (Map.dbc, WDT,
   ADT, WMO root, M2 and skin), `lamp_world` (placements, map walk, census counts), `lamp_rules` (lamp routes, ported
   from Everwood under `LICENSE-Everwood-MIT.txt`), `lamp_writer` (`lampdata.bin`), `lamp_census`, `lamp_types` and
-  `lamp_math`.
+  `lamp_math`; `inspect_models_near.py` (models near a zone coordinate with their render batches and the client's
+  predicted pass and fog mode) on them and `model_materials` (M2 colours, weights and skin batches, WMO materials and
+  fogs, WorldMapArea.dbc).
 
 ## Maintaining guidance
 

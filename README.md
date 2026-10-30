@@ -554,6 +554,24 @@ a model and stops: every archive version with its lights, emitters and batches, 
 success, 1 when no archive or no `Map.dbc` is found and 2 for a usage error. Run it again when the client's archives
 change; the DLL's debug log names the archives the file was made from.
 
+**Models near a point.** `tools/inspect_models_near.py` reads the same archives in the same order and lists what the
+map files place near a spot, to learn how a model that seems to escape the fog is drawn:
+
+```powershell
+python C:\LuxVelum\tools\inspect_models_near.py --data Data --zone Ashenvale --at "26.4,38.5" > models.txt
+```
+
+The zone percent becomes a world position through `WorldMapArea.dbc`, read as 3.3.5a's ID, map, area, name, left,
+right, top and bottom: x runs from left to right on world Y, y from top to bottom on world X. `--map 1 --world
+3193.1,177.6` takes a world position instead; more pairs give more points and a list of the models near every one;
+`--radius` (40 yd) bounds the horizontal distance. Nearest first come the M2s of the ADT placements, of the doodad sets
+of nearby WMOs and of a global WMO, each with its archive, placement and, per batch of its `00.skin`, the blend mode,
+material flags, shader, textures, colour and texture weight (static, or the range of the keys held in the M2), and the
+client's predicted treatment: the see-through pass when the blend mode is above 1 or colour alpha times weight is below
+0.99999, else pass 0, and the stock fog mode of the blend mode, 0 with the unfogged flag (see M2 batch fog). WMOs within
+the radius follow with their materials, fogs and doodad sets; `--model` describes files by path. Objects the server
+spawns are not in the map files, and keys in `.anim` files, model fades and the lighting's fog are not read.
+
 **Archive order.** A file comes from the archive of highest priority that holds it; a deletion marker there hides the
 lower ones. The tool follows the client's order, lowest priority first: `common.MPQ`, `common-2.MPQ`, `expansion.MPQ`,
 `lichking.MPQ`; in the locale folder `locale-`, `speech-`, `expansion-locale-`, `lichking-locale-`, `expansion-speech-`
@@ -1045,11 +1063,12 @@ performance. It writes `before.png`, `after.png`,
 `overlay.png` and the debug views to `build/harness-out`.
 
 `lamp_tools` runs the Python tests in `tests/tools` on archives and game files the tests build byte by byte: the MPQ
-reader and archive order, the file formats, the placement transforms and world walk, the lamp rules, the writer and an
-end-to-end run of `extract_lamps.py`, census and `--model` included. `cpu_harness` and `vfog_harness` load
-`tests/data/lampdata-fixture.bin` (`--lamp-data`), which the Python writer makes from a fixed lamp list, and check it
-against the same lamps laid out by the harness, byte for byte; `tests/tools/lamp_data_fixture.py`, run with `tools` on
-`PYTHONPATH`, writes it again. Without CMake the Python tests run with:
+reader and archive order, the file formats, the placement transforms and world walk, the lamp rules, the writer, an
+end-to-end run of `extract_lamps.py`, census and `--model` included, and runs of `inspect_models_near.py` on a
+synthetic Ashenvale. `cpu_harness` and `vfog_harness` load `tests/data/lampdata-fixture.bin` (`--lamp-data`), which
+the Python writer makes from a fixed lamp list, and check it against the same lamps laid out by the harness, byte for
+byte; `tests/tools/lamp_data_fixture.py`, run with `tools` on `PYTHONPATH`, writes it again. Without CMake the Python
+tests run with:
 
 ```powershell
 $env:PYTHONPATH = "tools"; python -m unittest discover -s tests/tools -t tests/tools
