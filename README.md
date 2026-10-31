@@ -409,11 +409,19 @@ Zangarmarsh (`shadowmoon_sky_forest01.mdx` in the Reforged HD client), Blade's E
 Storm Peaks, Wintergrasp, Zul'Drak, Dragonblight, the Howling Fjord, Crystalsong Forest and Northrend's global light;
 Shattrath City, Terokkar Forest, Eversong Woods and the Netherstorm eco-domes keep the sun, and Grizzly Hills, Sholazar
 Basin and Borean Tundra keep it by the exceptions below. There the scene layers and the distance fog scatter neither sun
-nor moon and no god rays are drawn. The 17 lights with Hellfire Peninsula's skybox (`hellfireskybox.mdx`) keep only the
-ground fog, at 0.3 of the template's density, and carry flag bit 5: testers found the template's haze and far wall too
-strong there and its fog on the sky out of place. Under that clear sky the distance fog is off and the scene layers fall
-off on sky pixels by `exp(−upward·falloff)` with `falloff=−ln(1−clear)/0.005` (1842 fully clear, so the ground fog is
-gone from the sky a tenth of a degree above the horizon; at a light's edge the share fades with the blend).
+nor moon and no god rays are drawn. The Ghostlands carry the bit although the client draws a sun over them, as a tester
+asked to take the sun scattering out of the zone (2026-10-31): the nine lights on map 530 whose clear slot is one of the
+zone's own light params carry it in every slot. Those are 399 in six lights, among them 443, whose sphere (1889 to 2029
+yd) covers the whole zone, 433 in lights 450 and 474 in its south, whose storm slot is the sunless
+`legionnexus_volcanoskybox01.mdx`, and 448 in light 472 at the Zul'Aman gate; no other light on map 530 uses them. The
+fade follows the client's own Ghostlands lighting: sampled every 50 yd at 18:00 in clear weather along north-south lines
+from Y −5900 to −7700, the share rises from 0 to 1 between X 8250 and 8000 (from X 8400 at Y −6300, where light 465's
+sphere overlaps Eversong's light 470), while Silvermoon City, Eversong Woods, Sunstrider Isle and the Isle of Quel'Danas
+keep the sun. The 17 lights with Hellfire Peninsula's skybox (`hellfireskybox.mdx`) keep only the ground fog, at 0.3 of
+the template's density, and carry flag bit 5: testers found the template's haze and far wall too strong there and its
+fog on the sky out of place. Under that clear sky the distance fog is off and the scene layers fall off on sky pixels by
+`exp(−upward·falloff)` with `falloff=−ln(1−clear)/0.005` (1842 fully clear, so the ground fog is gone from the sky a
+tenth of a degree above the horizon; at a light's edge the share fades with the blend).
 
 Northrend's global light is 1406. Four client lights on map 571 sit at the origin, which wowdev.wiki's `Light` page
 calls the fallback where no other light applies, but 752 among them has a falloff (32.6 to 46.1 client units). The

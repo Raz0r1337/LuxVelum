@@ -1535,6 +1535,51 @@ void CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(const FogData& data)
           "Grizzlemaw in Grizzly Hills scatters the sun and the moon in its converted layers and casts god rays");
 }
 
+void CheckGhostlandsScattersNoSun(const FogData& data)
+{
+    const Landmark ghostlands[] = {
+        {"Tranquillien", kOutland, {7595.0f, -6782.0f, 87.0f}},
+        {"Ghostlands", kOutland, {7360.9f, -6803.3f, 44.3f}},
+        {"Zul'Aman gate", kOutland, {6851.8f, -7972.6f, 179.2f}},
+        {"south of the zone", kOutland, {6338.0f, -6400.0f, 85.0f}},
+    };
+    const Landmark quelThalas[] = {
+        {"Silvermoon City", kOutland, {9473.0f, -7279.7f, 14.2f}},
+        {"Eversong Woods", kOutland, {9079.9f, -7193.2f, 55.6f}},
+        {"Sunstrider Isle", kOutland, {10349.6f, -6357.3f, 33.4f}},
+        {"Isle of Quel'Danas", kOutland, {12806.5f, -6911.1f, 41.1f}},
+    };
+    Check(LandmarksAtSunless(data, ghostlands, 1.0f, "Ghostlands"),
+          "the Ghostlands lights scatter no sun or moon, although the client draws a sun over the zone");
+    Check(LandmarksAtSunless(data, quelThalas, 0.0f, "Eversong Woods, Silvermoon City, Isle of Quel'Danas"),
+          "Eversong Woods, Silvermoon City and the Isle of Quel'Danas keep the sun beside the Ghostlands");
+
+    const Vec3 toLight = {0.607f, 0.607f, 0.513f};
+    const Vec3 tranquillien = {ghostlands[0].position[0], ghostlands[0].position[1], ghostlands[0].position[2]};
+    const Vec3 silvermoon = {quelThalas[0].position[0], quelThalas[0].position[1], quelThalas[0].position[2]};
+    const Config cfg = ConfigForMap(Config{}, kOutland);
+    AuthoredFog ghostly = {};
+    AuthoredFog sunlit = {};
+    const bool resolved = data.Resolve(kOutland, ghostlands[0].position, kDayFraction1800, kClearWeather, ghostly) &&
+                          data.Resolve(kOutland, quelThalas[0].position, kDayFraction1800, kClearWeather, sunlit);
+    const FogParams sun = BuildFogParams(ContinentFrame(kOutland, tranquillien, kDayFraction1800, toLight, false),
+                                         cfg, &ghostly);
+    const FogParams moon = BuildFogParams(ContinentFrame(kOutland, tranquillien, kDayFraction1800, toLight, true),
+                                          cfg, &ghostly);
+    const FogParams eversong = BuildFogParams(ContinentFrame(kOutland, silvermoon, kDayFraction1800, toLight, false),
+                                              cfg, &sunlit);
+    std::printf("     Tranquillien: scene diffuse red %.5f, distance fog %.5f, rays %.2f, density %.6f; Silvermoon "
+                "City: scene diffuse red %.5f, rays %.2f\n",
+                SceneLayersRedDiffuse(sun), sun.layers[kDistanceFogLayer].diffuse[0], sun.lightVisibility,
+                SceneLayersDensity(sun), SceneLayersRedDiffuse(eversong), eversong.lightVisibility);
+    Check(resolved && sun.authored && SceneLayersDensity(sun) > 0.0f && ScattersNoSunOrMoon(sun) &&
+              ScattersNoSunOrMoon(moon),
+          "Tranquillien keeps its converted fog but scatters neither sun nor moon in it or in its distance fog and "
+          "casts no god rays");
+    Check(resolved && SceneLayersRedDiffuse(eversong) > 0.0f && eversong.lightVisibility > 0.0f,
+          "Silvermoon City keeps its sun scatter and god rays");
+}
+
 AuthoredFog WithoutClearSky(AuthoredFog fog)
 {
     fog.clearSky = 0.0f;
@@ -3170,6 +3215,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckConvertedLightsCarryNoClassicNoise(classic);
     CheckSunlessSkiesScatterNoSunOrMoon(classic);
     CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(classic);
+    CheckGhostlandsScattersNoSun(classic);
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
     CheckLocalLightsGlowByRegion();

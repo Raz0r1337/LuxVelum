@@ -76,7 +76,10 @@ HEIGHT_SHIFT_STEP = 25.0
 LAYER_NOISE_FADE = 15
 KEY_DIRECT = 3
 
+OUTLAND = 530
 NORTHREND = 571
+GHOSTLANDS_LIGHT_PARAMS = frozenset({399, 433, 448})
+SUN_DROPPING_CLEAR_SKIES = {OUTLAND: GHOSTLANDS_LIGHT_PARAMS}
 SUN_KEEPING_SKYBOXES = {NORTHREND: frozenset({"shalozar.mdx", "shalozar(red).mdx", "ashrand_sky01.mdx",
                                                "8riv_stormsongsky01.mdx", "10drg_sky01.mdx"})}
 BOREAN_TUNDRA_AND_SHOLAZAR_BASIN = (
@@ -395,6 +398,7 @@ class Builder:
     def slot_params(self, light, template, sun_kept_in_slots=()):
         classic, twin = template[:2]
         height_shift = height_shift_between(classic, light, world_position(light)[2])
+        drops_sun = light[7 + CLEAR_SLOT] in SUN_DROPPING_CLEAR_SKIES.get(light[1], ())
         slots = []
         for slot in range(LIGHT_PARAMS_SLOTS):
             target_params = light[7 + slot]
@@ -404,7 +408,7 @@ class Builder:
             classic_params = classic[7 + slot] if self.fog.has_fog(classic[7 + slot]) else classic[7 + CLEAR_SLOT]
             glow_params = classic[7 + slot] if classic[7 + slot] in self.fog.params else classic[7 + CLEAR_SLOT]
             twin_params = twin[7 + slot] or twin[7 + CLEAR_SLOT]
-            keeps_sun = slot in sun_kept_in_slots or self.client.keeps_sun(target_params, light[1])
+            keeps_sun = slot in sun_kept_in_slots or not drops_sun and self.client.keeps_sun(target_params, light[1])
             recipe = (classic_params, twin_params, target_params, glow_params, height_shift, keeps_sun)
             if recipe not in self.generated:
                 self.generated[recipe] = GENERATED_ID_BASE + len(self.generated)
@@ -462,12 +466,15 @@ def convert(fog, client):
     covered = classic_maps(fog)
     builder = Builder(fog, client)
     chosen = {}
+    sun_dropped = {}
     for light in client.lights:
         if light[1] in covered or not light[7 + CLEAR_SLOT]:
             continue
         template = nearest_template(pool, client.signature(light[7 + CLEAR_SLOT]))
         builder.add_light(light, template)
         chosen.setdefault(light[1], []).append((light[0], template[0][0]))
+        if light[7 + CLEAR_SLOT] in SUN_DROPPING_CLEAR_SKIES.get(light[1], ()):
+            sun_dropped.setdefault(light[1], []).append(light[0])
     copied = []
     for map_id, outlines in sorted(SUN_KEEPING_OUTLINES.items()):
         background = first_converted_map_wide_light(client, map_id)
@@ -476,7 +483,7 @@ def convert(fog, client):
         template = nearest_template(pool, client.signature(background[7 + CLEAR_SLOT]))
         builder.add_sun_keeping_copy(background, template, outlines)
         copied.append((map_id, background[0], len(outlines)))
-    return builder.blob(), chosen, len(pool), copied
+    return builder.blob(), chosen, len(pool), copied, sun_dropped
 
 
 def first_converted_map_wide_light(client, map_id):
@@ -496,14 +503,17 @@ def main():
         fog = FogData(handle.read())
     with ClientTables(args.client) as tables:
         client = ClientLighting(tables)
-    blob, chosen, pool, copied = convert(fog, client)
+    blob, chosen, pool, copied, sun_dropped = convert(fog, client)
     with open(args.output, "wb") as handle:
         handle.write(blob)
     maps = ", ".join("%d: %d" % (m, len(lights)) for m, lights in sorted(chosen.items()))
     copies = ", ".join("map %d light %d for %d zone outlines" % copy for copy in copied) or "none"
+    dropped = ", ".join("map %d: %s" % (m, " ".join(str(i) for i in sorted(ids)))
+                        for m, ids in sorted(sun_dropped.items())) or "none"
     print("%s: %d Classic lights kept, %d client lights added from %d templates on maps %s; copies that keep the "
-          "sun: %s; %d bytes"
-          % (args.output, len(fog.lights), sum(len(v) for v in chosen.values()), pool, maps, copies, len(blob)))
+          "sun: %s; lights that drop it: %s; %d bytes"
+          % (args.output, len(fog.lights), sum(len(v) for v in chosen.values()), pool, maps, copies, dropped,
+             len(blob)))
     if args.list:
         for map_id, lights in sorted(chosen.items()):
             print("map %d: %s" % (map_id, " ".join("%d<-%d" % pair for pair in lights)))
