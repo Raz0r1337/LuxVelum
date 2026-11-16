@@ -68,10 +68,8 @@ def storage_kinds():
 class TempDirTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
         self.root = self.temp.name
-
-    def tearDown(self):
-        self.temp.cleanup()
 
     def archive(self, name, files, **options):
         path = write_mpq(os.path.join(self.root, name), files, **options)
