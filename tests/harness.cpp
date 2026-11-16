@@ -2940,6 +2940,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "fog_integration_checks.h"
 #include "local_lights_checks.h"
 #include "local_light_stabiliser_checks.h"
+#include "twin_light_checks.h"
 #include "client_light_stay_checks.h"
 #include "client_map_checks.h"
 #include "camera_focus_checks.h"
@@ -3272,6 +3273,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         CheckInteriorInputsSurviveAnIncompleteWalk();
         CheckHdrLocalLightColours();
         local_light_stabiliser_checks::CheckLocalLightStabiliser();
+        twin_light_checks::CheckTwinLights();
         lamp_data_checks::CheckLampData();
         celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
         client_light_stay_checks::CheckClientLightStay();
@@ -3360,6 +3362,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckInteriorInputsSurviveAnIncompleteWalk();
     CheckHdrLocalLightColours();
     local_light_stabiliser_checks::CheckLocalLightStabiliser();
+    twin_light_checks::CheckTwinLights();
     lamp_data_checks::CheckLampData();
     celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
     client_light_stay_checks::CheckClientLightStay();

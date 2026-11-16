@@ -15,13 +15,6 @@ constexpr float kLampStaticNativeYards = 0.25f;
 constexpr float kLampCalibrationMatchYards = 1.0f;
 constexpr float kLampCalibrationSearchYards = 5.0f;
 constexpr double kLampFeedLogSeconds = 60.0;
-constexpr uintptr_t kCatalogLampIdBit = 1;
-
-constexpr bool CatalogLampId(uintptr_t id)
-{
-    return (id & kCatalogLampIdBit) != 0;
-}
-
 constexpr uintptr_t CatalogLampIdOf(uint32_t mapLampIndex)
 {
     return (static_cast<uintptr_t>(mapLampIndex) << 1) | kCatalogLampIdBit;
@@ -105,7 +98,7 @@ private:
     const LampCatalog* m_peakCatalog = nullptr;
     bool m_poolFull = false;
     double m_poolFloor = 0.0;
-    LocalPointLight m_natives[kLocalLightCandidatePool] = {};
+    LocalPointLight m_natives[kLocalLightCapturePool] = {};
     uint32_t m_nativeCount = 0;
     LampFeedCounts m_counts;
     LampFeedCounts m_loggedCounts;

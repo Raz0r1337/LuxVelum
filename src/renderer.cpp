@@ -100,7 +100,8 @@ constexpr unsigned kLocalLightSetSettleFrames = 30;
 constexpr uint64_t kLightIdMixMultiplier = 0x9E3779B97F4A7C15ull;
 constexpr unsigned kLightSetCaptureShift = 32;
 constexpr size_t kCaptureRejectionText = 80;
-constexpr size_t kLightPoolText = 160;
+constexpr size_t kLightPoolText = 192;
+constexpr size_t kMergedLightsText = 32;
 constexpr DWORD kClientRenderTargets = 4;
 
 const D3DRENDERSTATETYPE kRenderStates[] = {
@@ -338,6 +339,10 @@ void DescribeLightPool(const LocalLightInputs& lights, uint32_t uploaded, char* 
         written += static_cast<size_t>(std::snprintf(text + written, size - written,
                                                      ", lampdata.bin lamps: %u uploaded, %u in view",
                                                      CatalogLampsAmong(lights.pointLights, uploaded), pooledLamps));
+    if (lights.mergedTwins && written < size)
+        written += static_cast<size_t>(std::snprintf(text + written, size - written,
+                                                     ", %u twin lights merged into their neighbours",
+                                                     lights.mergedTwins));
     if ((lights.skippedDisabled || lights.skippedNonPoint) && written < size)
         std::snprintf(text + written, size - written, ", %u disabled and %u non-point nodes skipped",
                       lights.skippedDisabled, lights.skippedNonPoint);
@@ -369,14 +374,24 @@ float CameraDistance(const LocalPointLight& light, const float* camera)
     return static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz));
 }
 
+void DescribeMergedLights(const LocalPointLight& light, char* text, size_t size)
+{
+    text[0] = '\0';
+    if (light.mergedLights > 1)
+        std::snprintf(text, size, "; %u lights merged", light.mergedLights);
+}
+
 void LogUploadedLight(uint32_t index, const LocalPointLight& light, const float* camera)
 {
+    char merged[kMergedLightsText];
+    DescribeMergedLights(light, merged, sizeof(merged));
     VF_LOG_DEBUG("  local light %u: at (%.2f %.2f %.2f), %.1f yd; diffuse (%.4g %.4g %.4g), attenuation %.4g %.4g "
-                 "%.4g, enabled %u; uploaded (%.4g %.4g %.4g), reach %.1f yd%s",
+                 "%.4g, enabled %u; uploaded (%.4g %.4g %.4g), reach %.1f yd%s%s",
                  index, light.position[0], light.position[1], light.position[2], CameraDistance(light, camera),
                  light.color[0], light.color[1], light.color[2], light.attenuation[0], light.attenuation[1],
                  light.attenuation[2], light.enabled, light.uploadedColor[0], light.uploadedColor[1],
-                 light.uploadedColor[2], light.cutoff, CatalogLampId(light.nativeId) ? "; from lampdata.bin" : "");
+                 light.uploadedColor[2], light.cutoff, CatalogLampId(light.nativeId) ? "; from lampdata.bin" : "",
+                 merged);
 }
 
 struct CharacterMask

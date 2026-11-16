@@ -46,8 +46,8 @@ reverse-engineering evidence.
 - `proxy/` — the optional `version.dll` loader that forwards to the system copy.
 - `src/` — `d3d9_wrap` (device wrapper, INTZ depth), `msaa_depth` (multisampled depth copy into INTZ: NVAPI, RESZ,
   self-test), `hooks` (call-site thunks), `engine` (client addresses and frame inputs), `engine_actors` (unit walk for
-  water contacts), `engine_lights` (point-light table walk, view-frustum test, ranked candidate pool),
-  `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `lamp_data` (the
+  water contacts), `engine_lights` (point-light table walk, view-frustum test, ranked candidate pool, twin lights
+  merged), `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `lamp_data` (the
   `lampdata.bin` catalogue: maps, 133-yd cells, radius query), `lamp_feed` (its lamps as local-light candidates, held
   back beside native lights, calibration log), `client_code` (client code views and byte guards), `client_light_stay`
   (the in-memory lightstay byte), `client_map` (the map id the far clip setter reads, the loading screen's as fallback),

@@ -155,7 +155,7 @@ void LampFeed::StartMap(int mapId)
 void LampFeed::KeepNativeCandidates(const LocalLightInputs& lights)
 {
     m_nativeCount = 0;
-    const uint32_t count = std::min(lights.candidateCount, kLocalLightCandidatePool);
+    const uint32_t count = std::min(lights.candidateCount, kLocalLightCapturePool);
     for (uint32_t i = 0; i < count; ++i)
         if (!CatalogLampId(lights.candidates[i].nativeId))
             m_natives[m_nativeCount++] = lights.candidates[i];
@@ -253,9 +253,9 @@ float LampFeed::UnscaledPeak(const CatalogLamp& lamp, uint32_t mapLampIndex, boo
 
 void LampFeed::UpdatePoolFloor(const LocalLightInputs& lights, const float cameraPosition[3])
 {
-    m_poolFull = lights.candidateCount >= kLocalLightCandidatePool;
+    m_poolFull = lights.candidateCount >= kLocalLightCapturePool;
     m_poolFloor =
-        m_poolFull ? engine::LocalLightPriority(lights.candidates[kLocalLightCandidatePool - 1], cameraPosition) : 0.0;
+        m_poolFull ? engine::LocalLightPriority(lights.candidates[kLocalLightCapturePool - 1], cameraPosition) : 0.0;
 }
 
 bool LampFeed::Outranked(const CatalogLamp& lamp, uint32_t mapLampIndex, const float cameraPosition[3],

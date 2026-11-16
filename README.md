@@ -131,15 +131,31 @@ codes, 167 at 96), and the halo of a dim lamp at 50 yd stopped at the cutoff of 
 
 The eight uploaded lights are chosen by a stabiliser rather than re-ranked from scratch every frame. Every capture ranks
 the lights whose sphere meets the view frustum, at any distance, by their irradiance at the camera into a pool of up to
-24 candidates, equal irradiance ranking the nearer light first; the view test precedes the ranking, so a light whose
-sphere lies wholly outside the view takes no slot. A light behind or beside the camera still competes while its sphere
-reaches into the view, which a sphere of up to 200 yd does from as far away. A candidate is the nearest light already
-known with the same node address within 2 yd plus 40 yd for each second since the last capture that was not held (see
-below), so a colour or attenuation that animates between captures stays one light, and so does a light that moves at up
-to 40 yd/s at any frame rate, also across held captures that span up to 1 s, while an address the client reuses 10 yd
-away within one frame at 60 fps is a new light. A free slot goes first to a challenger that evicted its holder,
-otherwise to the visible candidate with the highest smoothed priority (0.3 s). A light that takes a slot fades in
-over 1 s along a smoothstep curve, so neither end of the fade jumps.
+Twin lights are merged before the stabiliser chooses from the candidate pool (below). The capture ranks up to 48
+candidates, twice the pool, so that both lights of a pair at the pool's edge are seen; after the merge the 24 strongest
+stay. Torches at Light's Hope Chapel come in pairs: in a tester's logs (2026-11) the two lights of one torch lay 0.01 to
+1.82 yd apart with the same colour and attenuation (0, 0.7, 0.03), separate torches at least 6.29 yd. Candidates of the
+same kind (client nodes, or `lampdata.bin` lamps) within 2.5 yd of each other whose attenuation coefficients agree
+within 10 % and whose colours, each divided by its brightest channel, agree within 0.15 form a cluster; a cluster whose
+lights span more than 5 yd stays apart. A cluster becomes one light at the brightness-weighted mean of its positions,
+with the summed uploaded colour, the weighted mean attenuation, the colour and node address of its lowest address, and
+the larger of every member's cutoff and that of the sum; the pool is then ranked again. Two equal torch lights 2 yd
+apart merged at their midpoint light a point 3 yd from it within about 12 % of the pair (6 yd: 3 %), and the pair takes
+one slot instead of two, so the eight slots reach twice as many paired torches. The log's pool summary counts the merged
+lights, and each uploaded light that stands for several says so. A cluster that loses a member at the edge of the view
+or of the 48 captured candidates can change its lowest address, or, with three or more lights of unequal brightness,
+move its weighted position beyond the stabiliser's identity radius, and so fades over to a new light as any light that
+changes address does.
+
+24 candidates (captured from up to 48, see twin lights above), equal irradiance ranking the nearer light first; the view
+test precedes the ranking, so a light whose sphere lies wholly outside the view takes no slot. A light behind or beside
+the camera still competes while its sphere reaches into the view, which a sphere of up to 200 yd does from as far away.
+A candidate is the nearest light already known with the same node address within 2 yd plus 40 yd for each second since
+the last capture that was not held (see below), so a colour or attenuation that animates between captures stays one
+light, and so does a light that moves at up to 40 yd/s at any frame rate, also across held captures that span up to 1 s,
+while an address the client reuses 10 yd away within one frame at 60 fps is a new light. A free slot goes first to a
+challenger that evicted its holder, otherwise to the visible candidate with the highest smoothed priority (0.3 s). A
+light that takes a slot fades in over 1 s along a smoothstep curve, so neither end of the fade jumps.
 It shines at once in the first capture after a reset (map change, start, a gap of more than 1 s) and when
 it enters the candidates with its centre outside the view, its sphere reaching in from the edge as when the camera
 turns back toward it. An occupied slot changes hands only when a candidate's smoothed priority exceeds 1.5 times that
@@ -607,7 +623,7 @@ local lights. `LampDistance` (250, 50..1000 yd) bounds
 their distance from the camera; farther finds more and costs more time. A lamp within 3 yd of one of the client's own
 lights in the pool steps aside while that light is there; once the same light has stayed put beside it (within
 0.25 yd) for 60 captures, the lamp is left to it until the next map, so the two never take turns, and a light that
-only passes by gives the lamp back. When the 24-candidate pool is full, a lamp the pool's weakest candidate outranks
+only passes by gives the lamp back. When the 48 captured candidates are full, a lamp the weakest of them outranks
 is counted as outranked and skips the ranking. Offered lamps use the
 attenuation 0, 0.7, 0.03 (constant, linear, quadratic) taken as the client's fixed point-light falloff; the calibration
 line logs the first native light's attenuation to check it.

@@ -441,7 +441,7 @@ void CheckPointLightTableCapture()
     Check(truncated == LocalLightCapture::TableTruncated &&
               truncatedWalk.capture == LocalLightCapture::TableTruncated &&
               truncatedWalk.pointLightCount == kMaxLocalPointLights &&
-              truncatedWalk.candidateCount == kLocalLightCandidatePool,
+              truncatedWalk.candidateCount == kLocalLightCapturePool,
           "a table beyond 8192 nodes is truncated, not rejected: the lights walked so far stay usable");
 
     void* unmapped = VirtualAlloc(nullptr, 65536, MEM_RESERVE, PAGE_NOACCESS);
