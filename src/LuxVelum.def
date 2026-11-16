@@ -11,6 +11,10 @@ EXPORTS
     vf_test_force_depth_write
     vf_test_suppress_depth_write
     vf_test_overlay_visible
+    vf_test_flip_luxvelum_switch
+    vf_test_latch_luxvelum_switch
+    vf_test_luxvelum_switched_off
+    vf_test_fog_status
     vf_test_draw_overlay
     vf_test_settings_window
     vf_test_assign_water_data

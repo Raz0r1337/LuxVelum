@@ -912,7 +912,7 @@ Engine notes behind the code:
 `Insert` (the shipped `OverlayKey`; `Ctrl+F7` when the key is missing) shows and hides a Dear ImGui window over the
 game. On laptops whose F-keys send media keys by
 default, hold Fn (the log names the key that arrived). The window edits every setting below except `Enable`,
-`EngineHooks`, `Overlay` and `OverlayKey`, and the next frame uses the change.
+`EngineHooks`, `Overlay`, `OverlayKey` and `ToggleKey`, and the next frame uses the change.
 **Save** writes the settings changed in the window back to `WTF\LuxVelum.ini`, keeping the comments and every other
 line; settings not changed in the window keep what the file holds. **Revert** reloads the file, and a hand edit of the
 file also replaces unsaved changes. The window shows whether the fog drew in the last frame, or why it did not. It also
@@ -924,7 +924,44 @@ it, and keys only while one of its text fields is active (Ctrl+click on a slider
 client; mouse moves and key-ups always do, so no game key sticks. The window is drawn in the wrapper's
 `Present` with the device state saved and restored, and releases its resources before every `Reset`. An
 exception in the overlay turns it off for the session and is logged; `Overlay=0` leaves the game window
-untouched from the next start.
+untouched from the next start, unless `ToggleKey` is set.
+
+### Switching LuxVelum off
+
+`ToggleKey` and the window's **LuxVelum on** box switch LuxVelum off and on while the game runs. The shipped INI
+leaves `ToggleKey` empty, so no key is taken until a player sets one (same names as `OverlayKey`, for example
+`Ctrl+F9`); a key that arrives as `OverlayKey` does is refused and logged (Windows sends `Ctrl+Pause` and
+`Ctrl+ScrollLock` alike), and the key itself never reaches the client. The window procedure only flips a request, and
+the frame-begin hook (`vf_on_frame_begin`) takes it once per world frame, so every hook of a frame sees one state and
+the log notes each change. Every start begins switched on; nothing is saved. While it is off, a frame that finds
+neither a `ToggleKey` nor the window to switch it on again (`Overlay=0` and no `ToggleKey`, or the overlay stopped
+after an exception) switches it on and logs why, so it never stays off until a restart.
+
+Switched off, each hook takes the path it already takes when the matching setting is off:
+
+- the stock fog is not pushed out of range, no fog, god rays or early composite is drawn, so the M2 batch fog
+  arguments and the glare pass stay the client's (as without fog), and the liquid surface and the world-name text keep
+  the client's depth writes;
+- the water pass is not armed and its copies, wave maps and foam masks are released at the end of the frame, as with
+  `Water=0`, and the client's `waterRipples` value is given back;
+- the glow byte is not fed and the grading copies are released, as with `ForeverGlow=0` and `ColorGrading=0`;
+- the transparent fog counters of `LogLevel=2` stop, so the M2 batch fog calls go straight to the client;
+- the INI is still re-read every second, and the settings window reports the fog and water as not drawn because
+  LuxVelum is switched off.
+
+Switched on again, the first frame keeps the stock fog and draws the fog after the world, as after a loading screen, and
+the early composite returns with the next frame. Nothing needs a reset: the temporal history is used only within 0.25 s
+of the last drawn frame, the local-light stabiliser restarts after 1 s without a step, the sun's sight line is traced
+again, and the water is re-created as when `Water` is set back to 1. Not switched, because they are set up once: the
+graphics device (INTZ depth, the multisampling choice, no `D3DCREATE_PUREDEVICE`) and the patched call sites, which pass
+through; the far clip lifted by `FarClipMax`, which the client clamps again only at a view distance change, a zone
+change or a map load; and the `LightStay` byte, an instruction of the client's code written at start-up. With
+`Overlay=0` at start-up, the window procedure is still chained when `ToggleKey` is set, so the key works without the
+window and `Overlay=1` works again without a restart; without a `ToggleKey` at such a start, the window procedure stays
+the client's, and a `ToggleKey` set later works only from the next start. `Save` takes `Overlay`, `OverlayKey` and
+`ToggleKey` from the INI, so a hand edit of them made since the last reload is kept. Each hotkey swallows only its own
+key-up, so a key released while the other hotkey is held still reaches the client. The log names the keys that arrive
+with Ctrl, Shift or Alt, and `OverlayKey` and `ToggleKey` themselves, as for `OverlayKey` on laptops.
 
 ## Build
 
@@ -1127,8 +1164,9 @@ from it in `FarClipMax=1583` and, since it took a tester's settings (2026-11-16)
 | `Enable` | 1 | Master switch (restart) |
 | `EngineHooks` | 1 | Install the hooks; 0 leaves the client unmodified (restart) |
 | `LightStay` | 1 | Keep point lights on while their model is not drawn, exe patch No. 70 in memory (restart, hooks) |
-| `Overlay` | 1 | In-game settings window; 0 hides it at once, and from the next start leaves the game window alone |
+| `Overlay` | 1 | Settings window; 0 hides it at once, and from the next start leaves the game window alone unless `ToggleKey` is set |
 | `OverlayKey` | Ctrl+F7 | Key that shows and hides the window, with optional `Ctrl+`, `Shift+`, `Alt+` |
+| `ToggleKey` | none | Key that switches LuxVelum off and on while the game runs; empty = no key |
 | `Quality` | 2 | 1 quarter resolution / 16 steps, 2 half / 24, 3 half / 32 |
 | `Density`, `Haze`, `GroundFog`, `FarFog` | 1, 1, 0.6, 1 | Density multipliers; with Classic data `Haze`, `FarFog` and `GroundFog` relative to their defaults scale layers 0, 1 and 2 (haze, far wall, ground fog) |
 | `NoiseAmount` | 0.15 | World-space density variation, 0..1; 0 disables it |
@@ -1242,6 +1280,9 @@ game: both are off when their keys are missing, and the shipped INI keeps `Forev
 - The noise column mapping, the noise volume and `ClassicPhase`'s normalisation are inferred; `ClassicPhase` stays 0:
   the tester's settings set 1, but the shipped INI keeps 0, as 1 burnt the harbour's sunset halo to white.
 - `ForeverGlow` sets only the amount: the client's glow adds `g·blur²`, Forever's a linear term.
+- Switching LuxVelum off and on (`ToggleKey`) is harness-checked only. Switched off, the game is drawn by the client
+  but on LuxVelum's device setup, with the far clip of `FarClipMax` and `LightStay`, so it can differ from a start
+  without LuxVelum where those matter (a game that asked for multisampling LuxVelum could not keep, for example).
 - Ripples are harness-checked only; walkers (2.5 yd/s) push a mound rather than a V, and every unit is stamped round.
 - The ripple step, texel, window, footprint, fades, splash and contact limits are choices, not recovered values.
 - The sprite hold is global: units past the 32 nearest, the 24 yd window or the modern water get no wake at all.

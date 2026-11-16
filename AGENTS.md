@@ -51,13 +51,14 @@ reverse-engineering evidence.
   character's cylinder around the camera focus and its box on screen, kept out of the god rays), `fullscreen_triangle`
   (the triangle every full-screen pass draws, its edges outside the viewport), `transparent_fog` (linear stock fog
   fitted to the volumetric fog for see-through models after the early composite), `overlay` (ImGui settings window:
-  input chaining, drawing at `Present`), `settings_panel` (its widgets), `config`, `install_paths` (the client folder's
-  `Logs`, `WTF` and `Data\LuxVelum`, the DLL's folder as fallback), `log`, `status_log`; water: `water_data` (Forever
-  presets, FFT tiles, foam masks), `water_classify` (liquid classes), `water_spectrum` and `water_fft` (GPU FFT waves),
-  `water_contacts` (contact tracker, ring impulses at the client's ripple events), `water_ripples` (ripple map
-  simulation), `client_ripple_sprites` (hold on the client's `waterRipples` splash and wake sprites), `water_renderer`
-  (copies, stencil tagging, shading); look: `forever_look` (Forever glow byte before the fog composite, grading
-  decisions at world done and frame end), `grading_renderer` (colour grading pass).
+  input chaining, `OverlayKey` and `ToggleKey`, drawing at `Present`), `settings_panel` (its widgets),
+  `luxvelum_switch` (the off and on request of `ToggleKey` and the window, taken once per world frame by the hooks),
+  `config`, `install_paths` (the client folder's `Logs`, `WTF` and `Data\LuxVelum`, the DLL's folder as fallback),
+  `log`, `status_log`; water: `water_data` (Forever presets, FFT tiles, foam masks), `water_classify` (liquid classes),
+  `water_spectrum` and `water_fft` (GPU FFT waves), `water_contacts` (contact tracker, ring impulses at the client's
+  ripple events), `water_ripples` (ripple map simulation), `client_ripple_sprites` (hold on the client's `waterRipples`
+  splash and wake sprites), `water_renderer` (copies, stencil tagging, shading); look: `forever_look` (Forever glow byte
+  before the fog composite, grading decisions at world done and frame end), `grading_renderer` (colour grading pass).
 - `shaders/` — the ps_3_0 passes: `vf_*` fog (march, temporal, composite and its multisampled silhouette split, god
   rays and their late composite after an early one, depth probe and depth-copy check), `vw_*` water (FFT, ripple
   step, depth copy, shading) and `vp_grade` (colour grading). Among the includes, `vf_pixel_noise` holds the pixel

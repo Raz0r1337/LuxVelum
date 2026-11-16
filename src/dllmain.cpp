@@ -9,6 +9,7 @@
 #include "hooks.h"
 #include "install_paths.h"
 #include "log.h"
+#include "luxvelum_switch.h"
 #include "noise_volume.h"
 #include "overlay.h"
 #include "renderer.h"
@@ -198,6 +199,29 @@ extern "C" void __cdecl vf_test_drawn_fog_shaders(IDirect3DPixelShader9** march,
                                                    IDirect3DPixelShader9** splitComposite)
 {
     DrawnFogShaders(LatestFogDevice(), march, composite, splitComposite);
+}
+
+extern "C" void __cdecl vf_test_flip_luxvelum_switch()
+{
+    FlipLuxVelumSwitch();
+}
+
+extern "C" int __cdecl vf_test_latch_luxvelum_switch()
+{
+    return LatchLuxVelumSwitch() ? 1 : 0;
+}
+
+extern "C" int __cdecl vf_test_luxvelum_switched_off(int* flippedOff)
+{
+    *flippedOff = LuxVelumSwitchFlippedOff() ? 1 : 0;
+    return LuxVelumSwitchedOff() ? 1 : 0;
+}
+
+extern "C" int __cdecl vf_test_fog_status(const char** reason)
+{
+    const FogFrameStatus status = LastFogFrameStatus();
+    *reason = status.reason;
+    return status.drawn ? 1 : 0;
 }
 
 extern "C" int __cdecl vf_test_overlay_visible()

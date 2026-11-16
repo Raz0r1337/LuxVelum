@@ -599,6 +599,11 @@ HWND DeviceWindow(HWND focusWindow, const D3DPRESENT_PARAMETERS& pp)
     return pp.hDeviceWindow ? pp.hDeviceWindow : focusWindow;
 }
 
+bool WindowTakesKeys(const Config& cfg)
+{
+    return cfg.overlay || IsHotkeySet(cfg.toggleKey);
+}
+
 void CopyBackParameters(D3DPRESENT_PARAMETERS* engine, const D3DPRESENT_PARAMETERS& used)
 {
     D3DPRESENT_PARAMETERS copy = used;
@@ -932,7 +937,7 @@ HRESULT WrappedD3D9::CreateDevice(UINT adapter, D3DDEVTYPE type, HWND window, DW
         LogMultisampling(device->Multisampling());
         g_latestFogDevice = device;
     }
-    if (device->FogActive() && GlobalConfig().Get().overlay)
+    if (device->FogActive() && WindowTakesKeys(GlobalConfig().Get()))
         AttachOverlay(device->Real(), DeviceWindow(window, *pp));
     *out = device;
     return hr;

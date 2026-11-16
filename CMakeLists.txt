@@ -164,6 +164,7 @@ add_library(LuxVelum SHARED
     src/light_on_screen.cpp
     src/local_light_stabiliser.cpp
     src/log.cpp
+    src/luxvelum_switch.cpp
     src/msaa_depth.cpp
     src/noise_volume.cpp
     src/overlay.cpp

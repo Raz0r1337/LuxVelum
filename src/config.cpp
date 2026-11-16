@@ -466,6 +466,27 @@ std::string KeyName(unsigned virtualKey)
             return k.name;
     return "key " + std::to_string(virtualKey);
 }
+
+unsigned ArrivingVirtualKey(const Hotkey& key)
+{
+    const bool arrivesAsCancel = key.ctrl && (key.virtualKey == VK_PAUSE || key.virtualKey == VK_SCROLL);
+    return arrivesAsCancel ? VK_CANCEL : key.virtualKey;
+}
+
+bool HotkeysArriveAlike(const Hotkey& a, const Hotkey& b)
+{
+    return ArrivingVirtualKey(a) == ArrivingVirtualKey(b) && a.ctrl == b.ctrl && a.shift == b.shift && a.alt == b.alt;
+}
+
+Hotkey ReadToggleKey(const std::string& path, const Hotkey& overlayKey)
+{
+    const Hotkey key = ReadHotkey(path, "ToggleKey", kNoHotkey);
+    if (!IsHotkeySet(key) || !HotkeysArriveAlike(key, overlayKey))
+        return key;
+    VF_LOG_ERROR("ToggleKey=%s cannot be told apart from OverlayKey=%s; ToggleKey is off", HotkeyName(key).c_str(),
+                 HotkeyName(overlayKey).c_str());
+    return kNoHotkey;
+}
 }
 
 bool ParseHotkey(const char* text, Hotkey& out)
@@ -493,6 +514,8 @@ bool ParseHotkey(const char* text, Hotkey& out)
 
 std::string HotkeyName(const Hotkey& key)
 {
+    if (!IsHotkeySet(key))
+        return "none";
     std::string name;
     if (key.ctrl)
         name += "Ctrl+";
@@ -501,6 +524,11 @@ std::string HotkeyName(const Hotkey& key)
     if (key.alt)
         name += "Alt+";
     return name + KeyName(key.virtualKey);
+}
+
+bool IsHotkeySet(const Hotkey& key)
+{
+    return key.virtualKey != 0;
 }
 
 bool SameFogSettings(const Config& a, const Config& b)
@@ -525,6 +553,8 @@ std::string SettingChanges(const Config& before, const Config& after)
         add("Overlay", before.overlay ? "1" : "0", after.overlay ? "1" : "0");
     if (!SameHotkey(before.overlayKey, after.overlayKey))
         add("OverlayKey", HotkeyName(before.overlayKey), HotkeyName(after.overlayKey));
+    if (!SameHotkey(before.toggleKey, after.toggleKey))
+        add("ToggleKey", HotkeyName(before.toggleKey), HotkeyName(after.toggleKey));
     ForEachIntSetting([&](const IntSetting& s) {
         if (before.*s.value != after.*s.value)
             add(s.key, std::to_string(before.*s.value), std::to_string(after.*s.value));
@@ -593,6 +623,7 @@ void ConfigStore::Apply(const Config& edited)
     c.lightStay = m_config.lightStay;
     c.overlay = m_config.overlay;
     c.overlayKey = m_config.overlayKey;
+    c.toggleKey = m_config.toggleKey;
     ClampLiveSettings(c);
     m_config = c;
     LogSetLevel(c.logLevel);
@@ -627,6 +658,9 @@ bool ConfigStore::Save()
         else if (m_config.*s.value != onDisk.*s.value)
             written = WriteSetting(m_path, s.key, m_config.*s.value ? "1" : "0") && written;
     });
+    merged.overlay = onDisk.overlay;
+    merged.overlayKey = onDisk.overlayKey;
+    merged.toggleKey = onDisk.toggleKey;
     m_stamp = FileStamp(m_path);
     if (!written)
     {
@@ -677,6 +711,7 @@ Config ConfigStore::ReadFile() const
     c.lightStay = ReadInt(p, "LightStay", 1, 0, 1) != 0;
     c.overlay = ReadInt(p, "Overlay", 1, 0, 1) != 0;
     c.overlayKey = ReadHotkey(p, "OverlayKey", c.overlayKey);
+    c.toggleKey = ReadToggleKey(p, c.overlayKey);
     ForEachIntSetting([&](const IntSetting& s) { c.*s.value = ReadInt(p, s.key, c.*s.value, s.lo, s.hi); });
     ForEachFloatSetting([&](const FloatSetting& s) { c.*s.value = ReadFloat(p, s.key, c.*s.value, s.lo, s.hi); });
     ForEachBoolSetting([&](const BoolSetting& s) { c.*s.value = ReadInt(p, s.key, c.*s.value ? 1 : 0, 0, 1) != 0; });

@@ -1,5 +1,7 @@
 #include "settings_panel.h"
 
+#include "luxvelum_switch.h"
+
 #include "imgui.h"
 
 #include <algorithm>
@@ -19,7 +21,7 @@ constexpr float kMinPanelHeightInLines = 16.0f;
 constexpr float kPanelMarginInLines = 2.0f;
 constexpr float kLabelWidthInLines = 11.0f;
 constexpr float kLabelShareOfWidth = 0.45f;
-constexpr float kFirstFooterLines = 4.0f;
+constexpr float kFirstFooterLines = 5.0f;
 constexpr float kNoTextWrap = -1.0f;
 constexpr size_t kStatusTextSize = 512;
 const ImVec4 kDrawnColour = {0.45f, 0.85f, 0.45f, 1.0f};
@@ -138,6 +140,22 @@ void DrawWaterStatus(const WaterFrameStatus& status)
         StatusLine(kDrawnColour, "Water: Drawing");
     else
         StatusLine(kSkippedColour, "Water: Not drawing (%s)", named ? status.reason : "no reason given");
+}
+
+void DrawSwitchRow(const Config& cfg)
+{
+    const std::string key = HotkeyName(cfg.toggleKey);
+    char help[kStatusTextSize];
+    std::snprintf(help, sizeof(help),
+                  "Off: the game draws its own fog, water and glow, as without LuxVelum, until LuxVelum is switched "
+                  "on again; a client restart switches it on. ToggleKey in LuxVelum.ini does the same with a key "
+                  "(now %s)",
+                  key.c_str());
+    bool on = !LuxVelumSwitchFlippedOff();
+    if (Toggle("LuxVelum on", on, help))
+        FlipLuxVelumSwitch();
+    ImGui::SameLine();
+    ImGui::TextDisabled("ToggleKey: %s", key.c_str());
 }
 
 void DrawMultisamplingStatus(const MultisamplingStatus& status)
@@ -451,6 +469,7 @@ void SettingsPanel::DrawFooter(ConfigStore& store, const WaterFrameStatus& water
 {
     const float top = ImGui::GetCursorPosY();
     ImGui::Separator();
+    DrawSwitchRow(store.Get());
     DrawWaterStatus(waterStatus);
     DrawMultisamplingStatus(multisampling);
     DrawSaveRow(store);

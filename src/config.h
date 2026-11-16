@@ -19,9 +19,11 @@ struct Hotkey
 };
 
 constexpr Hotkey kDefaultOverlayHotkey = {kVirtualKeyF7, true, false, false};
+constexpr Hotkey kNoHotkey = {0, false, false, false};
 
 bool ParseHotkey(const char* text, Hotkey& out);
 std::string HotkeyName(const Hotkey& key);
+bool IsHotkeySet(const Hotkey& key);
 
 struct Config
 {
@@ -30,6 +32,7 @@ struct Config
     bool lightStay = true;
     bool overlay = true;
     Hotkey overlayKey = kDefaultOverlayHotkey;
+    Hotkey toggleKey = kNoHotkey;
     int quality = 2;
     float density = 1.0f;
     float haze = 1.0f;

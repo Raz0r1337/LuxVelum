@@ -4,6 +4,7 @@
 #include "d3d9_wrap.h"
 #include "fog_model.h"
 #include "log.h"
+#include "luxvelum_switch.h"
 #include "status_log.h"
 
 #include <windows.h>
@@ -18,6 +19,7 @@ constexpr float kGlowByteScale = 255.0f;
 constexpr unsigned kDebugSummaryFrames = 600;
 constexpr int kNoClassicLightMap = -1;
 constexpr const char* kGradingOff = "off";
+constexpr const char* kSwitchedOff = "LuxVelum is switched off";
 constexpr const char* kGhostEffect = "ghost effect";
 constexpr const char* kCameraUnderWater = "camera under water";
 constexpr const char* kNoClassicLight = "no Classic light covers the camera";
@@ -274,11 +276,11 @@ void GradeWorldFrame()
 {
     const GradingFrame grading = g_grading;
     g_grading = GradingFrame();
-    if (GlobalConfig().Get().colorGrading <= 0.0f)
+    if (GlobalConfig().Get().colorGrading <= 0.0f || LuxVelumSwitchedOff())
     {
         ReleaseGradingWhenOff();
         g_status.graded = false;
-        g_status.grading = kGradingOff;
+        g_status.grading = LuxVelumSwitchedOff() ? kSwitchedOff : kGradingOff;
         return;
     }
     if (grading.state == GradingState::NoWorld)
@@ -354,11 +356,23 @@ void FeedGlowGuarded(const ForeverLookFrame& frame, const Config& cfg)
     }
 }
 
+void LeaveTheClientsGlow()
+{
+    g_glow = GlowFrame();
+    RecordGlowStatus();
+    LogGlowOverride();
+}
+
 bool ReadFrameAndFeedGlowOnce()
 {
     if (g_frameRead.attempted)
         return g_frameRead.read;
     g_frameRead.attempted = true;
+    if (LuxVelumSwitchedOff())
+    {
+        LeaveTheClientsGlow();
+        return false;
+    }
     g_frameRead.read = ReadFrame(g_frameRead.frame);
     if (!g_frameRead.read)
     {

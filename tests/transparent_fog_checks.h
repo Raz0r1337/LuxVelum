@@ -731,11 +731,13 @@ struct WorldTextCapture
     IDirect3DDevice9* dev = nullptr;
     Image image;
     int draws = 0;
+    DWORD depthWrite = TRUE;
 };
 
 void __cdecl CaptureAtWorldText(void* batch)
 {
     WorldTextCapture& capture = *static_cast<WorldTextCapture*>(batch);
+    capture.dev->GetRenderState(D3DRS_ZWRITEENABLE, &capture.depthWrite);
     capture.image = Capture(capture.dev);
     ++capture.draws;
 }

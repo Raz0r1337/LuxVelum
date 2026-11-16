@@ -54,6 +54,10 @@ extern "C" __declspec(dllimport) void __cdecl vf_test_drawn_fog_shaders(IDirect3
 extern "C" __declspec(dllimport) void __cdecl vf_test_force_depth_write(int);
 extern "C" __declspec(dllimport) void __cdecl vf_test_suppress_depth_write(int);
 extern "C" __declspec(dllimport) int __cdecl vf_test_overlay_visible();
+extern "C" __declspec(dllimport) void __cdecl vf_test_flip_luxvelum_switch();
+extern "C" __declspec(dllimport) int __cdecl vf_test_latch_luxvelum_switch();
+extern "C" __declspec(dllimport) int __cdecl vf_test_luxvelum_switched_off(int*);
+extern "C" __declspec(dllimport) int __cdecl vf_test_fog_status(const char**);
 extern "C" __declspec(dllimport) void __cdecl vf_test_draw_overlay();
 extern "C" __declspec(dllimport) int __cdecl vf_test_settings_window(float*);
 extern "C" __declspec(dllimport) int __cdecl vf_test_assign_water_data(const WaterPreset*, int,
@@ -2967,6 +2971,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "early_composite_look_checks.h"
 #include "multisampling_checks.h"
 #include "device_creation_checks.h"
+#include "luxvelum_switch_checks.h"
 
 constexpr unsigned long kSecondClientProcessId = 4242;
 constexpr int kLastLogSlot = 8;
@@ -3229,6 +3234,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     LogOpen(NarrowPath(g_harnessLog).c_str());
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     CheckOverlayKeyNames();
+    luxvelum_switch_checks::CheckToggleKeySetting(outDir, FullPath(iniPath));
+    luxvelum_switch_checks::CheckTheSwitchTakesEffectAtTheNextFrame();
     CheckSettingsSaveKeepsTheIni(outDir, FullPath(iniPath));
     CheckRegionLocalLightsSetting(outDir, FullPath(iniPath));
     CheckEarlierSettingsAreTakenOver(outDir, FullPath(iniPath));
@@ -3701,6 +3708,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckDepthWriteStateBlockRestore(h.dev);
     CheckWorldTextDepthIsolation(h);
     transparent_fog_checks::CheckTransparentFog(h);
+    luxvelum_switch_checks::CheckSwitchedOffFogLeavesTheFrameToTheClient(h);
     early_composite_look::CheckLookThroughTheEarlyComposite(h);
     Config restored = cfg;
     vf_test_set_config(&restored);
@@ -3710,12 +3718,17 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     vf_test_set_config(&restored);
     client_sprite_checks::CheckClientSprites(h);
     vf_test_set_config(&restored);
+    luxvelum_switch_checks::CheckSwitchedOffWaterIsReleased(h);
+    luxvelum_switch_checks::CheckSwitchedOffGivesBackTheSpriteGate(h);
+    vf_test_set_config(&restored);
     water_checks::CheckWaterPass(h, outDir, waterDataPath);
     vf_test_set_config(&restored);
     ripple_scene::CheckWakesShowInShadedWater(h, outDir, waterDataPath);
     vf_test_set_config(&restored);
 
     CheckOverlayInput(h);
+    luxvelum_switch_checks::CheckToggleKeyInput(h);
+    luxvelum_switch_checks::CheckSwitchedOnWhenNothingCouldSwitchItOn();
     CheckHotkeyCharactersSwallowedOnlyWhileTheHotkeyIsTyped(h);
     const size_t logBeforeWidgets = water_settings_checks::DllLogSize();
     CheckOverlayWidgets(h);
