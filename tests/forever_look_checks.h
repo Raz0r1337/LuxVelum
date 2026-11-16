@@ -460,11 +460,12 @@ void CheckLookSettings(const std::wstring& outDir, const std::wstring& shippedIn
     shipped.Load(NarrowPath(shippedIni));
     const std::string text = ReadText(shippedIni);
     const std::vector<std::string> lines = water_settings_checks::IniLines(text);
-    Check(shipped.Get().foreverGlow == 0 && shipped.Get().colorGrading == 0.0f && ListsOnce(lines, "ForeverGlow=0") &&
-              ListsOnce(lines, "ColorGrading=0") &&
+    Check(shipped.Get().foreverGlow == 0 && shipped.Get().colorGrading == 0.5f && Config().colorGrading == 0.0f &&
+              ListsOnce(lines, "ForeverGlow=0") && ListsOnce(lines, "ColorGrading=0.5") &&
               text.find("; 1 = the modern client's glow amount") != std::string::npos &&
               text.find("; Strength of the modern client's colour curve") != std::string::npos,
-          "the shipped INI keeps ForeverGlow and ColorGrading off and documents both");
+          "the shipped INI keeps ForeverGlow off and grades at ColorGrading=0.5, the built-in default keeps grading "
+          "off, and the INI documents both");
 
     const std::wstring lookIni = FullPath(outDir + L"\\look.ini");
     CopyFileW(shippedIni.c_str(), lookIni.c_str(), FALSE);

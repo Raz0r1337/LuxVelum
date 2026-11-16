@@ -87,25 +87,39 @@ bool SameWaterSettings(const Config& a, const Config& b)
            a.waterClientSplashes == b.waterClientSplashes && a.waterDebugView == b.waterDebugView;
 }
 
-void CheckShippedWaterDefaults(const std::wstring& shippedIni)
+Config ShippedWaterTuning()
+{
+    Config tuned;
+    tuned.waterWaves = 0.5f;
+    tuned.waterWind = 1.0f;
+    tuned.waterFoam = 0.3f;
+    tuned.waterReflections = 0.5f;
+    tuned.waterSpecular = 1.5f;
+    tuned.waterClarity = 1.4f;
+    return tuned;
+}
+
+void CheckShippedWaterSettings(const std::wstring& shippedIni)
 {
     ConfigStore store;
     store.Load(NarrowPath(shippedIni));
-    Check(SameWaterSettings(store.Get(), Config()), "the shipped INI's water keys load with their defaults");
+    Check(SameWaterSettings(store.Get(), ShippedWaterTuning()),
+          "the shipped INI's water keys load with its tuned waves, wind, foam, reflections, glint and clarity and "
+          "the built-in defaults of the other water keys");
     Check(Config().waterRipples == 0.5f && store.Get().waterRipples == 0.5f,
           "WaterRipples defaults to 0.5, in the code and in the shipped INI");
     const std::vector<std::string> lines = IniLines(ReadText(shippedIni));
-    const char* const shippedLines[] = {"Water=1",          "WaterQuality=2",     "WaterWaves=1.0",
-                                        "WaterWind=2.0",    "WaterFoam=1.0",      "WaterReflections=1.0",
-                                        "WaterSpecular=1.0", "WaterClarity=1.0", "WaterZoneColors=0.5",
-                                        "WaterRipples=0.5", "WaterClientSplashes=0", "WaterDebugView=0"};
+    const char* const shippedLines[] = {"Water=1",           "WaterQuality=2",   "WaterWaves=0.5",
+                                        "WaterWind=1",       "WaterFoam=0.3",    "WaterReflections=0.5",
+                                        "WaterSpecular=1.5", "WaterClarity=1.4", "WaterZoneColors=0.5",
+                                        "WaterRipples=0.5",  "WaterClientSplashes=0", "WaterDebugView=0"};
     int found = 0;
     for (const char* shipped : shippedLines)
         found += std::count(lines.begin(), lines.end(), std::string(shipped)) == 1 ? 1 : 0;
     std::printf("     water keys written once in the shipped INI: %d of %d\n", found,
                 static_cast<int>(sizeof(shippedLines) / sizeof(shippedLines[0])));
     Check(found == static_cast<int>(sizeof(shippedLines) / sizeof(shippedLines[0])),
-          "the shipped INI lists every water key once with its default");
+          "the shipped INI lists every water key once with its shipped value");
     const std::string text = ReadText(shippedIni);
     Check(text.find("; Modern water:") != std::string::npos &&
               text.find("surfaces write depth whatever LiquidDepth says") != std::string::npos &&
@@ -162,7 +176,7 @@ void CheckWaterSettingsSave(const std::wstring& outDir, const std::wstring& ship
     };
     Check(has("Water=0") && has("WaterQuality=3") && has("WaterWaves=1.5") && has("WaterFoam=0.25") &&
               has("WaterRipples=1.5") && has("WaterClientSplashes=1") && has("WaterDebugView=6") &&
-              has("WaterWind=2.0"),
+              has("WaterWind=1"),
           "the saved water lines hold the edited values and the untouched ones keep their text");
 }
 
@@ -311,12 +325,13 @@ void CheckSettingChangesLogged(const std::wstring& outDir, const std::wstring& s
     store.Revert();
     const std::string text = logged();
     std::printf("%s", text.c_str());
-    Check(reloaded && runtime_cost::HasLine(text, "settings from LuxVelum.ini: Density 1 -> 2.5, WaterFoam 1 -> 1.5"),
+    Check(reloaded &&
+              runtime_cost::HasLine(text, "settings from LuxVelum.ini: Density 0.8 -> 2.5, WaterFoam 0.3 -> 1.5"),
           "an INI reload logs the changed keys with their old and new values");
-    Check(quietWhileEditing && CountOf(text, "settings: WaterWind 2 -> 4") == 1 &&
-              CountOf(text, "WaterWind 2 -> 3") == 0,
+    Check(quietWhileEditing && CountOf(text, "settings: WaterWind 1 -> 4") == 1 &&
+              CountOf(text, "WaterWind 1 -> 3") == 0,
           "a window edit logs one line once it settles, from the value before the edit to the value after it");
-    Check(runtime_cost::HasLine(text, "settings reverted to LuxVelum.ini: WaterWind 4 -> 2"),
+    Check(runtime_cost::HasLine(text, "settings reverted to LuxVelum.ini: WaterWind 4 -> 1"),
           "reverting logs the keys it changes");
 }
 
@@ -340,7 +355,8 @@ void CheckSaveLogsNoRoundingChange(const std::wstring& outDir, const std::wstrin
     const bool saved = store.Save();
     const std::string text = LoggedByTheHarnessSince(start);
     std::printf("%s", text.c_str());
-    Check(saved && CountOf(text, "settings: Density 1 -> 3.371") == 1 && CountOf(text, "Density 3.371 -> 3.371") == 0,
+    Check(saved && CountOf(text, "settings: Density 0.8 -> 3.371") == 1 &&
+              CountOf(text, "Density 3.371 -> 3.371") == 0,
           "saving a value typed with more decimals than the INI keeps logs its edit once and no rounding change");
 }
 
@@ -364,7 +380,7 @@ void CheckOverlayKeyReloadLogged(const std::wstring& outDir, const std::wstring&
     const bool reloaded = store.ReloadIfChanged();
     const std::string text = LoggedByTheHarnessSince(start);
     std::printf("%s", text.c_str());
-    Check(reloaded && runtime_cost::HasLine(text, "settings from LuxVelum.ini: OverlayKey Ctrl+F7 -> Ctrl+F8") &&
+    Check(reloaded && runtime_cost::HasLine(text, "settings from LuxVelum.ini: OverlayKey Insert -> Ctrl+F8") &&
               !runtime_cost::HasLine(text, "no live setting changed"),
           "an INI reload that changes only OverlayKey logs the new key instead of saying nothing changed");
 }
@@ -452,7 +468,7 @@ void CheckWaterSettings(const std::wstring& outDir, const std::wstring& shippedI
     CheckSaveLogsNoRoundingChange(outDir, shippedIni);
     CheckOverlayKeyReloadLogged(outDir, shippedIni);
     CheckWaterOnlyEditsKeepFogHistory();
-    CheckShippedWaterDefaults(shippedIni);
+    CheckShippedWaterSettings(shippedIni);
     CheckWaterSettingsSave(outDir, shippedIni);
     CheckWaterSettingClamps(outDir, shippedIni);
     CheckLiquidClassification();

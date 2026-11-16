@@ -1036,7 +1036,7 @@ void CheckRendererDrawsLitStormNoise(Harness& harness)
     vf_test_set_config(&saved);
 }
 
-void CheckClassicNoiseOffByDefault(const std::wstring& shippedIni)
+void CheckShippedIniTurnsClassicNoiseOn(const std::wstring& shippedIni)
 {
     ConfigStore shipped;
     shipped.Load(NarrowPath(shippedIni));
@@ -1053,9 +1053,9 @@ void CheckClassicNoiseOffByDefault(const std::wstring& shippedIni)
         onLines += line == "ClassicNoise=1";
         start = end + 1;
     }
-    Check(!shipped.Get().classicNoise && !Config().classicNoise && offLines == 1 && onLines == 0,
-          "the shipped INI and the built-in default keep ClassicNoise=0, so storms keep their full Classic density "
-          "unless a player turns the noise on");
+    Check(shipped.Get().classicNoise && !Config().classicNoise && onLines == 1 && offLines == 0,
+          "the shipped INI turns ClassicNoise on, the built-in default keeps it off, so an INI without the key keeps "
+          "storms at their full Classic density");
 }
 
 void CheckAuthoredNoise(const FogData& data)

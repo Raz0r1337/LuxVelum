@@ -65,8 +65,8 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
   `tools/extract_lamps.py` makes from the player's own archives (see Lamps from the game files).
 - **Interior transitions**: the camera's native WMO blend reduces outdoor layers and sunlight while preserving
   the interior's native fog colour and range.
-- **Authored noise** (optional, off by default): drifting fog banks where the Classic layers carry the modern
-  client's noise, mostly in storms (`ClassicNoise`).
+- **Authored noise** (on in the shipped INI, off when the key is missing): drifting fog banks where the Classic
+  layers carry the modern client's noise, mostly in storms (`ClassicNoise`).
 - **Density variation**: a two-octave field anchored in world space modulates the scene layers around their
   authored mean and drifts along world +X; the distance fog stays smooth so it cannot uncover the far clip. This
   is an artistic control, not a reconstruction of Classic's authored noise.
@@ -84,9 +84,9 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
 - **See-through effects in the fog** (`TransparentFog=1`, on by default): the fog is drawn before particles, spell
   effects and other see-through models, which take a linear fog fitted to it by their own distance, as in the stock
   client, instead of the fog of the scene behind them; lamp glows fade with distance (see Transparent fog).
-- **Opt-in** (all off by default): Forever's per-light glow amount (`ForeverGlow`) and colour curve (`ColorGrading`)
-  where Classic lights cover the camera, and an energy-normalised phase for the Classic layers' sun and moon
-  scattering (`ClassicPhase`).
+- **Opt-in** (all off when the key is missing; the shipped INI grades at `ColorGrading=0.5`): Forever's per-light glow
+  amount (`ForeverGlow`) and colour curve (`ColorGrading`) where Classic lights cover the camera, and an
+  energy-normalised phase for the Classic layers' sun and moon scattering (`ClassicPhase`).
 
 ## How it renders
 
@@ -120,8 +120,9 @@ its CPU packing). Every point light scatters with one Henyey–Greenstein phase 
 g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. The lights scatter with
 a gain of the region's intensity (`AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`) over its density
 (`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, at least 0.05), here and in the fitted stock fog of see-through
-models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 8 (0..128, the overlay's
-logarithmic sliders reach 96): their converted layers are far thinner than the old world's (Borean Tundra at night
+models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 8 (the shipped INI sets
+Outland to 4; 0..128, the overlay's logarithmic sliders reach 96): their converted layers are far thinner than the old
+world's (Borean Tundra at night
 0.00013/yd of ground fog against Tirisfal's 0.0045 in a tester's log), and the tester needed the slider's former maximum
 of 8 there to match the old world's lamps. Each light's cutoff radius, where its glow fades out, is that of its colour
 times the region's intensity, as for a lamp that much brighter; Azeroth at 1 keeps its radius. A tester found 24 barely
@@ -129,8 +130,6 @@ stronger than 8 in TEST Build-24-10: in Wine's Direct3D on llvmpipe at Amberpine
 3× from 8 to 24 but the displayed glow above the scene only 1.85× (one orange lamp at 20 yd, core 55 → 89 in 8-bit
 codes, 167 at 96), and the halo of a dim lamp at 50 yd stopped at the cutoff of its unscaled colour.
 
-The eight uploaded lights are chosen by a stabiliser rather than re-ranked from scratch every frame. Every capture ranks
-the lights whose sphere meets the view frustum, at any distance, by their irradiance at the camera into a pool of up to
 Twin lights are merged before the stabiliser chooses from the candidate pool (below). The capture ranks up to 48
 candidates, twice the pool, so that both lights of a pair at the pool's edge are seen; after the merge the 24 strongest
 stay. Torches at Light's Hope Chapel come in pairs: in a tester's logs (2026-11) the two lights of one torch lay 0.01 to
@@ -147,6 +146,8 @@ or of the 48 captured candidates can change its lowest address, or, with three o
 move its weighted position beyond the stabiliser's identity radius, and so fades over to a new light as any light that
 changes address does.
 
+The eight uploaded lights are chosen by a stabiliser rather than re-ranked from scratch every frame. Every capture ranks
+the lights whose sphere meets the view frustum, at any distance, by their irradiance at the camera into a pool of up to
 24 candidates (captured from up to 48, see twin lights above), equal irradiance ranking the nearer light first; the view
 test precedes the ranking, so a light whose sphere lies wholly outside the view takes no slot. A light behind or beside
 the camera still competes while its sphere reaches into the view, which a sphere of up to 200 yd does from as far away.
@@ -486,12 +487,13 @@ lights), Sholazar Basin 7.5% (100%) and Borean Tundra 4.7% (99.3%), while Icecro
 sunless and Outland is unchanged. These shares are an offline estimate over zones labelled by the overlay boxes, not a
 measurement in the game.
 
-`OutlandDensity` and `NorthrendDensity` start at 0.15, as the fog read as too strong there in play, and
-`OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived layers with the client's glow.
-`AzerothSkyColor`, `OutlandSkyColor` and `NorthrendSkyColor` (0 by default) mix the scene layers' emissive and shadow
-colours at run time toward the hue of the client's current stock fog colour, which blends the scene into its sky and
-follows the weather, at each colour's own luminance: the stock colour itself is far darker than the Classic emissive
-(0x282A2A against about 0.5 at dusk in the Bone Wastes), so taking it whole would blacken the fog.
+`OutlandDensity` and `NorthrendDensity` start at 0.15 when the key is missing, as the fog read as too strong there in
+play (the shipped INI sets 0.5 and 0.7), and `OutlandClassicFog=0` or `NorthrendClassicFog=0` brings back the derived
+layers with the client's glow. `AzerothSkyColor`, `OutlandSkyColor` and `NorthrendSkyColor` (0 when the key is missing;
+the shipped INI sets 0.5, 1 and 1) mix the scene layers' emissive and shadow colours at run time toward the hue of the
+client's current stock fog colour, which blends the scene into its sky and follows the weather, at each colour's own
+luminance: the stock colour itself is far darker than the Classic emissive (0x282A2A against about 0.5 at dusk in the
+Bone Wastes), so taking it whole would blacken the fog.
 
 The phase of the Classic sun and moon scattering peaks at 1 toward the light. The authored intensities rise as g
 falls, to about 4π for evenly scattering rows, which suggests that the modern lookup is energy-normalised (inferred;
@@ -501,7 +503,8 @@ it is not in the kit); `ClassicPhase=1` multiplies the scattering by `k(g) = (1+
 6674335, variant 002): two octaves sample a tileable 3D noise volume at `frac((p − offset_i)·inverseTile_i)`, their
 average passes through a fixed S-curve of contrast 20 about 0.5, and `f = lerp(1, curve, alpha)` scales the density
 while the emission moves toward the fade colour by `1 − f`, so storm fog becomes patchier and about half as dense.
-It is off by default (`ClassicNoise=0`), as a tester judged the storms without it right (2026-10-25). Alpha is the share
+It is off when the key is missing (`ClassicNoise=0`), as a tester judged the storms without it right (2026-10-25); the
+shipped INI turns it on (`ClassicNoise=1`) since it took another tester's settings (2026-11-16). Alpha is the share
 of a layer's blend weight that carries noise, and each octave scrolls as a phase in tiles, so a
 blend that changes the tile size scales the pattern about the camera. The modern `t_perlinNoise3D` is not in the kit;
 the volume here is a 64³ tileable Perlin noise built at load. The water's reflection fog and the far-clip check take a
@@ -1004,7 +1007,8 @@ Engine notes behind the code:
 
 ## In-game settings
 
-`Ctrl+F7` (`OverlayKey`) shows and hides a Dear ImGui window over the game. On laptops whose F-keys send media keys by
+`Insert` (the shipped `OverlayKey`; `Ctrl+F7` when the key is missing) shows and hides a Dear ImGui window over the
+game. On laptops whose F-keys send media keys by
 default, hold Fn (the log names the key that arrived). The window edits every setting below except `Enable`,
 `EngineHooks`, `Overlay` and `OverlayKey`, and the next frame uses the change.
 **Save** writes the settings changed in the window back to `WTF\LuxVelum.ini`, keeping the comments and every other
@@ -1227,7 +1231,16 @@ transforms against the client's own lights.
 ## Settings
 
 `WTF\LuxVelum.ini` is re-read within a second while the game runs (except `Enable`, `EngineHooks` and `LightStay`);
-its comments describe every key. In the game, `Ctrl+F7` opens the same settings in a window (see In-game settings).
+its comments describe every key. In the game, `Insert` (the shipped `OverlayKey`) opens the same settings in a window
+(see In-game settings).
+
+The Default column holds the built-in value that a key missing from the file takes. The shipped `LuxVelum.ini` differs
+from it in `FarClipMax=1583` and, since it took a tester's settings (2026-11-16), in `OverlayKey=Insert`, `Quality=1`,
+`Density=0.8`, `Haze=0.4`, `FarFog=0`, `NoiseAmount=0`, `NoiseScale=0.001`, `NoiseWindSpeed=0`, `ClassicNoise=1`,
+`OutlandDensity=0.5`, `NorthrendDensity=0.7`, `AzerothSkyColor=0.5`, `OutlandSkyColor=1`, `NorthrendSkyColor=1`,
+`SunScatter=0.44`, `MoonScatter=0.5`, `ClassicExposure=0.6`, `LocalLightIntensity=1.4`,
+`OutlandLocalLights=4`, `LocalLightPhase=0.4`, `GodRays=2.5`, `ColorGrading=0.5`, `WaterWaves=0.5`, `WaterWind=1`,
+`WaterFoam=0.3`, `WaterReflections=0.5`, `WaterSpecular=1.5` and `WaterClarity=1.4`.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -1265,7 +1278,7 @@ its comments describe every key. In the game, `Ctrl+F7` opens the same settings 
 | `GlowCompensation` | 1 | Pre-compensate for the client's glow: the fog with `ColorSpace=1`, else only the god rays |
 | `ForeverGlow` | 0 | 1 gives the client's glow Forever's per-light amount where Classic lights cover the camera |
 | `ColorGrading` | 0 | Strength 0..1 of Forever's per-light colour curve over the 3D view; 0 = off |
-| `FarClipMax` | 1583 | Continent view distance up to 1583 yd, within `farclip`; 0 keeps Ascension's 791 cap |
+| `FarClipMax` | 0 | Continent view distance up to 1583 yd, within `farclip`; 0 keeps Ascension's 791 cap |
 | `MaxDistance` | 5000 | Fog range: sky integration length and the Classic distance-curve scale |
 | `Temporal` | 0.85 | History weight, 0 = off |
 | `Underwater` | 0 | Keep the effect under water |
@@ -1300,8 +1313,9 @@ This is an atmospheric approximation, not a reproduction of WoW Forever's comple
 https://news.blizzard.com/en-gb/article/24303862/world-of-warcraft-forever-whats-next-panel-recap)
 describes mist over water and moonlight through trees; matching those scenes needs matched camera, time, weather
 and exposure captures. Surface lighting and bloom remain the client's own; the modern client's glow amounts and
-colour grading can be applied with `ForeverGlow` and `ColorGrading`, which stay off until they are compared with
-Forever in the game, so by default colours still differ from Classic.
+colour grading can be applied with `ForeverGlow` and `ColorGrading`. Neither has been compared with Forever in the
+game: both are off when their keys are missing, and the shipped INI keeps `ForeverGlow` off and grades at half strength
+(`ColorGrading=0.5`), so colours still differ from Classic.
 
 - The fog has been tested in the client with native D3D9 on an RTX 2060 laptop. A first modern-water build ran
   there on Elwynn lakes and the Darkshore coast; the review fixes since (direct-light shading, narrower shore
@@ -1351,7 +1365,8 @@ Forever in the game, so by default colours still differ from Classic.
 - Modern water: water seen from below keeps the client's look; rivers have no flow direction (the client has no
   flow maps), so Forever's river foam is omitted; the surface stays flat and only its shading moves; reflections are
   screen-space, so what is off screen falls back to the sky colours; interiors are detected by liquid type only.
-- The noise column mapping, the noise volume and `ClassicPhase`'s normalisation are inferred; `ClassicPhase` stays 0.
+- The noise column mapping, the noise volume and `ClassicPhase`'s normalisation are inferred; `ClassicPhase` stays 0:
+  the tester's settings set 1, but the shipped INI keeps 0, as 1 burnt the harbour's sunset halo to white.
 - `ForeverGlow` sets only the amount: the client's glow adds `g·blur²`, Forever's a linear term.
 - Ripples are harness-checked only; walkers (2.5 yd/s) push a mound rather than a V, and every unit is stamped round.
 - The ripple step, texel, window, footprint, fades, splash and contact limits are choices, not recovered values.

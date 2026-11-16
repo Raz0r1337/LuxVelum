@@ -2129,7 +2129,7 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
           "saved settings reload unchanged and the restart-only keys stay as they were");
     const std::string text = ReadText(savedIni);
     Check(text.rfind("; LuxVelum settings.", 0) == 0 && text.find("\nDensity=2.5") != std::string::npos &&
-              text.find("\nHaze=1.0") != std::string::npos && text.find("\nEnable=1") != std::string::npos &&
+              text.find("\nHaze=0.4") != std::string::npos && text.find("\nEnable=1") != std::string::npos &&
               text.find("; Global density multiplier") != std::string::npos &&
               text.find("\nLightShafts=0") != std::string::npos && text.find("\nWorldShadows=0") != std::string::npos &&
               text.find("\nHaloOcclusion=1") != std::string::npos,
@@ -2162,11 +2162,11 @@ void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstrin
     const Config& s = shipped.Get();
     std::printf("     shipped region local lights: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", s.azerothLocalLights,
                 s.outlandLocalLights, s.northrendLocalLights);
-    Check(s.azerothLocalLights == 1.0f && s.outlandLocalLights == 8.0f && s.northrendLocalLights == 8.0f &&
+    Check(s.azerothLocalLights == 1.0f && s.outlandLocalLights == 4.0f && s.northrendLocalLights == 8.0f &&
               ReadText(shippedIni).find("; Local light intensity per region, 0..128 (the settings window's sliders "
                                         "reach 96),") != std::string::npos &&
               kRegionLocalLightsSliderMax == 96.0f && kRegionLocalLightsMax == 128.0f,
-          "the shipped INI starts Outland's and Northrend's local lights at 8 and Azeroth's at 1, and documents "
+          "the shipped INI starts Outland's local lights at 4, Northrend's at 8 and Azeroth's at 1, and documents "
           "their range 0..128 and the sliders' 96");
 
     const std::wstring savedIni = FullPath(outDir + L"\\region-local-lights.ini");
@@ -2268,7 +2268,7 @@ void CheckEarlierSettingsAreTakenOver(const std::wstring& outDir, const std::wst
           "a Luxveil.ini from TEST Build-24-11 is taken over before an older CoAVolFog.ini");
 }
 
-constexpr const char* kShippedDensityLine = "\nDensity=1.0";
+constexpr const char* kShippedDensityLine = "\nDensity=0.8";
 constexpr const char* kTakenOverDensityLine = "\nDensity=2.5";
 constexpr float kTakenOverDensity = 2.5f;
 constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
@@ -3254,7 +3254,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     transparent_fog_checks::CheckTransparentFogSetting(outDir, FullPath(iniPath));
     lamp_data_checks::CheckLampDataFixtureFile(lampDataPath);
     lamp_settings_checks::CheckLampSettings(outDir, FullPath(iniPath));
-    authored_noise::CheckClassicNoiseOffByDefault(FullPath(iniPath));
+    authored_noise::CheckShippedIniTurnsClassicNoiseOn(FullPath(iniPath));
     CheckLightProjectsOntoTheViewport();
     CheckGetProcAddressSlotStates();
     device_creation_checks::CheckDisplayFormats();
