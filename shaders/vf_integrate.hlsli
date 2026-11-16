@@ -10,14 +10,20 @@
 #define LOCAL_LIGHTS 1
 #endif
 
+#ifndef UNROLLS_LAYERS
+#define UNROLLS_LAYERS 1
+#endif
+
 static const int kFogLayers = 4;
 static const int kRegistersPerLayer = 6;
 static const float kGoldenRatioFraction = 0.618034;
 static const bool kMarchesLocalLights = LOCAL_LIGHTS;
-static const bool kUnrollsLayers = !kMarchesLocalLights;
+static const bool kUnrollsLayers = !kMarchesLocalLights && UNROLLS_LAYERS;
 
 float4 cLight : register(c9);
 float4 cMarch : register(c11);
+float4 cHaloShadow : register(c79);
+float4 cHaloEdgePhases : register(c80);
 float4 cLayers[kFogLayers * kRegistersPerLayer] : register(c12);
 
 sampler2D sDepth : register(s0);
@@ -42,6 +48,7 @@ struct FogLayer
     float skyFalloff;
     float limit;
     float densityVariation;
+    float haloEdgePhase;
 };
 
 FogLayer LoadConstantFogLayer(int index)
@@ -66,6 +73,7 @@ FogLayer LoadConstantFogLayer(int index)
     layer.skyFalloff = cLayers[first + 5].y;
     layer.limit = cLayers[first + 5].z;
     layer.densityVariation = cLayers[first + 5].w;
+    layer.haloEdgePhase = cHaloEdgePhases[index];
     return layer;
 }
 
@@ -88,6 +96,11 @@ float3 DirectionToLightView()
 float LightAboveHorizon()
 {
     return cLight.w;
+}
+
+float HaloShadowAt(float sampleDistance)
+{
+    return sampleDistance < cHaloShadow.y ? cHaloShadow.x : 0;
 }
 
 bool JitterEnabled()
@@ -143,9 +156,10 @@ float SkyDensityScale(FogLayer layer, float skyMask, float upward)
     return skyMask > 0 ? exp(-upward * layer.skyFalloff) : 1;
 }
 
-float LayerPhase(FogLayer layer, float cosAngle)
+float LayerPhase(FogLayer layer, float cosAngle, float haloShadow)
 {
-    return lerp(PhaseHG(layer.g, cosAngle), 1, layer.isotropic);
+    float forward = PhaseHG(layer.g, cosAngle);
+    return lerp(forward - haloShadow * max(forward - layer.haloEdgePhase, 0), 1, layer.isotropic);
 }
 
 struct MarchRay
@@ -219,7 +233,7 @@ void AccumulateLayer(FogLayer layer, int layerIndex, float noiseDensity, float c
     float3 emissive = lerp(layer.emissive, layer.shadowEmissive, shadow);
     [flatten] if (kSamplesAuthoredNoise && layerIndex < kNoisyLayers)
         emissive = lerp(emissive, LayerNoiseFade(layerIndex), 1 - noiseDensity);
-    float phase = LayerPhase(layer, cosToLight);
+    float phase = LayerPhase(layer, cosToLight, HaloShadowAt(sampleDistance));
     radiance += (layer.diffuse * (directLight * phase) + emissive) * layerOpticalDepth;
     opticalDepth += layerOpticalDepth;
 }

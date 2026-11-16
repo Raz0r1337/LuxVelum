@@ -117,9 +117,9 @@ float PhaseHG(float g, float cosAngle)
     return r * r * r;
 }
 
-float LayerPhase(const FogLayer& layer, float cosAngle)
+float LayerPhase(const FogLayer& layer, float cosAngle, float haloShadow)
 {
-    const float hg = PhaseHG(layer.g, cosAngle);
+    const float hg = PhaseUnderHaloShadow(PhaseHG(layer.g, cosAngle), layer.g, haloShadow);
     return hg + (1.0f - hg) * layer.isotropic;
 }
 
@@ -142,6 +142,8 @@ struct RayLight
     float cameraHeight;
     float rise;
     float range;
+    float haloShadow;
+    float haloOccluderDistance;
 };
 
 struct FitPointLights
@@ -197,7 +199,8 @@ void AccumulateLayer(const FogLayer& layer, const RayLight& ray, float stepStart
                                     HeightProfile(layer, ray.cameraHeight + ray.rise * sampleDistance) *
                                     shadowDensity;
     stepLayers.portions[stepLayers.count++] = {layerStart, layerStart + layerLength, layerOpticalDepth / layerLength};
-    const float directPhase = (1.0f - shadow) * LayerPhase(layer, ray.cosToLight);
+    const float haloShadow = sampleDistance < ray.haloOccluderDistance ? ray.haloShadow : 0.0f;
+    const float directPhase = (1.0f - shadow) * LayerPhase(layer, ray.cosToLight, haloShadow);
     for (int c = 0; c < 3; ++c)
     {
         const float emissive = layer.emissive[c] + (layer.shadowEmissive[c] - layer.emissive[c]) * shadow;
@@ -350,7 +353,8 @@ void IntegrateRay(const FogParams& fog, const FitPointLights& points, const FitR
                   float stepDepth, int steps, DepthSample* samples)
 {
     const RayLight ray = {Dot3(in.toLight, fitRay.world), fog.lightAboveHorizon, in.camPos[2],
-                          std::clamp(fitRay.world[2], -kMaxFitRise, kMaxFitRise), fog.maxDistance};
+                          std::clamp(fitRay.world[2], -kMaxFitRise, kMaxFitRise), fog.maxDistance, fog.haloShadow,
+                          fog.haloOccluderDistance};
     const RayPointLights lit = PointLightsAlong(points, fitRay.world);
     float transmittance = 1.0f;
     float inScatter[3] = {};

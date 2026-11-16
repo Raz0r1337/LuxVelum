@@ -2946,6 +2946,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "noise_variation_checks.h"
 #include "classic_phase_checks.h"
 #include "march_layer_checks.h"
+#include "celestial_shadow_checks.h"
 #include "local_light_gpu_checks.h"
 #include "silhouette_quality_checks.h"
 #include "authored_noise_checks.h"
@@ -3272,6 +3273,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         CheckHdrLocalLightColours();
         local_light_stabiliser_checks::CheckLocalLightStabiliser();
         lamp_data_checks::CheckLampData();
+        celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
         client_light_stay_checks::CheckClientLightStay();
         client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
         camera_focus_checks::CheckTheFocusFollowsTheClientStores();
@@ -3359,6 +3361,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckHdrLocalLightColours();
     local_light_stabiliser_checks::CheckLocalLightStabiliser();
     lamp_data_checks::CheckLampData();
+    celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
     client_light_stay_checks::CheckClientLightStay();
     client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
     camera_focus_checks::CheckTheFocusFollowsTheClientStores();
@@ -3368,6 +3371,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     authored_noise::CheckAuthoredNoiseOnTheGpu(h.dev);
     classic_phase::CheckIsotropicSlabSaturation(h.dev);
     march_layers::CheckUnrolledMarchMatchesLoopedMarch(h.dev);
+    celestial_shadow::CheckHaloOfAHiddenLight(h.dev);
     local_light_gpu::CheckLocalLightIntegration(h.dev);
     silhouette_quality::CheckSilhouettes(h.dev);
     grazing_upsample::CheckGrazingGroundUpsample(h.dev);

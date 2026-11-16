@@ -66,6 +66,8 @@ struct FogParams
     float rayColor[3];
     float lightVisibility;
     float lightAboveHorizon;
+    float haloShadow = 0.0f;
+    float haloOccluderDistance = 0.0f;
     float directLightMatch;
     float maxDistance;
     float horizonStart;
@@ -93,6 +95,8 @@ Config ConfigForMap(const Config& cfg, int mapId);
 PointLightUpload LocalLightUpload(const Config& cfg, int mapId);
 bool AnyLayerNoise(const FogParams& fog);
 float EnergyNormalisedPhaseScale(float g);
+float HaloEdgePhase(float g);
+float PhaseUnderHaloShadow(float forwardPhase, float g, float haloShadow);
 
 float NoiseDensityCurve(float x);
 float MeanNoiseDensity(const LayerNoise& noise);

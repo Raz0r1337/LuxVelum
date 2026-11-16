@@ -70,9 +70,12 @@ vf_shader(ps_history_depth vf_history_depth.hlsl ps_3_0)
 vf_shader(ps_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0)
 vf_shader(ps_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0)
 vf_shader(ps_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0)
-vf_shader(ps_noisy_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
-vf_shader(ps_noisy_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1)
+vf_shader(ps_noisy_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1
+          /DUNROLLS_LAYERS=0)
+vf_shader(ps_noisy_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1
+          /DUNROLLS_LAYERS=0)
+vf_shader(ps_noisy_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0 /DSAMPLES_AUTHORED_NOISE=1
+          /DUNROLLS_LAYERS=0)
 vf_shader(ps_lit_composite_low vf_composite.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=1)
 vf_shader(ps_lit_composite_mid vf_composite.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=1)
 vf_shader(ps_lit_composite_high vf_composite.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=1)
@@ -86,11 +89,11 @@ vf_shader(ps_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DLOC
 vf_shader(ps_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0)
 vf_shader(ps_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0)
 vf_shader(ps_noisy_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=0
-          /DSAMPLES_AUTHORED_NOISE=1)
+          /DSAMPLES_AUTHORED_NOISE=1 /DUNROLLS_LAYERS=0)
 vf_shader(ps_noisy_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=0
-          /DSAMPLES_AUTHORED_NOISE=1)
+          /DSAMPLES_AUTHORED_NOISE=1 /DUNROLLS_LAYERS=0)
 vf_shader(ps_noisy_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=0
-          /DSAMPLES_AUTHORED_NOISE=1)
+          /DSAMPLES_AUTHORED_NOISE=1 /DUNROLLS_LAYERS=0)
 vf_shader(ps_lit_split_composite_low vf_composite_split.hlsl ps_3_0 /DSTEPS=16 /DLOCAL_LIGHTS=1)
 vf_shader(ps_lit_split_composite_mid vf_composite_split.hlsl ps_3_0 /DSTEPS=24 /DLOCAL_LIGHTS=1)
 vf_shader(ps_lit_split_composite_high vf_composite_split.hlsl ps_3_0 /DSTEPS=32 /DLOCAL_LIGHTS=1)
@@ -138,6 +141,7 @@ target_compile_definitions(imgui
             IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS WIN32_LEAN_AND_MEAN NOMINMAX)
 
 add_library(LuxVelum SHARED
+    src/celestial_occlusion.cpp
     src/character_on_screen.cpp
     src/client_camera_focus.cpp
     src/client_code.cpp
@@ -186,13 +190,13 @@ add_library(version SHARED proxy/version_proxy.cpp proxy/version.def)
 target_link_libraries(version PRIVATE LuxVelum)
 target_compile_definitions(version PRIVATE WIN32_LEAN_AND_MEAN)
 
-add_executable(vfog_harness tests/harness.cpp src/character_on_screen.cpp src/client_camera_focus.cpp
-               src/client_code.cpp src/client_light_stay.cpp src/client_map.cpp src/client_ripple_sprites.cpp
-               src/config.cpp src/engine_actors.cpp src/engine_lights.cpp src/light_on_screen.cpp
-               src/local_light_stabiliser.cpp src/fog_data.cpp src/fog_model.cpp src/gpu_timing.cpp
-               src/install_paths.cpp src/lamp_data.cpp src/lamp_feed.cpp src/log.cpp src/noise_volume.cpp
-               src/transparent_fog.cpp src/water_contacts.cpp src/water_data.cpp src/water_spectrum.cpp
-               src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)
+add_executable(vfog_harness tests/harness.cpp src/celestial_occlusion.cpp src/character_on_screen.cpp
+               src/client_camera_focus.cpp src/client_code.cpp src/client_light_stay.cpp src/client_map.cpp
+               src/client_ripple_sprites.cpp src/config.cpp src/engine_actors.cpp src/engine_lights.cpp
+               src/light_on_screen.cpp src/local_light_stabiliser.cpp src/fog_data.cpp src/fog_model.cpp
+               src/gpu_timing.cpp src/install_paths.cpp src/lamp_data.cpp src/lamp_feed.cpp src/log.cpp
+               src/noise_volume.cpp src/transparent_fog.cpp src/water_contacts.cpp src/water_data.cpp
+               src/water_spectrum.cpp src/water_fft.cpp src/water_ripples.cpp src/status_log.cpp)
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(vfog_harness PRIVATE LuxVelum user32 ole32 windowscodecs)

@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <d3d9.h>
 
+#include "celestial_occlusion.h"
 #include "fog_data.h"
 #include "engine_actors.h"
 #include "engine_lights.h"
@@ -34,6 +35,7 @@ struct FrameInputs
     int mapId;
     LightParamsSelection lightParams;
     LocalLightInputs localLights;
+    CelestialShadow celestialShadow;
 };
 
 constexpr int kSkyColorCount = 6;

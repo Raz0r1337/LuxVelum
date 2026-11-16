@@ -50,6 +50,8 @@ constexpr uint32_t kOtherSunColour = 0xFF4060FF;
 constexpr uint32_t kSunsetDirectColour = 0xFFFF7400;
 constexpr uint32_t kSunsetSpriteColour = 0xFFFFE7B6;
 constexpr float kSunsetElevation = 0.05f;
+constexpr float kHiddenGlintRidgeDistance = 5000.0f;
+constexpr float kHiddenGlintTrunkDistance = 0.5f;
 constexpr float kLitGroundTolerance = 2.0f / 255.0f;
 constexpr Vec3 kGrazingEye = {0, 0, 4};
 constexpr Vec3 kGrazingTarget = {100, 5, 1};
@@ -2078,6 +2080,34 @@ void CheckWaterFollowsTheDirectLight(Harness& h, const Config& base)
           "water is lit by the client's direct light (band 0), not by the sun sprite colour (band 9)");
 }
 
+void CheckHiddenLightDropsTheGlint(Harness& h, const Config& base)
+{
+    const Config on = WaterConfig(base);
+    Config withoutGlint = on;
+    withoutGlint.waterSpecular = 0.0f;
+    WaterView view = DefaultWaterView();
+    WaterView behindRidge = view;
+    behindRidge.in.celestialShadow = {1.0f, kHiddenGlintRidgeDistance};
+    WaterView behindTrunk = view;
+    behindTrunk.in.celestialShadow = {1.0f, kHiddenGlintTrunkDistance};
+    WaterFrame lake;
+    BasinClient open(h, view);
+    BasinClient ridge(h, behindRidge);
+    BasinClient trunk(h, behindTrunk);
+    vf_test_set_config(&on);
+    const WaterFrameResult glinting = open.Render(lake);
+    const WaterFrameResult ridgeHidden = ridge.Render(lake);
+    const WaterFrameResult trunkHidden = trunk.Render(lake);
+    vf_test_set_config(&withoutGlint);
+    const WaterFrameResult noGlint = open.Render(lake);
+    vf_test_set_config(&on);
+    Check(glinting.began && ridgeHidden.began && trunkHidden.began && noGlint.began &&
+              SameImage(ridgeHidden.image, noGlint.image) && SameImage(trunkHidden.image, glinting.image) &&
+              !SameImage(glinting.image, noGlint.image),
+          "the glint leaves the water in front of the ridge that hides the sun and stays on water beyond the "
+          "farthest occluder");
+}
+
 bool MatchesColour(const unsigned char* bgr, DWORD colour)
 {
     const int expected[3] = {static_cast<int>(colour & 0xFF), static_cast<int>((colour >> 8) & 0xFF),
@@ -2460,6 +2490,7 @@ void CheckWaterPass(Harness& h, const std::wstring& outDir, const std::string& w
     CheckStockFoggedCopyIsFoggedOnce(h, base);
     CheckInteriorIgnoresSun(h, base);
     CheckWaterFollowsTheDirectLight(h, base);
+    CheckHiddenLightDropsTheGlint(h, base);
     CheckGrazingReflectionsMissTheShore(h, base, outDir);
     CheckFoamTintsAreLinear(client, base);
     CheckSunsetFoamStaysBelowLitGround(h, base);

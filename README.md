@@ -240,6 +240,26 @@ ground and leaves inside the cylinder count as open sky, and the composites test
 multisampling the rays' edge along the character is not antialiased. An open plain with nothing in front of the sun has
 no shafts by design; the glow around the sun there is Sun scatter's and the client's.
 
+**Hidden sun and moon.** A tester saw the moon's glow and the sun's glint on water shine through mountains
+(2026-11). The fog's forward scattering and the water's glint followed the light's direction alone; only the god rays
+saw occluders. The DLL now traces the client's own sight line every 0.05 s, with the world intersection the glare's
+visibility test uses (see Sun and moon sight line): from half a yard ahead of the camera toward the sun or moon over
+the far clip and, when that is blocked, back from the far end to find the farthest occluder. The hidden share fades
+over 0.2 s, takes a new light (sun or moon) or map at once, and stays 0 when the trace is unavailable; it is scaled by
+the light's height above the horizon. Fog samples nearer than the farthest occluder lose the part of each layer's
+phase above its value 60 degrees from the light, so the halo flattens to its edge instead of going dark, isotropic
+and back-scattering layers keep their light, and fog beyond the occluder, as on a sky ray past the ridge, keeps its
+halo. The water drops its glint where the surface is nearer than the occluder, and the fitted stock fog of see-through
+models follows the fog's rule. The share and the distance go to `c79`, the four layers' edge phases, computed on the
+CPU, to `c80`, the water's share and distance to `c68`. The harness marches a layer with g = 0.8 toward a light
+ahead: hidden, the halo on a surface falls from 0.075 to 0.0016, the edge share, and a sky ray past a ridge 40 yd away
+keeps 1.23 of its 1.30 (low quality), with the old shaders unchanged at 0.075 and 1.30. The unlit march grows from
+537 to 557 instruction slots and the composite from 1040 to 1060; the unlit noisy composites, which would exceed the
+32 temporary registers, march their full-resolution fallback through the layer loop instead of unrolling it (867
+slots instead of 1122). One ray from the camera decides for the whole screen. The trace uses the glare's hit flags
+`0x200112`, and which models they include has not been checked in the game, so trees may not hide the light; only
+loaded terrain counts, and the halo of the fog reflected in water stays.
+
 **Display dither.** The fog is marched and filtered in 16-bit float and blended in 32-bit float, but the composite
 writes 8-bit codes into the client's back buffer. Where a gradient falls slowly, as in the dark outer halo of the sun
 and the moon, one code spans many pixels (about 11 px at code 40 and 18 px at code 33 in a tester's moon screenshot), so
@@ -763,6 +783,15 @@ Engine notes behind the code:
   `0x7F0877 74 3C D9 05 48 8B D3 00 51 B9 A8 8E D3 00`, the moon tail jump `0x7F08AB B9 58 8F D3 00 E9 4B BB 1B 00`
   and `ret` at `0x7F08B5`. The entry `0x7F0870 83 3D CC 8C D3 00 00` is only logged (see Extensions.dll). The call
   at `0x4F9213` itself is patched (see Transparent fog hooks).
+- Sun and moon sight line. The glare's visibility fallback `0x9ABC60` traces from the camera toward the light: it
+  starts half a yard out (float 0.5 at `0x9E2EC4`), ends at the camera plus the light direction times the far clip
+  `[camera+0x40]`, pushes the hit flags (`0x9ABC79 68 12 01 20 00`) and calls `0x77F310` at `0x9ABD18`
+  (`E8 F3 35 DD FF`). `0x77F310` (`55 8B EC 5D E9 57 48 02 00`) jumps to `0x7A3B70`
+  (`55 8B EC 83 EC 18 8B 45 18 83 05 C4 04 CE 00 01`), a cdecl `bool(const float* start, const float* end,
+  float* hit, float* fraction, uint32_t flags, 0)`: the fraction is read and written and starts at 1, the hit point
+  is written only on a hit, and it returns `al`. The DLL checks the thunk's and the entry's bytes before its first
+  trace and calls the thunk with the glare's flags under an exception guard; a fault turns the trace off and is
+  logged once. The second glare test, `0x4F9410` on the world frame `0xB7436C`, is not used.
 - World render order. In `0x4F8EA0` the map render draws the sky, the WDL, terrain and the WMOs with their alpha
   batches, then M2 pass 0 (`0x4F911D`). Above water come M2 pass 2 (`0x4F9167 6A 02`), the liquid (`0x4F9170`),
   weather, the barrier effect and M2 pass 1 (`0x4F918C 6A 01`), under water pass 1, weather, the liquid (`0x4F91B0`)
@@ -1151,6 +1180,8 @@ compare it with the frame time to see the fog's share of a GPU-bound frame. `ski
 was lost, and `fog gpu no samples` means none finished in the interval. Without timestamp queries the log says
 so once and the summaries omit the time; at `LogLevel=0` no queries are issued.
 With Classic data the summary adds the resolved glow, three points of the grading curve and each noisy layer.
+Its day line ends with the sun's or moon's sight line, for example `sight line hidden 1.00 behind 412 yd, halo shadow
+1.00`: the hidden share, the farthest occluder and the share the fog uses after the horizon gate.
 
 Every 60 s the water adds `water gpu 1.24 ms (median of 3500 frames, 0 skipped), classes lake+ocean, waves 256
 (7 tiles)`: its GPU time without the client's own water draws. `water:` lines name each liquid type the first
@@ -1265,7 +1296,7 @@ Forever in the game, so by default colours still differ from Classic.
 - The march, the composite, the water shading and the ripple step need more than the 512 instruction slots
   guaranteed by [baseline pixel shader 3.0](
   https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-3-0), and lower
-  quality does not reduce that (the water shading without its reflection march still takes 1,111 slots). An unsupported
+  quality does not reduce that (the water shading without its reflection march still takes 1,118 slots). An unsupported
   required fog shader disables volumetric fog for that device and logs its name, HRESULT and the shader caps; native
   fog remains the fallback. An unsupported water shading shader leaves the client's own water on that device and logs
   its name and HRESULT, and an unsupported ripple step logs its HRESULT and leaves the modern water without ripples.

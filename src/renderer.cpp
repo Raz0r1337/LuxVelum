@@ -1224,10 +1224,11 @@ void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const Frame
                 in.camTarget[0], in.camTarget[1], in.camTarget[2], in.cameraFocus[0], in.cameraFocus[1],
                 in.cameraFocus[2]);
     VF_LOG_INFO("  day %.4f %s toLight (%.3f %.3f %.3f) view (%.3f %.3f %.3f) vis %.2f above %.2f "
-                "sunPx (%.0f %.0f) rays %.2f",
+                "sunPx (%.0f %.0f) rays %.2f sight line hidden %.2f behind %.0f yd, halo shadow %.2f",
                 in.dayFraction, in.lightIsMoon ? "moon" : "sun", in.toLight[0], in.toLight[1], in.toLight[2],
                 toLightInView[0], toLightInView[1], toLightInView[2], fog.lightVisibility, fog.lightAboveHorizon,
-                sunPx[0], sunPx[1], rayStrength);
+                sunPx[0], sunPx[1], rayStrength, in.celestialShadow.hidden, in.celestialShadow.occluderDistance,
+                fog.haloShadow);
     VF_LOG_INFO("  map %d fog %08X start %.1f end %.1f zone %.1f sun %08X direct %08X ambient %08X refZ %.1f "
                 "glow %.2f, direct light vs Classic %.2f",
                 in.mapId, in.fogColor, in.fogStart, in.fogEnd, in.zoneFogDistance, in.sunColor, in.directColor,
@@ -1577,8 +1578,14 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     SetTarget(dev, m_marchTarget);
     const Float4 celestialLight = {toLightInView[0], toLightInView[1], toLightInView[2], fog.lightAboveHorizon};
     const Float4 march = {cfg.temporal > 0.0f ? 1.0f : 0.0f, fog.maxDistance, fog.horizonStart, fog.farClip};
+    const Float4 haloShadow[2] = {
+        {fog.haloShadow, fog.haloOccluderDistance, 0.0f, 0.0f},
+        {HaloEdgePhase(fog.layers[0].g), HaloEdgePhase(fog.layers[1].g), HaloEdgePhase(fog.layers[2].g),
+         HaloEdgePhase(fog.layers[3].g)},
+    };
     dev->SetPixelShaderConstantF(9, &celestialLight.x, 1);
     dev->SetPixelShaderConstantF(11, &march.x, 1);
+    dev->SetPixelShaderConstantF(79, &haloShadow[0].x, 2);
     static_assert(sizeof(FogLayer) == 6 * sizeof(Float4), "FogLayer is six shader registers");
     dev->SetPixelShaderConstantF(12, &fog.layers[0].start, 6 * kFogLayers);
     uint32_t pointLightCount = cfg.localLights ? std::min(in.localLights.pointLightCount, kMaxLocalPointLights) : 0;

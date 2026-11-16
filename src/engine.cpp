@@ -225,6 +225,18 @@ const CodeBytes kUnfoggedM2BatchLayout[] = {
     {"stored fog write of the setter", 0x0087327F, 5, {0xA3, 0x68, 0x30, 0xD4, 0x00}},
 };
 
+const CodeBytes kWorldIntersectionCode[] = {
+    {"world intersection thunk", 0x0077F310, 9, {0x55, 0x8B, 0xEC, 0x5D, 0xE9, 0x57, 0x48, 0x02, 0x00}},
+    {"world intersection entry", 0x007A3B70, 16,
+     {0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x18, 0x8B, 0x45, 0x18, 0x83, 0x05, 0xC4, 0x04, 0xCE, 0x00, 0x01}},
+};
+
+using WorldIntersectionFn = bool(__cdecl*)(const float* start, const float* end, float* hit, float* fraction,
+                                           uint32_t hitFlags, uint32_t unused);
+constexpr uintptr_t kWorldIntersection = 0x0077F310;
+constexpr uint32_t kGlareSightLineHitFlags = 0x00200112;
+constexpr float kGlareSightLineStart = 0.5f;
+
 constexpr uintptr_t kM2BatchMaterial = 0x98;
 constexpr uintptr_t kM2MaterialBlendMode = 0x2;
 
@@ -792,6 +804,92 @@ void LogNewLiquid(const void* settings, bool read, const LiquidDescription& d, W
         VF_LOG_INFO("water: liquid type %u -> %s (sound bank %u, material %u, flags 0x%X, texture %s)", d.id,
                     WaterClassLabel(waterClass), d.soundBank, d.materialId, d.flags, d.texture0);
 }
+
+LayoutCheck g_worldIntersection = LayoutCheck::Unchecked;
+
+bool WorldIntersectionUsable()
+{
+    if (g_worldIntersection == LayoutCheck::Unchecked)
+        g_worldIntersection = AllCodeBytesMatch(kWorldIntersectionCode, "sun and moon sight line unavailable, their "
+                                                                         "fog halo and water glint stay unshadowed")
+                                  ? LayoutCheck::Matches
+                                  : LayoutCheck::Differs;
+    return g_worldIntersection == LayoutCheck::Matches;
+}
+
+bool WorldSegmentBlocked(const float* from, const float* to, float& fraction, bool& traced)
+{
+    __try
+    {
+        float hit[3] = {};
+        fraction = 1.0f;
+        const bool blocked = reinterpret_cast<WorldIntersectionFn>(kWorldIntersection)(
+            from, to, hit, &fraction, kGlareSightLineHitFlags, 0);
+        traced = std::isfinite(fraction);
+        return blocked;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        traced = false;
+        return false;
+    }
+}
+
+CelestialSightLine TraceCelestialSightLine(const float* camera, const float* toLight, float length)
+{
+    CelestialSightLine sight;
+    if (!WorldIntersectionUsable() || !(length > kGlareSightLineStart))
+        return sight;
+    float nearEnd[3];
+    float farEnd[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        nearEnd[i] = camera[i] + toLight[i] * kGlareSightLineStart;
+        farEnd[i] = camera[i] + toLight[i] * length;
+    }
+    float fraction = 1.0f;
+    bool traced = false;
+    sight.blocked = WorldSegmentBlocked(nearEnd, farEnd, fraction, traced);
+    if (traced && sight.blocked)
+    {
+        const bool blockedFromLight = WorldSegmentBlocked(farEnd, nearEnd, fraction, traced);
+        const float lengthBeyondStart = length - kGlareSightLineStart;
+        sight.farthestBlockAt = blockedFromLight ? length - std::clamp(fraction, 0.0f, 1.0f) * lengthBeyondStart
+                                                 : length;
+    }
+    if (!traced)
+    {
+        g_worldIntersection = LayoutCheck::Differs;
+        VF_LOG_ERROR("the client's world intersection at 0x%08X faulted; the sun's and moon's fog halo and water "
+                     "glint stay unshadowed",
+                     static_cast<unsigned>(kWorldIntersection));
+        return {};
+    }
+    sight.traced = true;
+    return sight;
+}
+
+CelestialShadow TrackCelestialShadow(const FrameInputs& in)
+{
+    static CelestialOcclusion occlusion;
+    const double now = ClockSeconds();
+    if (occlusion.SightLineDue(now, in.lightIsMoon, in.mapId))
+        occlusion.Observe(now, in.lightIsMoon, in.mapId, TraceCelestialSightLine(in.camPos, in.toLight, in.farClip));
+    occlusion.Advance(now);
+    return occlusion.Shadow();
+}
+
+bool BuildFrameInputsGuarded(FrameInputs& out, bool withPointLights, const PointLightUpload& upload)
+{
+    __try
+    {
+        return BuildFrameInputsUnsafe(out, withPointLights, upload);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
 }
 
 void ChooseCurrentMap()
@@ -1026,16 +1124,10 @@ void ClearOpaqueState()
 
 bool BuildFrameInputs(FrameInputs& out, bool withPointLights, const PointLightUpload& upload)
 {
-    if (!g_opaque.valid)
+    if (!g_opaque.valid || !BuildFrameInputsGuarded(out, withPointLights, upload))
         return false;
-    __try
-    {
-        return BuildFrameInputsUnsafe(out, withPointLights, upload);
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER)
-    {
-        return false;
-    }
+    out.celestialShadow = TrackCelestialShadow(out);
+    return true;
 }
 
 bool BuildWaterInputs(WaterInputs& out)

@@ -1270,6 +1270,8 @@ void WaterRenderer::FillClassConstants(ShadingConstants& c, const WaterPreset& p
     c.rippleWindow = m_rippleWindow;
     c.rippleShape = m_rippleShape;
     c.rippleFade = m_rippleFade;
+    c.glintShadow = {noSun ? 0.0f : Saturate(m_in.celestialShadow.hidden), m_in.celestialShadow.occluderDistance,
+                     0.0f, 0.0f};
     for (int slot = 0; slot < kWaterShadedMaskSlots; ++slot)
     {
         const int32_t mask = preset.masks[slot];

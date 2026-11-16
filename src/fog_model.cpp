@@ -6,6 +6,8 @@
 
 namespace
 {
+constexpr float kHaloEdgeCos = 0.5f;
+constexpr float kMinHaloPhaseDenominator = 1.0e-6f;
 constexpr float kHazeDensity = 0.00035f;
 constexpr float kHazeG = 0.75f;
 constexpr float kHazeIsotropic = 0.3f;
@@ -437,6 +439,8 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     float elevation = SmoothStep(-0.03f, 0.10f, in.toLight[2]);
     p.lightVisibility = elevation * (in.lightIsMoon ? kMoonLightScale : 1.0f) * sunAndMoon;
     p.lightAboveHorizon = SmoothStep(-kLightSettingHalfWidth, kLightSettingHalfWidth, in.toLight[2]);
+    p.haloShadow = std::clamp(in.celestialShadow.hidden, 0.0f, 1.0f) * p.lightAboveHorizon;
+    p.haloOccluderDistance = in.celestialShadow.occluderDistance;
     p.farClip = in.farClip;
     p.maxDistance = std::max(cfg.maxDistance, in.farClip);
     p.horizonStart = in.farClip * 0.85f;
@@ -509,6 +513,18 @@ float EnergyNormalisedPhaseScale(float g)
 {
     const float capped = std::min(g, kMaxEnergyNormalisedPhaseG);
     return (1.0f + capped) / (kFourPi * (1.0f - capped) * (1.0f - capped));
+}
+
+float HaloEdgePhase(float g)
+{
+    const float denominator = std::max(1.0f + g * g - 2.0f * g * kHaloEdgeCos, kMinHaloPhaseDenominator);
+    const float r = (1.0f - g) / std::sqrt(denominator);
+    return r * r * r;
+}
+
+float PhaseUnderHaloShadow(float forwardPhase, float g, float haloShadow)
+{
+    return forwardPhase - haloShadow * std::max(forwardPhase - HaloEdgePhase(g), 0.0f);
 }
 
 PointLightUpload LocalLightUpload(const Config& cfg, int mapId)
