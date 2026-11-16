@@ -404,8 +404,7 @@ bool ChromaAgrees(const LocalPointLight& a, const LocalPointLight& b)
 
 bool TwinLights(const LocalPointLight& a, const LocalPointLight& b)
 {
-    if (CatalogLampId(a.nativeId) != CatalogLampId(b.nativeId) ||
-        SquaredDistance(a.position, b.position) > double{kTwinPointLightYards} * kTwinPointLightYards)
+    if (SquaredDistance(a.position, b.position) > double{kTwinPointLightYards} * kTwinPointLightYards)
         return false;
     for (int i = 0; i < 3; ++i)
         if (!CoefficientsAgree(a.attenuation[i], b.attenuation[i]))

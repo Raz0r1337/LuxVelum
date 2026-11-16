@@ -13,8 +13,6 @@
 #include "grading_renderer.h"
 #include "hooks.h"
 #include "install_paths.h"
-#include "lamp_data.h"
-#include "lamp_feed.h"
 #include "light_on_screen.h"
 #include "local_light_stabiliser.h"
 #include "log.h"
@@ -2381,8 +2379,7 @@ std::wstring FreshClientFolder(const std::wstring& outDir, const wchar_t* name)
 {
     const std::wstring dir = FreshTakeoverDirectory(outDir, name);
     for (const wchar_t* file : {L"\\Logs\\LuxVelum.log", L"\\Data\\LuxVelum\\fogdata.bin",
-                                L"\\Data\\LuxVelum\\waterdata.bin", L"\\Data\\LuxVelum\\lampdata.bin",
-                                L"\\fogdata.bin", L"\\waterdata.bin", L"\\lampdata.bin"})
+                                L"\\Data\\LuxVelum\\waterdata.bin", L"\\fogdata.bin", L"\\waterdata.bin"})
         DeleteFileW((dir + file).c_str());
     for (const wchar_t* folder : {L"\\Logs", L"\\WTF", L"\\Data\\LuxVelum", L"\\Data"})
         if (!RemoveDirectoryW((dir + folder).c_str()))
@@ -2395,32 +2392,28 @@ void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& sh
     const std::wstring fresh = FreshClientFolder(outDir, L"client-fresh");
     const std::string freshFolder = NarrowPath(fresh + L"\\");
     const InstallPaths paths = ClientInstallPaths(freshFolder);
-    std::printf("     fresh client folder: log %s, settings %s, fog data %s, water data %s, lamp data %s\n",
-                paths.log.c_str(), paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str(),
-                paths.lampData.c_str());
+    std::printf("     fresh client folder: log %s, settings %s, fog data %s, water data %s\n", paths.log.c_str(),
+                paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
     Check(paths.log == freshFolder + "Logs\\LuxVelum.log" && paths.ini == freshFolder + "WTF\\LuxVelum.ini" &&
               paths.fogData == freshFolder + "Data\\LuxVelum\\fogdata.bin" &&
-              paths.waterData == freshFolder + "Data\\LuxVelum\\waterdata.bin" &&
-              paths.lampData == freshFolder + "Data\\LuxVelum\\lampdata.bin" && IsFolder(fresh + L"\\Logs") &&
+              paths.waterData == freshFolder + "Data\\LuxVelum\\waterdata.bin" && IsFolder(fresh + L"\\Logs") &&
               IsFolder(fresh + L"\\WTF"),
           "in the client folder the log goes into Logs and the settings into WTF, both made when missing, and the "
-          "fog, water and lamp data come from Data\\LuxVelum");
+          "fog and water data come from Data\\LuxVelum");
 
     const std::wstring earlier = FreshClientFolder(outDir, L"client-earlier-install");
     const std::string earlierFolder = NarrowPath(earlier + L"\\");
     WriteText(earlier + L"\\fogdata.bin", "fog");
     WriteText(earlier + L"\\waterdata.bin", "water");
-    WriteText(earlier + L"\\lampdata.bin", "lamps");
     const InstallPaths beside = ClientInstallPaths(earlierFolder);
     CreateDirectoryW((earlier + L"\\Data").c_str(), nullptr);
     CreateDirectoryW((earlier + L"\\Data\\LuxVelum").c_str(), nullptr);
     WriteText(earlier + L"\\Data\\LuxVelum\\fogdata.bin", "fog");
     const InstallPaths partly = ClientInstallPaths(earlierFolder);
     Check(beside.fogData == earlierFolder + "fogdata.bin" && beside.waterData == earlierFolder + "waterdata.bin" &&
-              beside.lampData == earlierFolder + "lampdata.bin" &&
               partly.fogData == earlierFolder + "Data\\LuxVelum\\fogdata.bin" &&
-              partly.waterData == earlierFolder + "waterdata.bin" && partly.lampData == earlierFolder + "lampdata.bin",
-          "an earlier install's fogdata.bin, waterdata.bin and lampdata.bin beside LuxVelum.dll are read there until "
+              partly.waterData == earlierFolder + "waterdata.bin",
+          "an earlier install's fogdata.bin and waterdata.bin beside LuxVelum.dll are read there until "
           "Data\\LuxVelum holds them, and each file there wins on its own");
 
     const std::wstring blocked = FreshClientFolder(outDir, L"client-blocked");
@@ -2462,13 +2455,12 @@ void CheckTheDllUsesTheClientFolders()
     MultiByteToWideChar(CP_ACP, 0, log.c_str(), -1, logPath, MAX_PATH);
     const std::string started = "LuxVelum loaded from " + folder + "; settings " + folder +
                                 "WTF\\LuxVelum.ini, fog data " + folder + "Data\\LuxVelum\\fogdata.bin, water data " +
-                                folder + "Data\\LuxVelum\\waterdata.bin, lamp data " + folder +
-                                "Data\\LuxVelum\\lampdata.bin";
+                                folder + "Data\\LuxVelum\\waterdata.bin";
     std::printf("     LuxVelum.dll in %s writes %s\n", folder.c_str(), log.c_str());
     Check(!folder.empty() && log.rfind(folder + "Logs\\LuxVelum", 0) == 0 &&
               ReadText(logPath).find(started) != std::string::npos,
           "LuxVelum.dll writes its log into the Logs folder beside it and reads WTF\\LuxVelum.ini, "
-          "Data\\LuxVelum\\fogdata.bin, Data\\LuxVelum\\waterdata.bin and Data\\LuxVelum\\lampdata.bin there");
+          "Data\\LuxVelum\\fogdata.bin and Data\\LuxVelum\\waterdata.bin there");
 }
 
 constexpr const char* kVersionDllExports[] = {
@@ -2974,8 +2966,6 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "transparent_fog_checks.h"
 #include "early_composite_look_checks.h"
 #include "multisampling_checks.h"
-#include "lamp_data_checks.h"
-#include "lamp_settings_checks.h"
 #include "device_creation_checks.h"
 
 constexpr unsigned long kSecondClientProcessId = 4242;
@@ -3201,7 +3191,7 @@ void CheckVoidBelowTheHorizonMirrorsTheSky(Harness& h, const Config& cfg, Vec3 e
 }
 
 int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstring& iniPath,
-        const std::string& waterDataPath, const std::string& lampDataPath, bool cpuOnly = false)
+        const std::string& waterDataPath, bool cpuOnly = false)
 {
     Check(vf_test_water_data_loaded() == 0,
           "outside the supported client (no water hooks) the DLL does not load waterdata.bin");
@@ -3252,8 +3242,6 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     water_data_checks::CheckWaterData(outDir, waterDataPath);
     water_settings_checks::CheckWaterSettings(outDir, FullPath(iniPath));
     transparent_fog_checks::CheckTransparentFogSetting(outDir, FullPath(iniPath));
-    lamp_data_checks::CheckLampDataFixtureFile(lampDataPath);
-    lamp_settings_checks::CheckLampSettings(outDir, FullPath(iniPath));
     authored_noise::CheckShippedIniTurnsClassicNoiseOn(FullPath(iniPath));
     CheckLightProjectsOntoTheViewport();
     CheckGetProcAddressSlotStates();
@@ -3274,7 +3262,6 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         CheckHdrLocalLightColours();
         local_light_stabiliser_checks::CheckLocalLightStabiliser();
         twin_light_checks::CheckTwinLights();
-        lamp_data_checks::CheckLampData();
         celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
         client_light_stay_checks::CheckClientLightStay();
         client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
@@ -3363,7 +3350,6 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckHdrLocalLightColours();
     local_light_stabiliser_checks::CheckLocalLightStabiliser();
     twin_light_checks::CheckTwinLights();
-    lamp_data_checks::CheckLampData();
     celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
     client_light_stay_checks::CheckClientLightStay();
     client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
@@ -4303,7 +4289,6 @@ int wmain(int argc, wchar_t** argv)
     std::wstring out = L"harness-out";
     std::string data = "Data\\LuxVelum\\fogdata.bin";
     std::string waterData = "Data\\LuxVelum\\waterdata.bin";
-    std::string lampData = "tests\\data\\lampdata-fixture.bin";
     std::wstring ini = L"WTF\\LuxVelum.ini";
     std::wstring scene;
     D3DMULTISAMPLE_TYPE samples = D3DMULTISAMPLE_NONE;
@@ -4332,12 +4317,6 @@ int wmain(int argc, wchar_t** argv)
             WideCharToMultiByte(CP_ACP, 0, argv[i + 1], -1, path, MAX_PATH, nullptr, nullptr);
             waterData = path;
         }
-        if (std::wcscmp(argv[i], L"--lamp-data") == 0)
-        {
-            char path[MAX_PATH] = {};
-            WideCharToMultiByte(CP_ACP, 0, argv[i + 1], -1, path, MAX_PATH, nullptr, nullptr);
-            lampData = path;
-        }
         if (std::wcscmp(argv[i], L"--scene") == 0)
         {
             scene = argv[i + 1];
@@ -4354,11 +4333,11 @@ int wmain(int argc, wchar_t** argv)
     if (scene == L"ripples")
         return ripple_scene::RunRippleScene(out, waterData);
     if (scene == L"cpu")
-        return Run(out, data, ini, waterData, lampData, true);
+        return Run(out, data, ini, waterData, true);
     if (!scene.empty())
     {
         std::printf("unknown scene %ls (known: cpu, harbour, performance, ripples)\n", scene.c_str());
         return 2;
     }
-    return Run(out, data, ini, waterData, lampData);
+    return Run(out, data, ini, waterData);
 }

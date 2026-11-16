@@ -102,12 +102,11 @@ void CheckDistinctLightsStaySeparate()
     LocalPointLight blue = Torch(TorchNode(1), 1.0f, 20.0f);
     std::swap(blue.color[0], blue.color[2]);
     LocalLightInputs coloured = PoolOf({Torch(TorchNode(0), 0.0f, 20.0f), blue});
-    LocalLightInputs lamp = PoolOf({Torch(TorchNode(0), 0.0f, 20.0f), Torch(CatalogLampIdOf(0), 1.0f, 20.0f)});
     Check(Merge(apart) == 0 && apart.candidateCount == 2 && Merge(within) == 0 && within.candidateCount == 2 &&
               Merge(attenuated) == 0 && attenuated.candidateCount == 2 && Merge(coloured) == 0 &&
-              coloured.candidateCount == 2 && Merge(lamp) == 0 && lamp.candidateCount == 2 && lamp.mergedTwins == 0,
-          "torches 6.3 or 3 yd apart, lights 1 yd apart with 0.7 against 0.9 linear attenuation or another colour, "
-          "and a lampdata.bin lamp beside a native light stay separate lights");
+              coloured.candidateCount == 2 && coloured.mergedTwins == 0,
+          "torches 6.3 or 3 yd apart, and lights 1 yd apart with 0.7 against 0.9 linear attenuation or another "
+          "colour stay separate lights");
 }
 
 void CheckTwinClustersStayCompact()

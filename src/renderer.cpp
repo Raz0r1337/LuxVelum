@@ -3,7 +3,6 @@
 #include "fog_data.h"
 #include "fog_model.h"
 #include "fullscreen_triangle.h"
-#include "lamp_feed.h"
 #include "light_on_screen.h"
 #include "noise_volume.h"
 #include "log.h"
@@ -333,12 +332,6 @@ void DescribeLightPool(const LocalLightInputs& lights, uint32_t uploaded, char* 
     text[0] = '\0';
     if (lights.candidateCount > uploaded)
         written += static_cast<size_t>(std::snprintf(text, size, ", %u in view", lights.candidateCount));
-    const uint32_t pooledLamps =
-        CatalogLampsAmong(lights.candidates, std::min(lights.candidateCount, kLocalLightCandidatePool));
-    if (pooledLamps && written < size)
-        written += static_cast<size_t>(std::snprintf(text + written, size - written,
-                                                     ", lampdata.bin lamps: %u uploaded, %u in view",
-                                                     CatalogLampsAmong(lights.pointLights, uploaded), pooledLamps));
     if (lights.mergedTwins && written < size)
         written += static_cast<size_t>(std::snprintf(text + written, size - written,
                                                      ", %u twin lights merged into their neighbours",
@@ -386,12 +379,11 @@ void LogUploadedLight(uint32_t index, const LocalPointLight& light, const float*
     char merged[kMergedLightsText];
     DescribeMergedLights(light, merged, sizeof(merged));
     VF_LOG_DEBUG("  local light %u: at (%.2f %.2f %.2f), %.1f yd; diffuse (%.4g %.4g %.4g), attenuation %.4g %.4g "
-                 "%.4g, enabled %u; uploaded (%.4g %.4g %.4g), reach %.1f yd%s%s",
+                 "%.4g, enabled %u; uploaded (%.4g %.4g %.4g), reach %.1f yd%s",
                  index, light.position[0], light.position[1], light.position[2], CameraDistance(light, camera),
                  light.color[0], light.color[1], light.color[2], light.attenuation[0], light.attenuation[1],
                  light.attenuation[2], light.enabled, light.uploadedColor[0], light.uploadedColor[1],
-                 light.uploadedColor[2], light.cutoff, CatalogLampId(light.nativeId) ? "; from lampdata.bin" : "",
-                 merged);
+                 light.uploadedColor[2], light.cutoff, merged);
 }
 
 struct CharacterMask

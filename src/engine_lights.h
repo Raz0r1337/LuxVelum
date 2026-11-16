@@ -12,13 +12,6 @@ constexpr float kTwinPointLightYards = 2.5f;
 constexpr float kTwinPointLightSpanYards = 5.0f;
 constexpr float kTwinAttenuationTolerance = 0.1f;
 constexpr float kTwinChromaTolerance = 0.15f;
-constexpr uintptr_t kCatalogLampIdBit = 1;
-
-constexpr bool CatalogLampId(uintptr_t id)
-{
-    return (id & kCatalogLampIdBit) != 0;
-}
-
 constexpr uintptr_t kWmoInstanceRoot = 0xF4;
 constexpr uintptr_t kWmoRootLoaded = 0x1E0;
 constexpr uintptr_t kWmoRootGroupCount = 0x1F4;

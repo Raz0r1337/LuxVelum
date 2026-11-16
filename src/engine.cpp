@@ -2,9 +2,6 @@
 
 #include "client_camera_focus.h"
 #include "client_map.h"
-#include "config.h"
-#include "lamp_data.h"
-#include "lamp_feed.h"
 #include "local_light_stabiliser.h"
 
 #include "log.h"
@@ -433,29 +430,6 @@ LocalLightStabiliser& FogLightStabiliser()
     return stabiliser;
 }
 
-LampFeed& FogLampFeed()
-{
-    static LampFeed feed;
-    return feed;
-}
-
-LampFeedSettings CatalogLampSettings(const Config& cfg)
-{
-    LampFeedSettings settings;
-    settings.enabled = cfg.lampData;
-    settings.intensity = cfg.lampIntensity;
-    settings.distance = cfg.lampDistance;
-    return settings;
-}
-
-void OfferCatalogLamps(const LocalLightCamera& camera, int mapId, const PointLightUpload& upload, double seconds,
-                       LocalLightInputs& lights)
-{
-    LampFeed& feed = FogLampFeed();
-    feed.Offer(GlobalLampCatalog(), mapId, camera, upload, CatalogLampSettings(GlobalConfig().Get()), lights);
-    feed.LogActivity(GlobalLampCatalog(), seconds);
-}
-
 LocalLightCamera FrameLightCamera(const FrameInputs& in)
 {
     LocalLightCamera camera;
@@ -501,7 +475,6 @@ bool BuildFrameInputsUnsafe(FrameInputs& out, bool withPointLights, const PointL
     if (withPointLights)
     {
         const double seconds = ClockSeconds();
-        OfferCatalogLamps(lightCamera, out.mapId, upload, seconds, out.localLights);
         engine::MergeTwinPointLights(out.localLights, lightCamera.position, upload.reach);
         engine::KeepStrongestCandidates(out.localLights);
         FogLightStabiliser().Step(lightCamera, out.mapId, g_opaqueCaptures, seconds, out.localLights);

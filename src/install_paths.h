@@ -8,7 +8,6 @@ struct InstallPaths
     std::string ini;
     std::string fogData;
     std::string waterData;
-    std::string lampData;
 };
 
 InstallPaths ClientInstallPaths(const std::string& clientFolder);

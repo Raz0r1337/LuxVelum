@@ -285,9 +285,9 @@ void CheckLocalLightLogLines(Harness& h)
     const FrameInputs empty = MakeInputs(view, projection, eye, at, world);
     const float statue[3] = {65.9f, 255.0f, 255.0f};
     const float lantern[3] = {1.0f, 0.72f, 0.4f};
-    const LocalPointLight lights[] = {LoggedLight(eye, forward, 20.0f, statue, 0x1000),
-                                      LoggedLight(eye, forward, 40.0f, lantern, 0x1004),
-                                      LoggedLight(eye, forward, 60.0f, lantern, 0x1008)};
+    const LocalPointLight lights[] = {LoggedLight(eye, forward, 20.0f, statue, 0x1001),
+                                      LoggedLight(eye, forward, 40.0f, lantern, 0x1002),
+                                      LoggedLight(eye, forward, 60.0f, lantern, 0x1003)};
     auto inputsWith = [&](int count) {
         FrameInputs inputs = empty;
         for (int i = 0; i < count; ++i)
