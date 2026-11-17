@@ -24,9 +24,9 @@ Reforged. I have no background in volumetric lighting or fog effects, so while I
 change here does not make things worse instead of better. If in doubt, leave LuxVelum disabled (`Enable=0` in
 `WTF\LuxVelum.ini`).
 
-This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), development on `reforged-dev`, releases from
-`reforged-main`) builds on [jealous-sound/coa-vfog](https://github.com/jealous-sound/coa-vfog) and fixes fog lights that
-flickered or went out:
+This fork ([Stormhand-dev/LuxVelum](https://github.com/Stormhand-dev/LuxVelum), development on `reforged-dev`,
+releases from `reforged-main`) builds on [jealous-sound/coa-vfog](https://github.com/jealous-sound/coa-vfog) and fixes
+fog lights that flickered or went out:
 
 - **LightStay** (`LightStay=1`, on by default) keeps the client from switching off a light whose model was not drawn,
   the same byte as patch No. 70 "lightstay" of St0ny's AIO WoW EXE Patcher.
@@ -41,7 +41,7 @@ flickered or went out:
   at low quality is filtered away.
 - **Fog in the rain**: where the Forever kit has no storm fog for a light, the clear fog stays when it rains.
 - **Releases**: every push to `reforged-main` publishes the install zip and keeps only the newest build:
-  [LuxVelum-Win32.zip](https://github.com/Raz0r1337/coa-vfog/releases/latest/download/LuxVelum-Win32.zip).
+  [LuxVelum-Win32.zip](https://github.com/Stormhand-dev/LuxVelum/releases/latest/download/LuxVelum-Win32.zip).
   A push to `reforged-dev` that `reforged-main` does not contain yet publishes a pre-release
   `build-<next>-<k>-test` for testing the next version, `<k>` counting the test builds since the last release.
 

@@ -36,6 +36,25 @@ reverse-engineering evidence.
   the owner's settings over. After an owner test, read `Logs\LuxVelum.log` in the client folder.
 - Keep plans and results in the conversation. Routine edits need no backups, receipts or standalone reports; use Git.
 
+## Owner and testing
+
+- The owner is Stormhand (Daniel), who took the project over from St0ny on 2026-11-17 and is its only in-game
+  tester. Reply to him in Brazilian Portuguese; code, commits, README, issues and release notes stay in English.
+- Develop on `reforged-dev` and release from `reforged-main`. Every push to `reforged-dev` publishes a TEST Build
+  pre-release, so put `[skip ci]` in the message of a commit that changes no shipped file.
+- Ask the owner for short, precise in-game tests: what to do, where, at which game time, and which `LuxVelum.log`
+  lines to read.
+- Owner client: `F:\World of Warcraft - Wrath of the Lich King` (enUS, patched `Wow.exe`, Project Reforged patches
+  `patch-A` to `patch-Y`). RTX 4060 behind DXVK 3.0, which reports AMD (vendor `0x1002`), so the RESZ depth path
+  runs; ReShade on the Vulkan backend; 2560x1080, MSAA 4x, frame cap 72.
+- Day and night tests take their game time from the owner's local AzerothCore server (`F:\AzerothCore`,
+  `mod-TimeIsTime`): set `TimeIsTime.TimeStart` in `server\configs\modules\mod-time_is_time.conf`, then
+  `.reload config` and a relog.
+- Discard `fog gpu` medians from log windows near 30 FPS: that is the client's background frame cap with a
+  downclocked GPU.
+- Light emitters live in the Project Reforged models and LuxVelum detects them at run time; there is no light
+  catalogue file.
+
 ## Repository layout
 
 - `proxy/` — the optional `version.dll` loader that forwards to the system copy.
