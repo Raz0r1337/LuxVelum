@@ -24,9 +24,9 @@ Reforged. I have no background in volumetric lighting or fog effects, so while I
 change here does not make things worse instead of better. If in doubt, leave LuxVelum disabled (`Enable=0` in
 `WTF\LuxVelum.ini`).
 
-This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), development on `st0ny-dev`, releases from
-`st0ny-main`) builds on
-[jealous-sound/coa-vfog](https://github.com/jealous-sound/coa-vfog) and fixes fog lights that flickered or went out:
+This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), development on `reforged-dev`, releases from
+`reforged-main`) builds on [jealous-sound/coa-vfog](https://github.com/jealous-sound/coa-vfog) and fixes fog lights that
+flickered or went out:
 
 - **LightStay** (`LightStay=1`, on by default) keeps the client from switching off a light whose model was not drawn,
   the same byte as patch No. 70 "lightstay" of St0ny's AIO WoW EXE Patcher.
@@ -40,10 +40,10 @@ This fork ([Raz0r1337/coa-vfog](https://github.com/Raz0r1337/coa-vfog), developm
 - **Grain in the fog**: the temporal filter no longer takes the march jitter for a light change, so the dot pattern
   at low quality is filtered away.
 - **Fog in the rain**: where the Forever kit has no storm fog for a light, the clear fog stays when it rains.
-- **Releases**: every push to `st0ny-main` publishes the install zip and keeps only the newest build:
+- **Releases**: every push to `reforged-main` publishes the install zip and keeps only the newest build:
   [LuxVelum-Win32.zip](https://github.com/Raz0r1337/coa-vfog/releases/latest/download/LuxVelum-Win32.zip).
-  A push to `st0ny-dev` that `st0ny-main` does not contain yet publishes a pre-release `build-<next>-<k>-test` for
-  testing the next version, `<k>` counting the test builds since the last release.
+  A push to `reforged-dev` that `reforged-main` does not contain yet publishes a pre-release
+  `build-<next>-<k>-test` for testing the next version, `<k>` counting the test builds since the last release.
 
 ## What it draws
 
@@ -991,29 +991,30 @@ licenses and a `BUILD.txt` identifying the commit and validation. Artifacts are 
 rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision. The optional
 `version.dll` loader comes with the licence as a second artifact, `LuxVelum-version-dll-Win32-<commit>`.
 
-On a push to the release branch `st0ny-main`, and on a manual run of that branch, a second job publishes the same files
-as a GitHub release `build-<n>` titled `LuxVelum Build-<n> (st0ny-main <commit>)` with the assets `LuxVelum-Win32.zip`
-and `LuxVelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence), which need no login to
-download, and then deletes every other release with its tag, test releases included, so the fork keeps only the newest
-build at `releases/latest/download/LuxVelum-Win32.zip`. `<n>` counts on from the highest `build-<n>` release; a rerun
-for the commit that a `build-<n>` tag already points at uploads both zips to that release again. A manual run of
-`st0ny-main` with `refresh` set rebuilds the highest `build-<n>` at the new commit under the same `<n>`: it moves the
-tag to the commit and replaces the title, notes and zips of the release in place, so the release is never deleted and
-keeps its publication date. GitHub may refuse to move a tag with the workflow's `GITHUB_TOKEN` when files under
-`.github/workflows` changed since the tagged commit; a refresh whose tag cannot be moved publishes the commit as
-`build-<n+1>` instead, as a push would, and `build-<n>` is deleted only once `build-<n+1>` exists. A refresh uploads the
-new zip as `LuxVelum-Win32.new.zip` before it moves the tag, then renames the old zip away, gives the new one its name
-and deletes the old one, so the download is missing only between those two renames, never while an upload runs; if the
-upload fails, the release stays as it was. A push whose commit message carries `[skip ci]` runs nothing, so a fix can
-join the current release this way.
-On a push to the development branch `st0ny-dev`, and on a manual run of it, a test job deletes every test release
-(`build-<n>-test` or `build-<n>-<k>-test`) and, when `st0ny-dev` has commits that `st0ny-main` lacks, publishes
-`build-<n+1>-<k>-test` as a pre-release titled `LuxVelum TEST Build-<n+1>-<k> (st0ny-dev <commit>)`, which never
-becomes `releases/latest`. `<k>` is one more than the successful runs of the workflow on `st0ny-dev` since `build-<n>`
-was published, which a refresh does not change, so testers can tell the test builds of one candidate apart. The two
-branches publish in parallel, so the test job looks at the releases again after creating its own and deletes it again
-when `st0ny-main` has published `build-<n+1>` meanwhile. A build whose branch has already moved on to a newer commit
-gets no release and deletes nothing; other branches and pull requests publish none.
+On a push to the release branch `reforged-main`, and on a manual run of that branch, a second job publishes the same
+files as a GitHub release `build-<n>` titled `LuxVelum Build-<n> (reforged-main <commit>)` with the assets
+`LuxVelum-Win32.zip` and `LuxVelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence), which
+need no login to download, and then deletes every other release with its tag, test releases included, so the fork keeps
+only the newest build at `releases/latest/download/LuxVelum-Win32.zip`. `<n>` counts on from the highest `build-<n>`
+release; a rerun for the commit that a `build-<n>` tag already points at uploads both zips to that release again. A
+manual run of `reforged-main` with `refresh` set rebuilds the highest `build-<n>` at the new commit under the same
+`<n>`: it moves the tag to the commit and replaces the title, notes and zips of the release in place, so the release is
+never deleted and keeps its publication date. GitHub may refuse to move a tag with the workflow's `GITHUB_TOKEN` when
+files under `.github/workflows` changed since the tagged commit; a refresh whose tag cannot be moved publishes the
+commit as `build-<n+1>` instead, as a push would, and `build-<n>` is deleted only once `build-<n+1>` exists. A refresh
+uploads the new zip as `LuxVelum-Win32.new.zip` before it moves the tag, then renames the old zip away, gives the new
+one its name and deletes the old one, so the download is missing only between those two renames, never while an upload
+runs; if the upload fails, the release stays as it was. A push whose commit message carries `[skip ci]` runs nothing, so
+a fix can join the current release this way.
+On a push to the development branch `reforged-dev`, and on a manual run of it, a test job deletes every test release
+(`build-<n>-test` or `build-<n>-<k>-test`) and, when `reforged-dev` has commits that `reforged-main` lacks, publishes
+`build-<n+1>-<k>-test` as a pre-release titled `LuxVelum TEST Build-<n+1>-<k> (reforged-dev <commit>)`, which never
+becomes `releases/latest`. `<k>` is one more than the successful runs of the workflow on `reforged-dev` since
+`build-<n>` was published, which a refresh does not change, or one more than the test build it replaces when that is
+higher (so the count goes on after the branch was renamed from `st0ny-dev`), so testers can tell the test builds of one
+candidate apart. The two branches publish in parallel, so the test job looks at the releases again after creating its
+own and deletes it again when `reforged-main` has published `build-<n+1>` meanwhile. A build whose branch has already
+moved on to a newer commit gets no release and deletes nothing; other branches and pull requests publish none.
 
 CI uses Windows Server 2022, MSVC 2022 and `fxc` to build Win32 Release, then runs the comment check and the CPU
 harness. The CPU harness exercises the existing data, fog model, local-light/interior, settings persistence (with the

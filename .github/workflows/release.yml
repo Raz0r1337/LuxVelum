@@ -2,13 +2,13 @@ name: Windows release build
 
 on:
   push:
-    branches: [main, st0ny-dev, st0ny-main]
+    branches: [main, reforged-dev, reforged-main]
   pull_request:
     branches: [main]
   workflow_dispatch:
     inputs:
       refresh:
-        description: On st0ny-main, rebuild the newest release under its number instead of counting on
+        description: On reforged-main, rebuild the newest release under its number instead of counting on
         type: boolean
         default: false
 
@@ -100,7 +100,7 @@ jobs:
     name: Publish the install archive as a release
     needs: build
     if: >-
-      github.ref == 'refs/heads/st0ny-main' &&
+      github.ref == 'refs/heads/reforged-main' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -283,10 +283,10 @@ jobs:
           done
 
   test-release:
-    name: Publish or remove the test release of st0ny-dev
+    name: Publish or remove the test release of reforged-dev
     needs: build
     if: >-
-      github.ref == 'refs/heads/st0ny-dev' &&
+      github.ref == 'refs/heads/reforged-dev' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -315,7 +315,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
-          MAIN: st0ny-main
+          MAIN: reforged-main
           SHA: ${{ github.sha }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -349,6 +349,10 @@ jobs:
           fi
           earlier=$(gh api "${runs}&per_page=1" --jq .total_count)
           attempt=$(( earlier + 1 ))
+          replaced=$(echo "$tests" | awk -F- -v n="$number" 'NF == 4 && $2 == n { print $3 }' | sort -n | tail -n 1)
+          if [ -n "$replaced" ] && [ "$replaced" -ge "$attempt" ]; then
+            attempt=$(( replaced + 1 ))
+          fi
           tag="build-${number}-${attempt}-test"
           title="LuxVelum TEST Build-${number}-${attempt} (${BRANCH} ${short})"
           {
