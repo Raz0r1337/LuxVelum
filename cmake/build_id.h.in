@@ -1,0 +1,3 @@
+#pragma once
+
+constexpr const char* kLuxVelumBuildId = "@LUXVELUM_BUILD_ID@";

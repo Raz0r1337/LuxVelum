@@ -1,3 +1,4 @@
+#include "build_id.h"
 #include "client_light_stay.h"
 #include "client_ripple_sprites.h"
 #include "config.h"
@@ -76,8 +77,8 @@ void Attach(HMODULE module)
     const char* adoptedFrom = AdoptEarlierSettings(dir, paths.ini);
     GlobalConfig().Load(paths.ini);
     const Config& cfg = GlobalConfig().Get();
-    VF_LOG_INFO("LuxVelum loaded from %s; settings %s, fog data %s, water data %s", dir.c_str(), paths.ini.c_str(),
-                paths.fogData.c_str(), paths.waterData.c_str());
+    VF_LOG_INFO("LuxVelum %s loaded from %s; settings %s, fog data %s, water data %s", kLuxVelumBuildId, dir.c_str(),
+                paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
     if (!pinned)
         VF_LOG_ERROR("LuxVelum.dll could not pin itself in the process; unloading it would leave the hooks calling "
                      "unmapped code");

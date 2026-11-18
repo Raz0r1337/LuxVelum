@@ -1,5 +1,6 @@
 #include "settings_panel.h"
 
+#include "build_id.h"
 #include "luxvelum_switch.h"
 
 #include "imgui.h"
@@ -24,6 +25,7 @@ constexpr float kLabelShareOfWidth = 0.45f;
 constexpr float kFirstFooterLines = 5.0f;
 constexpr float kNoTextWrap = -1.0f;
 constexpr size_t kStatusTextSize = 512;
+constexpr size_t kWindowTitleSize = 96;
 const ImVec4 kDrawnColour = {0.45f, 0.85f, 0.45f, 1.0f};
 const ImVec4 kSkippedColour = {0.95f, 0.75f, 0.35f, 1.0f};
 const ImVec4 kErrorColour = {1.0f, 0.4f, 0.4f, 1.0f};
@@ -422,6 +424,14 @@ bool DrawDebug(Config& c)
     changed |= Choice("Log level", c.logLevel, 0, kLogLevelNames, "Detail written to LuxVelum.log");
     return changed;
 }
+
+const char* WindowTitle()
+{
+    static char title[kWindowTitleSize] = {};
+    if (!title[0])
+        std::snprintf(title, sizeof(title), "LuxVelum %s###LuxVelum", kLuxVelumBuildId);
+    return title;
+}
 }
 
 void SettingsPanel::PlaceWindow()
@@ -487,7 +497,7 @@ void SettingsPanel::Draw(ConfigStore& store, const FogFrameStatus& fogStatus, co
 {
     PlaceWindow();
     const bool expanded =
-        ImGui::Begin("LuxVelum", &open, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNavInputs);
+        ImGui::Begin(WindowTitle(), &open, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNavInputs);
     if (!expanded)
     {
         ImGui::End();

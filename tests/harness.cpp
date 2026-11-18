@@ -1635,7 +1635,7 @@ void CheckMap530StartingZonesHaveTheirOwnRegion()
     cfg.tbcStartDensity = 1.0f;
     cfg.azerothLocalLights = 1.0f;
     cfg.outlandLocalLights = 3.0f;
-    cfg.tbcStartLocalLights = 4.0f;
+    cfg.tbcStartLocalLights = 2.0f;
     cfg.outlandClassicFog = 0;
     const MapPlace tranquillien = PlaceOf(kOutland, startingZones[0].position);
     const MapPlace boneWastes = PlaceOf(kOutland, outland[0].position);
@@ -1650,10 +1650,9 @@ void CheckMap530StartingZonesHaveTheirOwnRegion()
               Near(outlandLamps.reach, cfg.outlandLocalLights) && !UsesFogData(cfg, boneWastes),
           "the Ghostlands take the starting zones' density and local lights and keep their converted fog data under "
           "OutlandClassicFog=0, the Bone Wastes take Outland's");
-    Check(Config().tbcStartDensity == 1.0f && Config().tbcStartLocalLights == 4.0f &&
+    Check(Config().tbcStartDensity == 1.0f && Config().tbcStartLocalLights == 2.5f &&
               Config().tbcStartSkyColor == 0.0f,
-          "the starting zones start at density 1 and local lights 4, so their thin converted fog glows like the old "
-          "world's at the same lamp, as the owner judged at Falconwing Square");
+          "the starting zones start at density 1 and local lights 2.5, as the owner chose after Falconwing Square");
     Check(RegionOf(PlaceOf(kOutland, kNowhereReadable)) == MapRegion::Outland,
           "map 530 counts as Outland while the camera position is unreadable");
 }
@@ -2241,11 +2240,11 @@ void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstrin
     std::printf("     shipped region local lights: Azeroth %.2f, Outland %.2f, Northrend %.2f, TBC start %.2f\n",
                 s.azerothLocalLights, s.outlandLocalLights, s.northrendLocalLights, s.tbcStartLocalLights);
     Check(s.azerothLocalLights == 1.0f && s.outlandLocalLights == 4.0f && s.northrendLocalLights == 8.0f &&
-              s.tbcStartLocalLights == 4.0f && s.tbcStartDensity == 1.0f && s.tbcStartSkyColor == 0.5f &&
+              s.tbcStartLocalLights == 2.5f && s.tbcStartDensity == 1.0f && s.tbcStartSkyColor == 0.5f &&
               ReadText(shippedIni).find("; Local light intensity per region, 0..128 (the settings window's sliders "
                                         "reach 96),") != std::string::npos &&
               kRegionLocalLightsSliderMax == 96.0f && kRegionLocalLightsMax == 128.0f,
-          "the shipped INI starts Outland's and the starting zones' local lights at 4, Northrend's at 8 and "
+          "the shipped INI starts Outland's local lights at 4, the starting zones' at 2.5, Northrend's at 8 and "
           "Azeroth's at 1, and documents their range 0..128 and the sliders' 96");
 
     const std::wstring savedIni = FullPath(outDir + L"\\region-local-lights.ini");

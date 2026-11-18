@@ -140,6 +140,12 @@ target_compile_definitions(imgui
     PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS
             IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS WIN32_LEAN_AND_MEAN NOMINMAX)
 
+include(cmake/BuildId.cmake)
+luxvelum_build_id(LUXVELUM_BUILD_ID)
+set(BUILD_ID_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+configure_file(cmake/build_id.h.in ${BUILD_ID_DIR}/build_id.h @ONLY)
+message(STATUS "LuxVelum build id: ${LUXVELUM_BUILD_ID}")
+
 add_library(LuxVelum SHARED
     src/celestial_occlusion.cpp
     src/character_on_screen.cpp
@@ -180,7 +186,7 @@ add_library(LuxVelum SHARED
     src/water_spectrum.cpp
     src/LuxVelum.def)
 add_dependencies(LuxVelum vf_shaders)
-target_include_directories(LuxVelum PRIVATE src ${SHADER_OUT})
+target_include_directories(LuxVelum PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
 target_compile_definitions(LuxVelum PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_compile_options(LuxVelum PRIVATE /W4 /wd4100 /arch:SSE2 /fp:fast /GS)
 target_link_libraries(LuxVelum PRIVATE kernel32 user32 imgui)
@@ -196,7 +202,7 @@ add_executable(vfog_harness tests/harness.cpp src/celestial_occlusion.cpp src/ch
                src/gpu_timing.cpp src/install_paths.cpp src/log.cpp src/noise_volume.cpp src/transparent_fog.cpp
                src/water_contacts.cpp src/water_data.cpp src/water_spectrum.cpp src/water_fft.cpp
                src/water_ripples.cpp src/status_log.cpp)
-target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT})
+target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(vfog_harness PRIVATE LuxVelum user32 ole32 windowscodecs)
 add_custom_target(luxvelum_runtime_files ALL
