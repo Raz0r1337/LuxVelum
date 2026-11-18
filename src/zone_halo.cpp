@@ -142,6 +142,8 @@ void ZoneHaloBook::Load(const std::string& path)
 
 ZoneHalo ZoneHaloBook::Advance(int zoneId, const char* zoneName, double seconds)
 {
+    if (zoneId <= 0 && m_view.zoneId > 0)
+        return m_fade.Advance(m_view.zoneId, m_table.Factors(m_view.zoneId), seconds);
     const ZoneHaloFactors target = m_table.Factors(zoneId);
     if (zoneId != m_view.zoneId)
     {

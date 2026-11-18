@@ -948,16 +948,17 @@ be moved and resized, and keeps its place and size for the session. Its title ba
 commit of `BUILD.txt` (as in `LuxVelum reforged-dev ec0af3b`; `local` for a build outside the CI), and so does the
 first line of `LuxVelum.log`.
 
-The **This zone** section names the client's current zone and sets its sun and moon halo: factors on top of
-`SunScatter` and `MoonScatter` (0..4, 1 = the global value alone), saved to `WTF\LuxVelum-zones.ini` when a slider
-is let go, as `[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone id with the zone's name under `[Zones]`.
-A zone the file does not list keeps 1, and **Reset this zone** removes it. The halo follows the zone the map shows
-(Booty Bay belongs to Stranglethorn Vale), so it does not depend on which Classic light covers the place: Redridge
-has none of its own and takes Eastern Kingdoms' global light, which a per-light factor would have shared with the
-Badlands, Arathi and the sea. Crossing into another zone fades the factors over about two seconds (time constant
-0.6 s); a slider takes effect at once. Each zone change writes a `zone 44 (Redridge Mountains): sun halo …` line
-to the log. The owner judged the halo per zone, not per region: Durotar right, the Barrens and Booty Bay far too
-large, Tirisfal nearly right (2026-11-18, `ClassicPhase=1`).
+The **This zone** section names the client's current zone and sets its sun and moon halo: factors on top of `SunScatter`
+and `MoonScatter` (0..4, 1 = the global value alone), saved to `WTF\LuxVelum-zones.ini` when a slider is let go, as
+`[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone id with the zone's name under `[Zones]`. A zone the file does
+not list keeps 1, and **Reset this zone** removes it. The halo follows the zone the map shows (Booty Bay belongs to
+Stranglethorn Vale), so it does not depend on which Classic light covers the place: Redridge has none of its own and
+takes Eastern Kingdoms' global light, which a per-light factor would have shared with the Badlands, Arathi and the sea.
+Crossing into another zone fades the factors over about two seconds (time constant 0.6 s); a slider takes effect at
+once. While the client reports no zone (id 0, for a second in Duskwood in TEST Build-2-9), the last zone's halo stays.
+Each zone change writes a `zone 44 (Redridge Mountains): sun halo …` line to the log. The owner judged the halo per
+zone, not per region: Durotar right, the Barrens and Booty Bay far too large, Tirisfal nearly right (2026-11-18,
+`ClassicPhase=1`).
 
 While the window is open, clicks and the wheel go to it only while the cursor is over it or a drag started on
 it, and keys only while one of its text fields is active (Ctrl+click on a slider). The hotkey never reaches the

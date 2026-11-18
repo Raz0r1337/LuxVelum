@@ -1655,6 +1655,23 @@ void CheckZoneHaloFade()
           "once");
 }
 
+void CheckZoneHaloKeepsTheZoneThroughAnUnknownOne()
+{
+    constexpr int kDuskwood = 10;
+    ZoneHaloBook book;
+    book.Advance(kDuskwood, "Duskwood", 20.0);
+    book.Edit({0.65f, 1.0f});
+    const ZoneHalo duskwood = book.Advance(kDuskwood, "Duskwood", 20.016);
+    const ZoneHalo loading = book.Advance(0, "", 21.0);
+    const ZoneHalo back = book.Advance(kDuskwood, "Duskwood", 21.5);
+    std::printf("     Duskwood %.2f, zone 0 for a second %.2f (zone %d), back %.2f\n", duskwood.sun, loading.sun,
+                loading.zoneId, back.sun);
+    Check(Near(duskwood.sun, 0.65f) && Near(loading.sun, 0.65f) && loading.zoneId == kDuskwood &&
+              Near(back.sun, 0.65f) && book.Current().zoneId == kDuskwood,
+          "a moment without a zone (0, as the client reported for a second in Duskwood) keeps the last zone's "
+          "halo instead of fading toward 1 and back");
+}
+
 void CheckZoneHaloScalesTheScatter()
 {
     const Vec3 barrens = {-452.0f, -2652.0f, 92.0f};
@@ -3401,6 +3418,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckGhostlandsScattersNoSun(classic);
     CheckMap530StartingZonesHaveTheirOwnRegion();
     CheckZoneHaloFade();
+    CheckZoneHaloKeepsTheZoneThroughAnUnknownOne();
     CheckZoneHaloScalesTheScatter();
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
