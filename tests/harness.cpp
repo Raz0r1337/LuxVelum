@@ -1,3 +1,4 @@
+#include "build_id.h"
 #include "character_on_screen.h"
 #include "client_camera_focus.h"
 #include "client_light_stay.h"
@@ -2535,14 +2536,14 @@ void CheckTheDllUsesTheClientFolders()
     const std::string log = vf_test_log_path();
     wchar_t logPath[MAX_PATH] = {};
     MultiByteToWideChar(CP_ACP, 0, log.c_str(), -1, logPath, MAX_PATH);
-    const std::string started = "LuxVelum loaded from " + folder + "; settings " + folder +
-                                "WTF\\LuxVelum.ini, fog data " + folder + "Data\\LuxVelum\\fogdata.bin, water data " +
-                                folder + "Data\\LuxVelum\\waterdata.bin";
+    const std::string started = std::string("LuxVelum ") + kLuxVelumBuildId + " loaded from " + folder +
+                                "; settings " + folder + "WTF\\LuxVelum.ini, fog data " + folder +
+                                "Data\\LuxVelum\\fogdata.bin, water data " + folder + "Data\\LuxVelum\\waterdata.bin";
     std::printf("     LuxVelum.dll in %s writes %s\n", folder.c_str(), log.c_str());
     Check(!folder.empty() && log.rfind(folder + "Logs\\LuxVelum", 0) == 0 &&
               ReadText(logPath).find(started) != std::string::npos,
-          "LuxVelum.dll writes its log into the Logs folder beside it and reads WTF\\LuxVelum.ini, "
-          "Data\\LuxVelum\\fogdata.bin and Data\\LuxVelum\\waterdata.bin there");
+          "LuxVelum.dll writes its log into the Logs folder beside it, names its build there and reads "
+          "WTF\\LuxVelum.ini, Data\\LuxVelum\\fogdata.bin and Data\\LuxVelum\\waterdata.bin there");
 }
 
 constexpr const char* kVersionDllExports[] = {
