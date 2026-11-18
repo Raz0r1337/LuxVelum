@@ -42,6 +42,8 @@ reverse-engineering evidence.
   tester. Reply to him in Brazilian Portuguese; code, commits, README, issues and release notes stay in English.
 - Develop on `reforged-dev` and release from `reforged-main`. Every push to `reforged-dev` publishes a TEST Build
   pre-release, so put `[skip ci]` in the message of a commit that changes no shipped file.
+- Commits are authored as the owner and keep the `Co-Authored-By` line for Claude, but carry no claude.ai session link
+  (`Claude-Session` line or URL), in commit messages, pull requests or issues.
 - Ask the owner for short, precise in-game tests: what to do, where, at which game time, and which `LuxVelum.log`
   lines to read.
 - Owner client: `F:\World of Warcraft - Wrath of the Lich King` (enUS, patched `Wow.exe`, Project Reforged patches
