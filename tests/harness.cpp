@@ -1604,7 +1604,7 @@ bool LandmarksInRegion(const Landmark (&landmarks)[N], MapRegion region, const c
     return all;
 }
 
-void CheckMap530StartingZonesTakeTheAzerothSettings()
+void CheckMap530StartingZonesHaveTheirOwnRegion()
 {
     const Landmark outland[] = {
         {"Bone Wastes", kOutland, {-3005.0f, 4469.0f, -18.0f}},
@@ -1625,15 +1625,17 @@ void CheckMap530StartingZonesTakeTheAzerothSettings()
     };
     Check(LandmarksInRegion(outland, MapRegion::Outland, "map 530, Outland"),
           "Outland proper on map 530 keeps the Outland settings, out to the farthest reach of its lights");
-    Check(LandmarksInRegion(startingZones, MapRegion::Azeroth, "map 530, Quel'Thalas and the Azuremyst isles"),
+    Check(LandmarksInRegion(startingZones, MapRegion::TBCStart, "map 530, Quel'Thalas and the Azuremyst isles"),
           "Eversong Woods, the Ghostlands, Silvermoon, Quel'Danas, the Azuremyst and Bloodmyst isles and the Exodar "
-          "share map 530 with Outland but lie in Azeroth");
+          "share map 530 with Outland but are the Burning Crusade starting zones");
 
     Config cfg = {};
-    cfg.azerothDensity = 1.0f;
+    cfg.azerothDensity = 1.5f;
     cfg.outlandDensity = 0.5f;
+    cfg.tbcStartDensity = 1.0f;
     cfg.azerothLocalLights = 1.0f;
-    cfg.outlandLocalLights = 4.0f;
+    cfg.outlandLocalLights = 3.0f;
+    cfg.tbcStartLocalLights = 4.0f;
     cfg.outlandClassicFog = 0;
     const MapPlace tranquillien = PlaceOf(kOutland, startingZones[0].position);
     const MapPlace boneWastes = PlaceOf(kOutland, outland[0].position);
@@ -1642,11 +1644,16 @@ void CheckMap530StartingZonesTakeTheAzerothSettings()
     std::printf("     Tranquillien: density %.2f, reach x%.3g; Bone Wastes: density %.2f, reach x%.3g\n",
                 ConfigForPlace(cfg, tranquillien).density, ghostlandsLamps.reach,
                 ConfigForPlace(cfg, boneWastes).density, outlandLamps.reach);
-    Check(Near(ConfigForPlace(cfg, tranquillien).density, cfg.density * cfg.azerothDensity) &&
-              Near(ghostlandsLamps.reach, cfg.azerothLocalLights) && UsesFogData(cfg, tranquillien) &&
+    Check(Near(ConfigForPlace(cfg, tranquillien).density, cfg.density * cfg.tbcStartDensity) &&
+              Near(ghostlandsLamps.reach, cfg.tbcStartLocalLights) && UsesFogData(cfg, tranquillien) &&
               Near(ConfigForPlace(cfg, boneWastes).density, cfg.density * cfg.outlandDensity) &&
               Near(outlandLamps.reach, cfg.outlandLocalLights) && !UsesFogData(cfg, boneWastes),
-          "the Ghostlands take Azeroth's density, local lights and fog data, the Bone Wastes Outland's");
+          "the Ghostlands take the starting zones' density and local lights and keep their converted fog data under "
+          "OutlandClassicFog=0, the Bone Wastes take Outland's");
+    Check(Config().tbcStartDensity == 1.0f && Config().tbcStartLocalLights == 4.0f &&
+              Config().tbcStartSkyColor == 0.0f,
+          "the starting zones start at density 1 and local lights 4, so their thin converted fog glows like the old "
+          "world's at the same lamp, as the owner judged at Falconwing Square");
     Check(RegionOf(PlaceOf(kOutland, kNowhereReadable)) == MapRegion::Outland,
           "map 530 counts as Outland while the camera position is unreadable");
 }
@@ -2231,26 +2238,29 @@ void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstrin
     ConfigStore shipped;
     shipped.Load(NarrowPath(shippedIni));
     const Config& s = shipped.Get();
-    std::printf("     shipped region local lights: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", s.azerothLocalLights,
-                s.outlandLocalLights, s.northrendLocalLights);
+    std::printf("     shipped region local lights: Azeroth %.2f, Outland %.2f, Northrend %.2f, TBC start %.2f\n",
+                s.azerothLocalLights, s.outlandLocalLights, s.northrendLocalLights, s.tbcStartLocalLights);
     Check(s.azerothLocalLights == 1.0f && s.outlandLocalLights == 4.0f && s.northrendLocalLights == 8.0f &&
+              s.tbcStartLocalLights == 4.0f && s.tbcStartDensity == 1.0f && s.tbcStartSkyColor == 0.5f &&
               ReadText(shippedIni).find("; Local light intensity per region, 0..128 (the settings window's sliders "
                                         "reach 96),") != std::string::npos &&
               kRegionLocalLightsSliderMax == 96.0f && kRegionLocalLightsMax == 128.0f,
-          "the shipped INI starts Outland's local lights at 4, Northrend's at 8 and Azeroth's at 1, and documents "
-          "their range 0..128 and the sliders' 96");
+          "the shipped INI starts Outland's and the starting zones' local lights at 4, Northrend's at 8 and "
+          "Azeroth's at 1, and documents their range 0..128 and the sliders' 96");
 
     const std::wstring savedIni = FullPath(outDir + L"\\region-local-lights.ini");
     CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE);
     WritePrivateProfileStringW(L"LuxVelum", L"AzerothLocalLights", L"12", savedIni.c_str());
     WritePrivateProfileStringW(L"LuxVelum", L"OutlandLocalLights", L"96", savedIni.c_str());
     WritePrivateProfileStringW(L"LuxVelum", L"NorthrendLocalLights", L"200", savedIni.c_str());
+    WritePrivateProfileStringW(L"LuxVelum", L"TBCStartLocalLights", L"300", savedIni.c_str());
     ConfigStore written;
     written.Load(NarrowPath(savedIni));
     const Config& w = written.Get();
     std::printf("     written 12, 96 and 200: Azeroth %.2f, Outland %.2f, Northrend %.2f\n", w.azerothLocalLights,
                 w.outlandLocalLights, w.northrendLocalLights);
-    Check(w.azerothLocalLights == 12.0f && w.outlandLocalLights == 96.0f && w.northrendLocalLights == 128.0f,
+    Check(w.azerothLocalLights == 12.0f && w.outlandLocalLights == 96.0f && w.northrendLocalLights == 128.0f &&
+              w.tbcStartLocalLights == 128.0f,
           "region local lights read from the INI up to 128 and clamp to 128 above it");
 }
 
@@ -3282,7 +3292,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckSunlessSkiesScatterNoSunOrMoon(classic);
     CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(classic);
     CheckGhostlandsScattersNoSun(classic);
-    CheckMap530StartingZonesTakeTheAzerothSettings();
+    CheckMap530StartingZonesHaveTheirOwnRegion();
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
     CheckLocalLightsGlowByRegion();

@@ -87,6 +87,7 @@ enum class MapRegion
     Azeroth,
     Outland,
     Northrend,
+    TBCStart,
 };
 
 struct MapPlace

@@ -365,6 +365,8 @@ float RegionSkyColorShare(const Config& cfg, MapRegion region)
         return cfg.outlandSkyColor;
     case MapRegion::Northrend:
         return cfg.northrendSkyColor;
+    case MapRegion::TBCStart:
+        return cfg.tbcStartSkyColor;
     default:
         return cfg.azerothSkyColor;
     }
@@ -397,6 +399,8 @@ float RegionLocalLights(const Config& cfg, MapRegion region)
         return cfg.outlandLocalLights;
     case MapRegion::Northrend:
         return cfg.northrendLocalLights;
+    case MapRegion::TBCStart:
+        return cfg.tbcStartLocalLights;
     default:
         return cfg.azerothLocalLights;
     }
@@ -410,6 +414,8 @@ float RegionDensity(const Config& cfg, MapRegion region)
         return cfg.outlandDensity;
     case MapRegion::Northrend:
         return cfg.northrendDensity;
+    case MapRegion::TBCStart:
+        return cfg.tbcStartDensity;
     default:
         return cfg.azerothDensity;
     }
@@ -492,7 +498,7 @@ MapPlace CameraPlace(const FrameInputs& in)
 MapRegion RegionOf(const MapPlace& place)
 {
     if (place.mapId == kExpansion01Map)
-        return place.y < kOutlandMinY ? MapRegion::Azeroth : MapRegion::Outland;
+        return place.y < kOutlandMinY ? MapRegion::TBCStart : MapRegion::Outland;
     if (place.mapId == kNorthrendMap)
         return MapRegion::Northrend;
     return MapRegion::Azeroth;
@@ -506,6 +512,8 @@ const char* RegionName(MapRegion region)
         return "Outland";
     case MapRegion::Northrend:
         return "Northrend";
+    case MapRegion::TBCStart:
+        return "TBCStart";
     default:
         return "Azeroth";
     }

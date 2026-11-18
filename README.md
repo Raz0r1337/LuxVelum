@@ -115,10 +115,11 @@ brighter than 1 carries it in the colour. In linear light a colour whose brighte
 its chromaticity, `(c/peak)^2.2 · peak`, as the modern client scales light colours linearly (a choice; the kit lacks
 its CPU packing). Every point light scatters with one Henyey–Greenstein phase normalised to 1 toward the light,
 g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. The lights scatter with
-a gain of the region's intensity (`AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`) over its density
-(`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, at least 0.05), here and in the fitted stock fog of see-through
-models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 8 (the shipped INI sets
-Outland to 4; 0..128, the overlay's logarithmic sliders reach 96): their converted layers are far thinner than the old
+a gain of the region's intensity (`AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`,
+`TBCStartLocalLights`) over its density (`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, `TBCStartDensity`, at
+least 0.05), here and in the fitted stock fog of see-through models, so a region thinned to 0.15 keeps the glow of its
+lamps. Outland and Northrend start at 8 (the shipped INI sets Outland to 4; 0..128, the overlay's logarithmic sliders
+reach 96) and the Burning Crusade starting zones at 4: their converted layers are far thinner than the old
 world's (Borean Tundra at night
 0.00013/yd of ground fog against Tirisfal's 0.0045 in a tester's log), and the tester needed the slider's former maximum
 of 8 there to match the old world's lamps. Each light's cutoff radius, where its glow fades out, is that of its colour
@@ -491,14 +492,17 @@ client's current stock fog colour, which blends the scene into its sky and follo
 luminance: the stock colour itself is far darker than the Classic emissive (0x282A2A against about 0.5 at dusk in the
 Bone Wastes), so taking it whole would blacken the fog.
 
-The region of these settings follows the camera, not the map alone. Map 530 holds Outland and also the Burning
-Crusade starting zones (Eversong Woods, the Ghostlands, Silvermoon City, the Isle of Quel'Danas, Azuremyst and Bloodmyst
-Isles and the Exodar), which lie in Azeroth and take the Azeroth settings: `AzerothDensity`, `AzerothSkyColor`,
-`AzerothLocalLights`, and their converted client lights whatever `OutlandClassicFog` says. Outland is the part of map
-530 at y ≥ −2550 yd. In the shipped `fogdata.bin` the 155 Outland lights of map 530 reach no further than y = −727 yd
-and its 23 starting-zone lights no closer than y = −4373 yd, so the line passes about 1800 yd from both; the land of
-both lies within its lights. While the camera position cannot be read, map 530 counts as Outland. The `map` lines of
-`LuxVelum.log` name the region, as in `map 530 (Azeroth) at (7595 -6782 87)`.
+The region of these settings follows the camera, not the map alone. Map 530 holds Outland and also the Burning Crusade
+starting zones (Eversong Woods, the Ghostlands, Silvermoon City, the Isle of Quel'Danas, Azuremyst and Bloodmyst Isles
+and the Exodar), which lie in Azeroth but have a region of their own, `TBCStart`: `TBCStartDensity`, `TBCStartSkyColor`
+and `TBCStartLocalLights`, and their converted client lights whatever `OutlandClassicFog` says. With the Azeroth values
+(TEST Build-2-4) their lamps glowed far weaker than Elwynn's: at Falconwing Square at midnight the converted ground fog
+held 0.0020/yd against Goldshire's 0.0078/yd, under a moonlit fog about seven times brighter, and the tester found the
+lamps right again at local lights 4 with density 1, the defaults of the region. Outland is the part of map 530 at
+y ≥ −2550 yd. In the shipped `fogdata.bin` the 155 Outland lights of map 530 reach no further than y = −727 yd and its
+23 starting-zone lights no closer than y = −4373 yd, so the line passes about 1800 yd from both; the land of both lies
+within its lights. While the camera position cannot be read, map 530 counts as Outland. The `map` lines of
+`LuxVelum.log` name the region, as in `map 530 (TBCStart) at (7595 -6782 87)`.
 
 The phase of the Classic sun and moon scattering peaks at 1 toward the light. The authored intensities rise as g
 falls, to about 4π for evenly scattering rows, which suggests that the modern lookup is energy-normalised (inferred;
@@ -1165,7 +1169,7 @@ The Default column holds the built-in value that a key missing from the file tak
 from it in `FarClipMax=1583` and, since it took a tester's settings (2026-11-16), in `OverlayKey=Insert`, `Quality=1`,
 `Density=0.8`, `Haze=0.4`, `FarFog=0`, `NoiseAmount=0`, `NoiseScale=0.001`, `NoiseWindSpeed=0`, `ClassicNoise=1`,
 `OutlandDensity=0.5`, `NorthrendDensity=0.7`, `AzerothSkyColor=0.5`, `OutlandSkyColor=1`, `NorthrendSkyColor=1`,
-`SunScatter=0.44`, `MoonScatter=0.5`, `ClassicExposure=0.6`, `LocalLightIntensity=1.4`,
+`TBCStartSkyColor=0.5`, `SunScatter=0.44`, `MoonScatter=0.5`, `ClassicExposure=0.6`, `LocalLightIntensity=1.4`,
 `OutlandLocalLights=4`, `LocalLightPhase=0.4`, `GodRays=2.5`, `ColorGrading=0.5`, `WaterWaves=0.5`, `WaterWind=1`,
 `WaterFoam=0.3`, `WaterReflections=0.5`, `WaterSpecular=1.5` and `WaterClarity=1.4`.
 
@@ -1186,10 +1190,10 @@ from it in `FarClipMax=1583` and, since it took a tester's settings (2026-11-16)
 | `StockFog` | 1 | 1 replaces the stock fog with the distance fog, 0 keeps it |
 | `TransparentFog` | 1 | 1 fogs see-through effects at their own distance, 0 at the scene behind (see Transparent fog) |
 | `DataMode` | 1 | 1 Classic layers where available, 0 derived layers everywhere |
-| `AzerothDensity`, `OutlandDensity`, `NorthrendDensity` | 1, 0.15, 0.15 | Density per region, on top of `Density` |
-| `AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights` | 1, 8, 8 | Lamp intensity and reach, 0..128 |
+| `AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, `TBCStartDensity` | 1, 0.15, 0.15, 1 | Density per region, on top of `Density` |
+| `AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`, `TBCStartLocalLights` | 1, 8, 8, 4 | Lamp intensity and reach, 0..128 |
 | `OutlandClassicFog`, `NorthrendClassicFog` | 1, 1 | 1 the converted client lights there, 0 derived layers |
-| `AzerothSkyColor`, `OutlandSkyColor`, `NorthrendSkyColor` | 0, 0, 0 | Share of the client's fog hue in the layers |
+| `AzerothSkyColor`, `OutlandSkyColor`, `NorthrendSkyColor`, `TBCStartSkyColor` | 0, 0, 0, 0 | Share of the client's fog hue in the layers |
 | `ColorSpace` | 1 | 1 scatter and blend in linear light with a highlight roll-off, 0 gamma |
 | `SunScatter`, `Ambient`, `Exposure` | 1, 1, 1 | Light in the fog |
 | `MoonScatter` | 0.2 | Moon light in the fog at night, on its own (`SunScatter` is the sun's), Classic and derived |

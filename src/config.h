@@ -44,14 +44,17 @@ struct Config
     float azerothDensity = 1.0f;
     float outlandDensity = 0.15f;
     float northrendDensity = 0.15f;
+    float tbcStartDensity = 1.0f;
     int outlandClassicFog = 1;
     int northrendClassicFog = 1;
     float azerothSkyColor = 0.0f;
     float outlandSkyColor = 0.0f;
     float northrendSkyColor = 0.0f;
+    float tbcStartSkyColor = 0.0f;
     float azerothLocalLights = 1.0f;
     float outlandLocalLights = 8.0f;
     float northrendLocalLights = 8.0f;
+    float tbcStartLocalLights = 4.0f;
     int colorSpace = 1;
     int classicPhase = 0;
     float sunScatter = 1.0f;

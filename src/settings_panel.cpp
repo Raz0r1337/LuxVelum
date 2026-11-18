@@ -248,8 +248,8 @@ bool DrawRegions(Config& c)
                       "the layers of the most alike Classic light. Off: derived layers, with the client's glow and no "
                       "colour grading");
     changed |= Multiplier("Azeroth density", c.azerothDensity,
-                          "Fog thickness on the old continents, in their dungeons, in the Burning Crusade starting "
-                          "zones and on every other map, on top of Density");
+                          "Fog thickness on the old continents, in their dungeons and on every other map, on top "
+                          "of Density");
     changed |= SkyColour("Azeroth sky colour", c.azerothSkyColor, "Azeroth and on every other map");
     changed |= RegionLocalLights("Azeroth local lights", c.azerothLocalLights, "Azeroth and on every other map");
     changed |= Multiplier("Outland density", c.outlandDensity, "Fog thickness in Outland, on top of Density");
@@ -258,6 +258,12 @@ bool DrawRegions(Config& c)
     changed |= Multiplier("Northrend density", c.northrendDensity, "Fog thickness in Northrend, on top of Density");
     changed |= SkyColour("Northrend sky colour", c.northrendSkyColor, "Northrend");
     changed |= RegionLocalLights("Northrend local lights", c.northrendLocalLights, "Northrend");
+    changed |= Multiplier("TBC start density", c.tbcStartDensity,
+                          "Fog thickness in the Burning Crusade starting zones (Eversong Woods, the Ghostlands, "
+                          "Silvermoon, Quel'Danas, the Azuremyst and Bloodmyst isles, the Exodar), on top of Density");
+    changed |= SkyColour("TBC start sky colour", c.tbcStartSkyColor, "the Burning Crusade starting zones");
+    changed |= RegionLocalLights("TBC start local lights", c.tbcStartLocalLights,
+                                 "the Burning Crusade starting zones");
     return changed;
 }
 
