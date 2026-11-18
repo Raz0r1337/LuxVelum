@@ -1648,7 +1648,7 @@ void CheckZoneHaloFade()
     const ZoneHalo edited = fade.Advance(kTheBarrens, {0.8f, 1.0f}, 10.048 + 10.0 * kZoneHaloFadeSeconds);
     std::printf("     sun halo: start %.2f, slider %.2f, border %.2f, after %.1f s %.2f, settled %.2f, edited %.2f\n",
                 first.sun, slider.sun, crossed.sun, kZoneHaloFadeSeconds, halfway.sun, settled.sun, edited.sun);
-    Check(Near(first.sun, 1.0f) && Near(slider.sun, 0.5f) && Near(crossed.sun, 0.5f) && halfway.sun > 0.5f &&
+    Check(Near(first.sun, 1.0f) && Near(slider.sun, 0.5f) && crossed.sun > 0.5f && crossed.sun < 0.6f && halfway.sun > crossed.sun &&
               halfway.sun < 1.5f && Near(settled.sun, 1.5f) && Near(edited.sun, 0.8f) &&
               crossed.zoneId == kTheBarrens,
           "a zone border fades the halo over about two seconds, while a slider in the same zone takes effect at "
