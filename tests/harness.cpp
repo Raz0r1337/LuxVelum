@@ -1637,37 +1637,6 @@ constexpr int kRedridgeMountains = 44;
 constexpr int kTheBarrens = 17;
 constexpr int kDurotar = 14;
 
-void CheckZoneHaloTable(const std::wstring& outDir)
-{
-    const std::wstring file = FullPath(outDir + L"\\zone-halo.ini");
-    DeleteFileW(file.c_str());
-    ZoneHaloTable table;
-    table.Load(NarrowPath(file));
-    table.Edit(kRedridgeMountains, {0.6f, 1.3f});
-    table.Edit(kTheBarrens, {9.0f, -1.0f});
-    const bool saved = table.Save(kRedridgeMountains, "Redridge Mountains") && table.Save(kTheBarrens, "The Barrens");
-    ZoneHaloTable reloaded;
-    reloaded.Load(NarrowPath(file));
-    const ZoneHaloFactors redridge = reloaded.Factors(kRedridgeMountains);
-    const ZoneHaloFactors barrens = reloaded.Factors(kTheBarrens);
-    const ZoneHaloFactors durotar = reloaded.Factors(kDurotar);
-    wchar_t name[kZoneNameSize] = {};
-    GetPrivateProfileStringW(L"Zones", L"44", L"", name, kZoneNameSize, file.c_str());
-    std::printf("     reloaded: Redridge sun %.2f moon %.2f, Barrens sun %.2f moon %.2f, Durotar %.2f %.2f\n",
-                redridge.sun, redridge.moon, barrens.sun, barrens.moon, durotar.sun, durotar.moon);
-    Check(saved && Near(redridge.sun, 0.6f) && Near(redridge.moon, 1.3f) && Near(barrens.sun, kZoneHaloMax) &&
-              Near(barrens.moon, 0.0f) && Near(durotar.sun, 1.0f) && Near(durotar.moon, 1.0f) &&
-              reloaded.Count() == 2 && std::wstring(name) == L"Redridge Mountains",
-          "LuxVelum-zones.ini keeps each zone's sun and moon halo by zone id with its name, clamps them to "
-          "0..4, and a zone it does not list keeps 1");
-    const bool forgotten = reloaded.Forget(kRedridgeMountains);
-    ZoneHaloTable afterReset;
-    afterReset.Load(NarrowPath(file));
-    Check(forgotten && !afterReset.Listed(kRedridgeMountains) && afterReset.Listed(kTheBarrens) &&
-              Near(afterReset.Factors(kRedridgeMountains).sun, 1.0f),
-          "resetting a zone removes it from LuxVelum-zones.ini and leaves the others");
-}
-
 void CheckZoneHaloFade()
 {
     ZoneHaloFade fade;
@@ -2336,6 +2305,37 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
     Check(store.Get().haze == afterMerge.Get().haze && !store.HasUnsavedChanges() &&
               ReadText(savedIni).find("\nHaze=1.235") != std::string::npos,
           "Save records the value it wrote, rounded like the INI");
+}
+
+void CheckZoneHaloTable(const std::wstring& outDir)
+{
+    const std::wstring file = FullPath(outDir + L"\\zone-halo.ini");
+    DeleteFileW(file.c_str());
+    ZoneHaloTable table;
+    table.Load(NarrowPath(file));
+    table.Edit(kRedridgeMountains, {0.6f, 1.3f});
+    table.Edit(kTheBarrens, {9.0f, -1.0f});
+    const bool saved = table.Save(kRedridgeMountains, "Redridge Mountains") && table.Save(kTheBarrens, "The Barrens");
+    ZoneHaloTable reloaded;
+    reloaded.Load(NarrowPath(file));
+    const ZoneHaloFactors redridge = reloaded.Factors(kRedridgeMountains);
+    const ZoneHaloFactors barrens = reloaded.Factors(kTheBarrens);
+    const ZoneHaloFactors durotar = reloaded.Factors(kDurotar);
+    wchar_t name[kZoneNameSize] = {};
+    GetPrivateProfileStringW(L"Zones", L"44", L"", name, kZoneNameSize, file.c_str());
+    std::printf("     reloaded: Redridge sun %.2f moon %.2f, Barrens sun %.2f moon %.2f, Durotar %.2f %.2f\n",
+                redridge.sun, redridge.moon, barrens.sun, barrens.moon, durotar.sun, durotar.moon);
+    Check(saved && Near(redridge.sun, 0.6f) && Near(redridge.moon, 1.3f) && Near(barrens.sun, kZoneHaloMax) &&
+              Near(barrens.moon, 0.0f) && Near(durotar.sun, 1.0f) && Near(durotar.moon, 1.0f) &&
+              reloaded.Count() == 2 && std::wstring(name) == L"Redridge Mountains",
+          "LuxVelum-zones.ini keeps each zone's sun and moon halo by zone id with its name, clamps them to "
+          "0..4, and a zone it does not list keeps 1");
+    const bool forgotten = reloaded.Forget(kRedridgeMountains);
+    ZoneHaloTable afterReset;
+    afterReset.Load(NarrowPath(file));
+    Check(forgotten && !afterReset.Listed(kRedridgeMountains) && afterReset.Listed(kTheBarrens) &&
+              Near(afterReset.Factors(kRedridgeMountains).sun, 1.0f),
+          "resetting a zone removes it from LuxVelum-zones.ini and leaves the others");
 }
 
 void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstring& shippedIni)
