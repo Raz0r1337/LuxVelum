@@ -8,6 +8,7 @@
 #include "engine_actors.h"
 #include "engine_lights.h"
 #include "water_types.h"
+#include "zone_halo.h"
 
 #include <cstdint>
 
@@ -36,6 +37,7 @@ struct FrameInputs
     LightParamsSelection lightParams;
     LocalLightInputs localLights;
     CelestialShadow celestialShadow;
+    ZoneHalo zoneHalo;
 };
 
 constexpr int kSkyColorCount = 6;

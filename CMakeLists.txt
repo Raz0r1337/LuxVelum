@@ -184,6 +184,7 @@ add_library(LuxVelum SHARED
     src/water_renderer.cpp
     src/water_ripples.cpp
     src/water_spectrum.cpp
+    src/zone_halo.cpp
     src/LuxVelum.def)
 add_dependencies(LuxVelum vf_shaders)
 target_include_directories(LuxVelum PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
@@ -201,7 +202,7 @@ add_executable(vfog_harness tests/harness.cpp src/celestial_occlusion.cpp src/ch
                src/light_on_screen.cpp src/local_light_stabiliser.cpp src/fog_data.cpp src/fog_model.cpp
                src/gpu_timing.cpp src/install_paths.cpp src/log.cpp src/noise_volume.cpp src/transparent_fog.cpp
                src/water_contacts.cpp src/water_data.cpp src/water_spectrum.cpp src/water_fft.cpp
-               src/water_ripples.cpp src/status_log.cpp)
+               src/water_ripples.cpp src/status_log.cpp src/zone_halo.cpp)
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(vfog_harness PRIVATE LuxVelum user32 ole32 windowscodecs)

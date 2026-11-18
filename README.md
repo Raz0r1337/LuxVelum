@@ -653,8 +653,19 @@ Gx is the graphics device `[0xC5DF88]`.
 | Unit movement flags (swimming), collision radius and height | `+0x7CC`, `+0x850`, `+0x854` |
 | World entity: world position, liquid flags, liquid surface | `+0x6C`, `+0x7C`, `+0x80` |
 | Client `waterRipples` value | `0xADF7F0` |
+| Current zone: `AreaTable` id of the zone, of the subzone; zone name | `0xBD080C`, `0xBD0810`; `[0xBD0788]` |
 
 Engine notes behind the code:
+
+- Current zone. The Lua functions `GetZoneText` `0x515570`, `GetRealZoneText` `0x5155A0`, `GetSubZoneText`
+  `0x5155D0` and `GetMinimapZoneText` `0x515600` (registered at `0xAC8378`–`0xAC8390`) return the strings at
+  `[0xBD0788]`, `[0xBD0780]`, `[0xBD0784]` and `[0xBD077C]`. The one writer of those strings, `0x5204C0`
+  (`55 8B EC A1 0C 08 BD 00`), stores its first argument in `0xBD080C` and its second in `0xBD0810`, and raises the
+  new-area event (`0xA8`) only when `0xBD080C` changes. Its one caller, `0x78F1DD` in `0x78F020`, looks up the
+  area at the player in the `AreaTable` rows (`[0xAD3154]`, ids `[0xAD3144]`..`[0xAD3140]`) and, when the row
+  has a parent area (`+8`), passes the parent's id as the zone and the area's id as the subzone; otherwise the
+  area is the zone and the subzone is 0. So `0xBD080C` holds the zone of the client's map and zone texts (Redridge
+  Mountains in Lakeshire, Stranglethorn Vale in Booty Bay). Read from the 12340 `Wow.exe` on 2026-11-18.
 
 - Call sites. `0x4FB03D` (`E8 5E DE FF FF`) calls the world render `0x4F8EA0`, a thiscall on the world frame
   with no stack arguments; the thunk keeps ECX across the frame-begin hook. `0x4F911D` (`E8 8E AB 32 00`) calls
@@ -933,6 +944,17 @@ shows whether the game's multisampling is kept, or why it is off (`Multisampling
 be moved and resized, and keeps its place and size for the session. Its title bar names the build, the branch and
 commit of `BUILD.txt` (as in `LuxVelum reforged-dev ec0af3b`; `local` for a build outside the CI), and so does the
 first line of `LuxVelum.log`.
+
+The **This zone** section names the client's current zone and sets its sun and moon halo: factors on top of
+`SunScatter` and `MoonScatter` (0..4, 1 = the global value alone), saved to `WTF\LuxVelum-zones.ini` when a slider
+is let go, as `[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone id with the zone's name under `[Zones]`.
+A zone the file does not list keeps 1, and **Reset this zone** removes it. The halo follows the zone the map shows
+(Booty Bay belongs to Stranglethorn Vale), so it does not depend on which Classic light covers the place: Redridge
+has none of its own and takes Eastern Kingdoms' global light, which a per-light factor would have shared with the
+Badlands, Arathi and the sea. Crossing into another zone fades the factors over about two seconds (time constant
+0.6 s); a slider takes effect at once. Each zone change writes a `zone 44 (Redridge Mountains): sun halo …` line
+to the log. The owner judged the halo per zone, not per region: Durotar right, the Barrens and Booty Bay far too
+large, Tirisfal nearly right (2026-11-18, `ClassicPhase=1`).
 
 While the window is open, clicks and the wheel go to it only while the cursor is over it or a drag started on
 it, and keys only while one of its text fields is active (Ctrl+click on a slider). The hotkey never reaches the

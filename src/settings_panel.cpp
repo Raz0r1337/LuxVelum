@@ -2,6 +2,7 @@
 
 #include "build_id.h"
 #include "luxvelum_switch.h"
+#include "zone_halo.h"
 
 #include "imgui.h"
 
@@ -269,6 +270,40 @@ bool DrawRegions(Config& c)
     return changed;
 }
 
+void DrawZoneHalo()
+{
+    const Section section("This zone", ImGuiTreeNodeFlags_DefaultOpen);
+    if (!section)
+        return;
+    ZoneHaloBook& book = GlobalZoneHalo();
+    const ZoneHaloView view = book.Current();
+    if (view.zoneId <= 0)
+    {
+        ImGui::TextDisabled("No zone yet");
+        return;
+    }
+    ImGui::Text("%s (zone %d)%s", view.zoneName[0] ? view.zoneName : "Unnamed zone", view.zoneId,
+                view.listed ? "" : ", not listed");
+    ZoneHaloFactors factors = view.factors;
+    bool changed = Slider("Sun halo here", factors.sun, 0.0f, kZoneHaloMax, "%.2f",
+                          "The sun's halo in this zone, on top of Sun scatter; saved to LuxVelum-zones.ini when you "
+                          "let go. 1 = as Sun scatter alone");
+    bool released = ImGui::IsItemDeactivatedAfterEdit();
+    changed |= Slider("Moon halo here", factors.moon, 0.0f, kZoneHaloMax, "%.2f",
+                      "The moon's halo in this zone, on top of Moon scatter; saved to LuxVelum-zones.ini when you let "
+                      "go. 1 = as Moon scatter alone");
+    released |= ImGui::IsItemDeactivatedAfterEdit();
+    if (changed)
+        book.Edit(factors);
+    if (released)
+        book.SaveCurrent();
+    ImGui::BeginDisabled(!view.listed);
+    if (ImGui::Button("Reset this zone"))
+        book.ForgetCurrent();
+    ImGui::SetItemTooltip("Remove this zone from LuxVelum-zones.ini, back to 1 for the sun and the moon");
+    ImGui::EndDisabled();
+}
+
 bool DrawLight(Config& c)
 {
     const Section section("Light", ImGuiTreeNodeFlags_DefaultOpen);
@@ -470,6 +505,7 @@ bool SettingsPanel::DrawSettings(Config& edited, const FogFrameStatus& fogStatus
     changed |= DrawDensity(edited);
     changed |= DrawRegions(edited);
     changed |= DrawLight(edited);
+    DrawZoneHalo();
     changed |= DrawGlowAndGrading(edited);
     changed |= DrawWorld(edited);
     changed |= DrawAntialiasing(edited);

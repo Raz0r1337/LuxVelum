@@ -85,6 +85,7 @@ void Attach(HMODULE module)
     if (adoptedFrom)
         VF_LOG_INFO("settings taken over from %s into %s", adoptedFrom, paths.ini.c_str());
     GlobalFogData().Load(paths.fogData);
+    GlobalZoneHalo().Load(paths.zoneHalo);
 
     if (!engine::IsSupportedClient())
     {

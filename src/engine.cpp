@@ -64,6 +64,8 @@ constexpr uintptr_t kAmbientColor = 0x00D38BD4;
 constexpr uintptr_t kDirectColor = 0x00D38BD8;
 constexpr uintptr_t kSunColor = 0x00D38BF8;
 constexpr uintptr_t kZoneFogDistance = 0x00D38C1C;
+constexpr uintptr_t kCurrentZoneId = 0x00BD080C;
+constexpr uintptr_t kCurrentZoneText = 0x00BD0788;
 constexpr uintptr_t kSunPosition = 0x00D38E28;
 constexpr uintptr_t kMoonPosition = 0x00D38E48;
 constexpr uintptr_t kSunDayEnd = 0x00A41CA0;
@@ -271,6 +273,18 @@ T Read(uintptr_t address)
 void ReadFloats(uintptr_t address, float* out, int count)
 {
     std::memcpy(out, reinterpret_cast<const void*>(address), sizeof(float) * count);
+}
+
+void ReadZoneName(char* out, size_t size)
+{
+    out[0] = '\0';
+    const auto text = reinterpret_cast<const char*>(Read<uintptr_t>(kCurrentZoneText));
+    if (!text)
+        return;
+    size_t i = 0;
+    for (; i + 1 < size && text[i]; ++i)
+        out[i] = text[i];
+    out[i] = '\0';
 }
 
 bool Finite(const float* v, int count)
@@ -481,6 +495,9 @@ bool BuildFrameInputsUnsafe(FrameInputs& out, bool withPointLights, const PointL
     }
 
     out.zoneFogDistance = Read<float>(kZoneFogDistance);
+    char zoneName[kZoneNameSize];
+    ReadZoneName(zoneName, sizeof(zoneName));
+    out.zoneHalo = GlobalZoneHalo().Advance(Read<int32_t>(kCurrentZoneId), zoneName, ClockSeconds());
     out.clientGlowAmount = out.inLiquid ? 0.0f : GlowScreenEffectAmount();
     out.farClip = out.glProjection[14] / (1.0f - out.glProjection[10]);
     if (!(out.farClip > 10.0f && out.farClip < 100000.0f))

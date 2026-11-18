@@ -9,6 +9,7 @@ constexpr const char* kSettingsFolder = "WTF";
 constexpr const char* kLuxVelumDataFolder = "Data\\LuxVelum";
 constexpr const char* kLogName = "LuxVelum.log";
 constexpr const char* kIniName = "LuxVelum.ini";
+constexpr const char* kZoneHaloName = "LuxVelum-zones.ini";
 constexpr const char* kFogDataName = "fogdata.bin";
 constexpr const char* kWaterDataName = "waterdata.bin";
 
@@ -41,7 +42,7 @@ std::string DataFile(const std::string& clientFolder, const char* name)
 
 InstallPaths ClientInstallPaths(const std::string& clientFolder)
 {
-    return {FolderOrClientFolder(clientFolder, kLogFolder) + kLogName,
-            FolderOrClientFolder(clientFolder, kSettingsFolder) + kIniName, DataFile(clientFolder, kFogDataName),
-            DataFile(clientFolder, kWaterDataName)};
+    const std::string settings = FolderOrClientFolder(clientFolder, kSettingsFolder);
+    return {FolderOrClientFolder(clientFolder, kLogFolder) + kLogName, settings + kIniName,
+            DataFile(clientFolder, kFogDataName), DataFile(clientFolder, kWaterDataName), settings + kZoneHaloName};
 }

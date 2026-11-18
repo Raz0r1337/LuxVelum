@@ -1633,6 +1633,83 @@ bool LandmarksInRegion(const Landmark (&landmarks)[N], MapRegion region, const c
     return all;
 }
 
+constexpr int kRedridgeMountains = 44;
+constexpr int kTheBarrens = 17;
+constexpr int kDurotar = 14;
+
+void CheckZoneHaloTable(const std::wstring& outDir)
+{
+    const std::wstring file = FullPath(outDir + L"\\zone-halo.ini");
+    DeleteFileW(file.c_str());
+    ZoneHaloTable table;
+    table.Load(NarrowPath(file));
+    table.Edit(kRedridgeMountains, {0.6f, 1.3f});
+    table.Edit(kTheBarrens, {9.0f, -1.0f});
+    const bool saved = table.Save(kRedridgeMountains, "Redridge Mountains") && table.Save(kTheBarrens, "The Barrens");
+    ZoneHaloTable reloaded;
+    reloaded.Load(NarrowPath(file));
+    const ZoneHaloFactors redridge = reloaded.Factors(kRedridgeMountains);
+    const ZoneHaloFactors barrens = reloaded.Factors(kTheBarrens);
+    const ZoneHaloFactors durotar = reloaded.Factors(kDurotar);
+    wchar_t name[kZoneNameSize] = {};
+    GetPrivateProfileStringW(L"Zones", L"44", L"", name, kZoneNameSize, file.c_str());
+    std::printf("     reloaded: Redridge sun %.2f moon %.2f, Barrens sun %.2f moon %.2f, Durotar %.2f %.2f\n",
+                redridge.sun, redridge.moon, barrens.sun, barrens.moon, durotar.sun, durotar.moon);
+    Check(saved && Near(redridge.sun, 0.6f) && Near(redridge.moon, 1.3f) && Near(barrens.sun, kZoneHaloMax) &&
+              Near(barrens.moon, 0.0f) && Near(durotar.sun, 1.0f) && Near(durotar.moon, 1.0f) &&
+              reloaded.Count() == 2 && std::wstring(name) == L"Redridge Mountains",
+          "LuxVelum-zones.ini keeps each zone's sun and moon halo by zone id with its name, clamps them to "
+          "0..4, and a zone it does not list keeps 1");
+    const bool forgotten = reloaded.Forget(kRedridgeMountains);
+    ZoneHaloTable afterReset;
+    afterReset.Load(NarrowPath(file));
+    Check(forgotten && !afterReset.Listed(kRedridgeMountains) && afterReset.Listed(kTheBarrens) &&
+              Near(afterReset.Factors(kRedridgeMountains).sun, 1.0f),
+          "resetting a zone removes it from LuxVelum-zones.ini and leaves the others");
+}
+
+void CheckZoneHaloFade()
+{
+    ZoneHaloFade fade;
+    const ZoneHalo first = fade.Advance(kDurotar, {1.0f, 1.0f}, 10.0);
+    const ZoneHalo slider = fade.Advance(kDurotar, {0.5f, 1.0f}, 10.016);
+    const ZoneHalo crossed = fade.Advance(kTheBarrens, {1.5f, 1.0f}, 10.032);
+    const ZoneHalo halfway = fade.Advance(kTheBarrens, {1.5f, 1.0f}, 10.032 + kZoneHaloFadeSeconds);
+    const ZoneHalo settled = fade.Advance(kTheBarrens, {1.5f, 1.0f}, 10.032 + 10.0 * kZoneHaloFadeSeconds);
+    const ZoneHalo edited = fade.Advance(kTheBarrens, {0.8f, 1.0f}, 10.048 + 10.0 * kZoneHaloFadeSeconds);
+    std::printf("     sun halo: start %.2f, slider %.2f, border %.2f, after %.1f s %.2f, settled %.2f, edited %.2f\n",
+                first.sun, slider.sun, crossed.sun, kZoneHaloFadeSeconds, halfway.sun, settled.sun, edited.sun);
+    Check(Near(first.sun, 1.0f) && Near(slider.sun, 0.5f) && Near(crossed.sun, 0.5f) && halfway.sun > 0.5f &&
+              halfway.sun < 1.5f && Near(settled.sun, 1.5f) && Near(edited.sun, 0.8f) &&
+              crossed.zoneId == kTheBarrens,
+          "a zone border fades the halo over about two seconds, while a slider in the same zone takes effect at "
+          "once");
+}
+
+void CheckZoneHaloScalesTheScatter()
+{
+    const Vec3 barrens = {-452.0f, -2652.0f, 92.0f};
+    const Vec3 toLight = {0.56f, 0.56f, 0.61f};
+    FrameInputs plain = ContinentFrame(kKalimdor, barrens, kNoon, toLight, false);
+    plain.sunColor = plain.directColor = 0xFFFFFFFF;
+    FrameInputs halved = plain;
+    halved.zoneHalo = {kTheBarrens, 0.5f, 1.0f};
+    FrameInputs night = plain;
+    night.lightIsMoon = true;
+    FrameInputs nightHalved = night;
+    nightHalved.zoneHalo = {kTheBarrens, 0.5f, 0.25f};
+    const Config cfg = ConfigForPlace(Config{}, CameraPlace(plain));
+    const FogParams a = BuildFogParams(plain, cfg, nullptr);
+    const FogParams b = BuildFogParams(halved, cfg, nullptr);
+    const FogParams c = BuildFogParams(night, cfg, nullptr);
+    const FogParams d = BuildFogParams(nightHalved, cfg, nullptr);
+    std::printf("     haze diffuse by day %.4f -> %.4f at sun halo 0.5, by night %.4f -> %.4f at moon halo 0.25\n",
+                a.layers[0].diffuse[0], b.layers[0].diffuse[0], c.layers[0].diffuse[0], d.layers[0].diffuse[0]);
+    Check(a.layers[0].diffuse[0] > 0.0f && Near(b.layers[0].diffuse[0], 0.5f * a.layers[0].diffuse[0]) &&
+              c.layers[0].diffuse[0] > 0.0f && Near(d.layers[0].diffuse[0], 0.25f * c.layers[0].diffuse[0]),
+          "the zone's sun halo scales the sun's scattering by day and its moon halo the moon's by night");
+}
+
 void CheckMap530StartingZonesHaveTheirOwnRegion()
 {
     const Landmark outland[] = {
@@ -2507,10 +2584,11 @@ void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& sh
                 paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
     Check(paths.log == freshFolder + "Logs\\LuxVelum.log" && paths.ini == freshFolder + "WTF\\LuxVelum.ini" &&
               paths.fogData == freshFolder + "Data\\LuxVelum\\fogdata.bin" &&
-              paths.waterData == freshFolder + "Data\\LuxVelum\\waterdata.bin" && IsFolder(fresh + L"\\Logs") &&
+              paths.waterData == freshFolder + "Data\\LuxVelum\\waterdata.bin" &&
+              paths.zoneHalo == freshFolder + "WTF\\LuxVelum-zones.ini" && IsFolder(fresh + L"\\Logs") &&
               IsFolder(fresh + L"\\WTF"),
-          "in the client folder the log goes into Logs and the settings into WTF, both made when missing, and the "
-          "fog and water data come from Data\\LuxVelum");
+          "in the client folder the log goes into Logs and the settings and zone halos into WTF, both made when "
+          "missing, and the fog and water data come from Data\\LuxVelum");
 
     const std::wstring earlier = FreshClientFolder(outDir, L"client-earlier-install");
     const std::string earlierFolder = NarrowPath(earlier + L"\\");
@@ -3322,6 +3400,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(classic);
     CheckGhostlandsScattersNoSun(classic);
     CheckMap530StartingZonesHaveTheirOwnRegion();
+    CheckZoneHaloFade();
+    CheckZoneHaloScalesTheScatter();
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
     CheckLocalLightsGlowByRegion();
@@ -3347,6 +3427,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     luxvelum_switch_checks::CheckTheSwitchTakesEffectAtTheNextFrame();
     CheckSettingsSaveKeepsTheIni(outDir, FullPath(iniPath));
     CheckRegionLocalLightsSetting(outDir, FullPath(iniPath));
+    CheckZoneHaloTable(outDir);
     CheckEarlierSettingsAreTakenOver(outDir, FullPath(iniPath));
     CheckEarlierSettingsAreTakenOverWhateverTheirShape(outDir, FullPath(iniPath));
     CheckClientInstallLayout(outDir, FullPath(iniPath));

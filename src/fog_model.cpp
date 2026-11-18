@@ -459,7 +459,7 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
 
     float fogDistance = in.zoneFogDistance > 50.0f && in.zoneFogDistance < 20000.0f ? in.zoneFogDistance : in.fogEnd;
     fogDistance = std::clamp(fogDistance, 50.0f, 5000.0f);
-    const float scatter = in.lightIsMoon ? cfg.moonScatter : cfg.sunScatter;
+    const float scatter = in.lightIsMoon ? cfg.moonScatter * in.zoneHalo.moon : cfg.sunScatter * in.zoneHalo.sun;
     float elevationFadedScatter = elevation * scatter * sunAndMoon;
 
     FogLayer& distanceFog = p.layers[kDistanceFogLayer];
