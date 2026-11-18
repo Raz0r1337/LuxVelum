@@ -334,6 +334,10 @@ float4 IntegrateFogAtDepth(float2 pixel, float depth, float jitter)
             inScatteredRadiance += transmittance * stepRadiance * (stepOpacity / stepOpticalDepth);
             transmittance *= 1 - stepOpacity;
         }
+        else
+        {
+            inScatteredRadiance += transmittance * stepRadiance;
+        }
     }
     return float4(clamp(inScatteredRadiance, 0, 65504), 1 - transmittance);
 }

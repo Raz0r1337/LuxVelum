@@ -120,9 +120,16 @@ float4 LayerLightDensityScales(float skyMask, float upward)
                   LayerLightDensityScale(LoadConstantFogLayer(3), skyMask, upward));
 }
 
+static const float kCameraClearanceMaxStart = 50;
+
+float LampLayerStart(FogLayer layer)
+{
+    return layer.start < kCameraClearanceMaxStart ? 0 : layer.start;
+}
+
 bool LayerLitInStep(FogLayer layer, float stepStart, float stepEnd)
 {
-    float layerStart = max(stepStart, layer.start);
+    float layerStart = max(stepStart, LampLayerStart(layer));
     return min(stepEnd, layer.limit) - layerStart > 0 && layer.density > 0 &&
            (LocalLightReachLimit() <= 0 || layerStart < LocalLightReachLimit());
 }
@@ -137,7 +144,7 @@ bool4 LayersLitInStep(float stepStart, float stepEnd)
 
 bool LayerCoversInterval(FogLayer layer, float2 interval)
 {
-    return layer.start <= interval.x && layer.limit >= interval.y;
+    return LampLayerStart(layer) <= interval.x && layer.limit >= interval.y;
 }
 
 bool4 LayersCoverInterval(float2 interval)
@@ -148,11 +155,11 @@ bool4 LayersCoverInterval(float2 interval)
                  LayerCoversInterval(LoadConstantFogLayer(3), interval));
 }
 
-float LayerStart(int layer)
+float LampLayerStartOf(int layer)
 {
-    return layer == 0 ? LoadConstantFogLayer(0).start
-         : layer == 1 ? LoadConstantFogLayer(1).start
-         : layer == 2 ? LoadConstantFogLayer(2).start : LoadConstantFogLayer(3).start;
+    return layer == 0 ? LampLayerStart(LoadConstantFogLayer(0))
+         : layer == 1 ? LampLayerStart(LoadConstantFogLayer(1))
+         : layer == 2 ? LampLayerStart(LoadConstantFogLayer(2)) : LampLayerStart(LoadConstantFogLayer(3));
 }
 
 float LayerLimit(int layer)
@@ -169,7 +176,7 @@ float4 LayerSelector(int layer)
 
 float2 LayerIntervalWithin(float2 interval, int layer)
 {
-    return float2(max(interval.x, LayerStart(layer)), min(interval.y, LayerLimit(layer)));
+    return float2(max(interval.x, LampLayerStartOf(layer)), min(interval.y, LayerLimit(layer)));
 }
 
 float4 DensityProfiles(MarchRay ray, float distanceAlongRay)

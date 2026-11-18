@@ -111,22 +111,25 @@ Every full-screen pass draws one triangle whose edges lie outside the viewport (
 4x sample of the edge columns; Direct3D 9 maps NDC −1 onto the first column's centres.
 
 **Local lights.** The captured diffuse includes the M2 light's animated intensity (see World lights), so a light
-brighter than 1 carries it in the colour. In linear light a colour whose brightest channel is above 1 decodes only
-its chromaticity, `(c/peak)^2.2 · peak`, as the modern client scales light colours linearly (a choice; the kit lacks
-its CPU packing). Every point light scatters with one Henyey–Greenstein phase normalised to 1 toward the light,
-g = `LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. The lights scatter with
-a gain of the region's intensity (`AzerothLocalLights`, `OutlandLocalLights`, `NorthrendLocalLights`,
-`TBCStartLocalLights`) over its density (`AzerothDensity`, `OutlandDensity`, `NorthrendDensity`, `TBCStartDensity`, at
-least 0.05), here and in the fitted stock fog of see-through models, so a region thinned to 0.15 keeps the glow of its
-lamps. Outland and Northrend start at 8 (the shipped INI sets Outland to 4; 0..128, the overlay's logarithmic sliders
-reach 96) and the Burning Crusade starting zones at 2.5: their converted layers are far thinner than the old
-world's (Borean Tundra at night
-0.00013/yd of ground fog against Tirisfal's 0.0045 in a tester's log), and the tester needed the slider's former maximum
-of 8 there to match the old world's lamps. Each light's cutoff radius, where its glow fades out, is that of its colour
-times the region's intensity, as for a lamp that much brighter; Azeroth at 1 keeps its radius. A tester found 24 barely
-stronger than 8 in TEST Build-24-10: in Wine's Direct3D on llvmpipe at Amberpine Lodge the march's glow at a lamp grew
-3× from 8 to 24 but the displayed glow above the scene only 1.85× (one orange lamp at 20 yd, core 55 → 89 in 8-bit
-codes, 167 at 96), and the halo of a dim lamp at 50 yd stopped at the cutoff of its unscaled colour.
+brighter than 1 carries it in the colour. In linear light a colour whose brightest channel is above 1 decodes only its
+chromaticity, `(c/peak)^2.2 · peak`, as the modern client scales light colours linearly (a choice; the kit lacks its CPU
+packing). Every point light scatters with one Henyey–Greenstein phase normalised to 1 toward the light, g =
+`LocalLightPhase`, as the modern fog-light kernel 6227851 reads one g for all local lights. A layer start below 50 yd is
+the client's clearance around the camera, not distance fog, so the lamps scatter in that layer from the camera on,
+without its extinction: at Falcon Watch in Hellfire Peninsula the ground fog starts at 15 yd and the glow of a lamp the
+player stood next to vanished (TEST Build-2-4); starts of 50 yd and more, such as the 100 to 3000 yd of distance layers,
+keep the lamps out. The lights scatter with a gain of the region's intensity (`AzerothLocalLights`,
+`OutlandLocalLights`, `NorthrendLocalLights`, `TBCStartLocalLights`) over its density (`AzerothDensity`,
+`OutlandDensity`, `NorthrendDensity`, `TBCStartDensity`, at least 0.05), here and in the fitted stock fog of see-through
+models, so a region thinned to 0.15 keeps the glow of its lamps. Outland and Northrend start at 8 (the shipped INI sets
+Outland to 4; 0..128, the overlay's logarithmic sliders reach 96) and the Burning Crusade starting zones at 2.5: their
+converted layers are far thinner than the old world's (Borean Tundra at night 0.00013/yd of ground fog against
+Tirisfal's 0.0045 in a tester's log), and the tester needed the slider's former maximum of 8 there to match the old
+world's lamps. Each light's cutoff radius, where its glow fades out, is that of its colour times the region's intensity,
+as for a lamp that much brighter; Azeroth at 1 keeps its radius. A tester found 24 barely stronger than 8 in TEST
+Build-24-10: in Wine's Direct3D on llvmpipe at Amberpine Lodge the march's glow at a lamp grew 3× from 8 to 24 but the
+displayed glow above the scene only 1.85× (one orange lamp at 20 yd, core 55 → 89 in 8-bit codes, 167 at 96), and the
+halo of a dim lamp at 50 yd stopped at the cutoff of its unscaled colour.
 
 Twin lights are merged before the stabiliser chooses from the candidate pool (below). The capture ranks up to 48
 candidates, twice the pool, so that both lights of a pair at the pool's edge are seen; after the merge the 24 strongest
