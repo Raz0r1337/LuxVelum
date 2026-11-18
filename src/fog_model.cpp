@@ -189,8 +189,13 @@ float ClearSkyFalloff(float clearSky)
     return clearSky > 0.0f ? -std::log(1.0f - std::min(clearSky, kMaxClearSky)) / kClearSkyReferenceUpward : 0.0f;
 }
 
-void AuthoredLayers(const AuthoredFog& fog, const Config& cfg, const FogParams& p, float sunScatter, FogLayer* out,
-                    LayerNoise* noise)
+float SunlessNow(float sunless, float sunlessByDay, bool lightIsMoon)
+{
+    return std::min(sunless + (lightIsMoon ? 0.0f : sunlessByDay), 1.0f);
+}
+
+void AuthoredLayers(const AuthoredFog& fog, const Config& cfg, const FogParams& p, float sunScatter, bool lightIsMoon,
+                    FogLayer* out, LayerNoise* noise)
 {
     for (int i = 0; i < kSceneLayers; ++i)
     {
@@ -210,7 +215,7 @@ void AuthoredLayers(const AuthoredFog& fog, const Config& cfg, const FogParams& 
         l.isotropic = 0.0f;
         Scale(a.emissive, cfg.ambient, l.emissive);
         l.strength = a.strength;
-        Scale(a.diffuse, 1.0f - a.sunless, l.diffuse);
+        Scale(a.diffuse, 1.0f - SunlessNow(a.sunless, a.sunlessByDay, lightIsMoon), l.diffuse);
         l.exponent = a.exponent > 0.0f ? a.exponent : 1.0f;
         l.upperHeight = a.upperHeight + heightBase;
         l.upperFalloff = a.upperDensity > 0.0f ? a.upperDensity * kClassicUnits : 0.0f;
@@ -442,7 +447,8 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     Encode(fogColor, p.linear);
     Encode(p.lightColor, p.linear);
 
-    const float sunAndMoon = authored ? 1.0f - authored->sunless : 1.0f;
+    const float sunAndMoon =
+        authored ? 1.0f - SunlessNow(authored->sunless, authored->sunlessByDay, in.lightIsMoon) : 1.0f;
     float elevation = SmoothStep(-0.03f, 0.10f, in.toLight[2]);
     p.lightVisibility = elevation * (in.lightIsMoon ? kMoonLightScale : 1.0f) * sunAndMoon;
     p.lightAboveHorizon = SmoothStep(-kLightSettingHalfWidth, kLightSettingHalfWidth, in.toLight[2]);
@@ -467,7 +473,7 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     if (p.authored)
     {
         p.directLightMatch = ClientToClassicDirectLight(*authored, p.lightColor, p.linear);
-        AuthoredLayers(*authored, cfg, p, scatter * p.directLightMatch, p.layers, p.noise);
+        AuthoredLayers(*authored, cfg, p, scatter * p.directLightMatch, in.lightIsMoon, p.layers, p.noise);
         const float skyShare = std::clamp(RegionSkyColorShare(cfg, region), 0.0f, 1.0f);
         if (skyShare > 0.0f)
             TakeClientFogHue(fogColor, skyShare, p.layers);

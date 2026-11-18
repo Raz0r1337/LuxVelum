@@ -1450,16 +1450,18 @@ constexpr uint32_t kSunKeepingCopyOfNorthrendGlobalLight = kFirstClientLight + k
 constexpr uint32_t kNoSunLayerFlag = 0x10;
 
 template <size_t N>
-bool LandmarksAtSunless(const FogData& data, const Landmark (&landmarks)[N], float sunless, const char* label)
+bool LandmarksAtSunless(const FogData& data, const Landmark (&landmarks)[N], float sunless, const char* label,
+                        float sunlessByDay = 0.0f)
 {
     bool all = true;
-    std::printf("     %s, sunless at 18:00:", label);
+    std::printf("     %s, sunless (by day) at 18:00:", label);
     for (const Landmark& landmark : landmarks)
     {
         AuthoredFog fog = {};
         const bool resolved = data.Resolve(landmark.map, landmark.position, kDayFraction1800, kClearWeather, fog);
-        std::printf(" %s %.2f (%u)", landmark.name, fog.sunless, fog.lightCount ? fog.lightIds[0] : 0u);
-        all = all && resolved && Near(fog.sunless, sunless);
+        std::printf(" %s %.2f (%.2f, %u)", landmark.name, fog.sunless, fog.sunlessByDay,
+                    fog.lightCount ? fog.lightIds[0] : 0u);
+        all = all && resolved && Near(fog.sunless, sunless) && Near(fog.sunlessByDay, sunlessByDay);
     }
     std::printf("\n");
     return all;
@@ -1575,6 +1577,34 @@ void CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(const FogData& data)
           "Grizzlemaw in Grizzly Hills scatters the sun and the moon in its converted layers and casts god rays");
 }
 
+void CheckSunlessByDayKeepsTheMoon()
+{
+    AuthoredFog fog = {};
+    fog.layerCount = 1;
+    AuthoredLayer& layer = fog.layers[0];
+    layer.diffuse[0] = layer.diffuse[1] = layer.diffuse[2] = 0.8f;
+    layer.density = 0.002f;
+    layer.g = 0.7f;
+    layer.upperHeight = 400.0f;
+    layer.sunlessByDay = 1.0f;
+    fog.sunlessByDay = 1.0f;
+    const Vec3 eye = {0.0f, 0.0f, 50.0f};
+    const Vec3 toLight = {0.6f, 0.6f, 0.5f};
+    FrameInputs day = ContinentFrame(kOutland, eye, kNoon, toLight, false);
+    day.sunColor = day.directColor = 0xFFFFFFFF;
+    FrameInputs night = day;
+    night.lightIsMoon = true;
+    const Config cfg = {};
+    const FogParams byDay = BuildFogParams(day, cfg, &fog);
+    const FogParams byNight = BuildFogParams(night, cfg, &fog);
+    std::printf("     sun-dropping layer: diffuse red by day %.4f, rays %.2f; by night %.4f, rays %.2f\n",
+                byDay.layers[0].diffuse[0], byDay.lightVisibility, byNight.layers[0].diffuse[0],
+                byNight.lightVisibility);
+    Check(ScattersNoSunOrMoon(byDay) && byNight.layers[0].diffuse[0] > 0.0f && byNight.lightVisibility > 0.0f,
+          "a layer flagged sunless by day scatters no sun and casts no god rays by day, and scatters the moon by "
+          "night");
+}
+
 void CheckGhostlandsScattersNoSun(const FogData& data)
 {
     const Landmark ghostlands[] = {
@@ -1589,8 +1619,8 @@ void CheckGhostlandsScattersNoSun(const FogData& data)
         {"Sunstrider Isle", kOutland, {10349.6f, -6357.3f, 33.4f}},
         {"Isle of Quel'Danas", kOutland, {12806.5f, -6911.1f, 41.1f}},
     };
-    Check(LandmarksAtSunless(data, ghostlands, 1.0f, "Ghostlands"),
-          "the Ghostlands lights scatter no sun or moon, although the client draws a sun over the zone");
+    Check(LandmarksAtSunless(data, ghostlands, 0.0f, "Ghostlands", 1.0f),
+          "the Ghostlands lights drop the sun by day, although the client draws one over the zone, and keep the moon");
     Check(LandmarksAtSunless(data, quelThalas, 0.0f, "Eversong Woods, Silvermoon City, Isle of Quel'Danas"),
           "Eversong Woods, Silvermoon City and the Isle of Quel'Danas keep the sun beside the Ghostlands");
 
@@ -1612,10 +1642,13 @@ void CheckGhostlandsScattersNoSun(const FogData& data)
                 "City: scene diffuse red %.5f, rays %.2f\n",
                 SceneLayersRedDiffuse(sun), sun.layers[kDistanceFogLayer].diffuse[0], sun.lightVisibility,
                 SceneLayersDensity(sun), SceneLayersRedDiffuse(eversong), eversong.lightVisibility);
-    Check(resolved && sun.authored && SceneLayersDensity(sun) > 0.0f && ScattersNoSunOrMoon(sun) &&
-              ScattersNoSunOrMoon(moon),
-          "Tranquillien keeps its converted fog but scatters neither sun nor moon in it or in its distance fog and "
-          "casts no god rays");
+    std::printf("     Tranquillien by night: scene diffuse red %.5f, rays %.2f\n", SceneLayersRedDiffuse(moon),
+                moon.lightVisibility);
+    Check(resolved && sun.authored && SceneLayersDensity(sun) > 0.0f && ScattersNoSunOrMoon(sun),
+          "Tranquillien keeps its converted fog but scatters no sun in it or in its distance fog and casts no god "
+          "rays by day");
+    Check(resolved && SceneLayersRedDiffuse(moon) > 0.0f && moon.lightVisibility > 0.0f,
+          "Tranquillien scatters the moon by night, which the zone's sun-dropping flag leaves alone");
     Check(resolved && SceneLayersRedDiffuse(eversong) > 0.0f && eversong.lightVisibility > 0.0f,
           "Silvermoon City keeps its sun scatter and god rays");
 }
@@ -3463,6 +3496,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckConvertedLightsCarryNoClassicNoise(classic);
     CheckSunlessSkiesScatterNoSunOrMoon(classic);
     CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(classic);
+    CheckSunlessByDayKeepsTheMoon();
     CheckGhostlandsScattersNoSun(classic);
     CheckMap530StartingZonesHaveTheirOwnRegion();
     CheckZoneHaloFade();

@@ -75,6 +75,7 @@ RELATIVE_HEIGHTS_FLAG = 0x2
 NOISE_FLAG = 0x4
 NO_SUN_FLAG = 0x10
 CLEAR_SKY_FLAG = 0x20
+NO_SUN_BY_DAY_FLAG = 0x40
 GROUND_FOG_ONLY_SKYBOXES = {"hellfireskybox.mdx": (0.0, 0.0, 0.3)}
 HEIGHT_SHIFT_STEP = 25.0
 LAYER_NOISE_FADE = 15
@@ -428,18 +429,25 @@ class Builder:
             classic_params = classic[7 + slot] if self.fog.has_fog(classic[7 + slot]) else classic[7 + CLEAR_SLOT]
             glow_params = classic[7 + slot] if classic[7 + slot] in self.fog.params else classic[7 + CLEAR_SLOT]
             twin_params = twin[7 + slot] or twin[7 + CLEAR_SLOT]
-            keeps_sun = slot in sun_kept_in_slots or not drops_sun and self.client.keeps_sun(target_params, light[1])
-            recipe = (classic_params, twin_params, target_params, glow_params, height_shift, keeps_sun)
+            sun_flags = self.sun_flags(target_params, light[1], slot in sun_kept_in_slots, drops_sun)
+            recipe = (classic_params, twin_params, target_params, glow_params, height_shift, sun_flags)
             if recipe not in self.generated:
                 self.generated[recipe] = GENERATED_ID_BASE + len(self.generated)
                 self.add_params(self.generated[recipe], *recipe)
             slots.append(self.generated[recipe])
         return slots
 
+    def sun_flags(self, target_params, map_id, sun_kept, drops_sun):
+        if sun_kept:
+            return 0
+        if not self.client.keeps_sun(target_params, map_id):
+            return NO_SUN_FLAG
+        return NO_SUN_BY_DAY_FLAG if drops_sun else 0
+
     def add_params(self, params_id, classic_params, twin_params, target_params, glow_params, height_shift,
-                   keeps_sun):
+                   sun_flags):
         first = len(self.keys)
-        added_flags = 0 if keeps_sun else NO_SUN_FLAG
+        added_flags = sun_flags
         skybox = self.client.skybox(target_params)
         layer_densities = GROUND_FOG_ONLY_SKYBOXES.get(skybox[0]) if skybox else None
         if layer_densities:

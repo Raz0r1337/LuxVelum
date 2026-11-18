@@ -21,6 +21,7 @@ constexpr uint32_t kClientSelectedLayerFlag = 0x8;
 constexpr uint32_t kClientNoiseLayerFlag = 0x4;
 constexpr uint32_t kNoSunLayerFlag = 0x10;
 constexpr uint32_t kClearSkyLayerFlag = 0x20;
+constexpr uint32_t kNoSunByDayLayerFlag = 0x40;
 constexpr float kNoiseScaleUnitYards = 100.0f;
 constexpr uint32_t kNoGradingCurve = 0;
 constexpr float kGradingCurveCodeMax = 255.0f;
@@ -107,6 +108,7 @@ void AddScaled(AuthoredLayer& acc, const AuthoredLayer& l, float w)
     acc.strength += l.strength * w;
     acc.exponent += l.exponent * w;
     acc.sunless += l.sunless * w;
+    acc.sunlessByDay += l.sunlessByDay * w;
     acc.clearSky += l.clearSky * w;
 }
 
@@ -599,6 +601,7 @@ AuthoredLayer FogData::Unpack(const Layer& layer)
     out.strength = layer.strength;
     out.exponent = layer.exponent;
     out.sunless = layer.flags & kNoSunLayerFlag ? 1.0f : 0.0f;
+    out.sunlessByDay = layer.flags & kNoSunByDayLayerFlag ? 1.0f : 0.0f;
     out.clearSky = layer.flags & kClearSkyLayerFlag ? 1.0f : 0.0f;
     out.flags = layer.flags;
     out.noise = UnpackNoise(layer);
@@ -745,6 +748,8 @@ bool FogData::Resolve(int mapId, const float* position, float dayFraction, const
             layerBlends[j].Add(condition.layers[j], weight);
         directLight.Add(condition.directLight, condition.directLightPresence, weight);
         out.sunless += PresentLayersMean(condition.layers, condition.layerCount, &AuthoredLayer::sunless) * weight;
+        out.sunlessByDay +=
+            PresentLayersMean(condition.layers, condition.layerCount, &AuthoredLayer::sunlessByDay) * weight;
         out.clearSky += PresentLayersMean(condition.layers, condition.layerCount, &AuthoredLayer::clearSky) * weight;
         out.layerCount = std::max(out.layerCount, condition.layerCount);
     }
