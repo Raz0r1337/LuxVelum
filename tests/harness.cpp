@@ -38,9 +38,11 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <initializer_list>
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 extern "C" __declspec(dllimport) IDirect3D9* __cdecl vf_test_wrap_direct3d9(IDirect3D9*(WINAPI*)(UINT), UINT);
@@ -808,6 +810,32 @@ void CheckClassicData(const FogData& data)
     Check(!data.Resolve(kMapWithoutClassicLights, harbourAtStormwindLightEdge, kDayFraction1800, kClearWeather,
                         none),
           "maps without Classic lights fall back to derived layers");
+}
+
+AuthoredFog BlendOf(std::initializer_list<std::pair<uint32_t, float>> lights)
+{
+    AuthoredFog fog = {};
+    for (const auto& [id, weight] : lights)
+    {
+        fog.lightIds[fog.lightCount] = id;
+        fog.lightWeights[fog.lightCount] = weight;
+        ++fog.lightCount;
+    }
+    return fog;
+}
+
+void CheckZeroWeightLightsLeaveTheLoggedBlendAlone()
+{
+    const AuthoredFog goldshire = BlendOf({{2, 0.39f}, {15, 0.61f}});
+    const AuthoredFog withGlobalAtZero = BlendOf({{2, 0.39f}, {15, 0.61f}, {kEasternKingdomsGlobalLight, 0.0f}});
+    const AuthoredFog withGlobalBelowRounding =
+        BlendOf({{2, 0.39f}, {15, 0.61f}, {kEasternKingdomsGlobalLight, 0.004f}});
+    const AuthoredFog withGlobalShown = BlendOf({{2, 0.37f}, {15, 0.58f}, {kEasternKingdomsGlobalLight, 0.05f}});
+    Check(BlendSetSignature(goldshire) == BlendSetSignature(withGlobalAtZero) &&
+              BlendSetSignature(goldshire) == BlendSetSignature(withGlobalBelowRounding) &&
+              BlendSetSignature(goldshire) != BlendSetSignature(withGlobalShown),
+          "a light that enters or leaves the blend at a weight the log prints as 0.00 changes no logged light set, "
+          "so Goldshire's border no longer writes a line every frame; a light with weight does");
 }
 
 constexpr uint32_t kFirstClientLight = 1000000;
@@ -3282,6 +3310,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     FogData classic;
     Check(classic.Load(dataPath), "Classic fog data loads");
     CheckClassicData(classic);
+    CheckZeroWeightLightsLeaveTheLoggedBlendAlone();
     CheckOutlandAndNorthrendHaveTheirOwnLights(classic);
     CheckRegionalFogSettings();
     CheckOutlandDensityThinsTheConvertedFog(classic);

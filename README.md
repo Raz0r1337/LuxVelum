@@ -1173,7 +1173,8 @@ from it in `FarClipMax=1583` and, since it took a tester's settings (2026-11-16)
 `OutlandDensity=0.5`, `NorthrendDensity=0.7`, `AzerothSkyColor=0.5`, `OutlandSkyColor=1`, `NorthrendSkyColor=1`,
 `TBCStartSkyColor=0.5`, `SunScatter=0.44`, `MoonScatter=0.5`, `ClassicExposure=0.6`, `LocalLightIntensity=1.4`,
 `OutlandLocalLights=4`, `LocalLightPhase=0.4`, `GodRays=2.5`, `ColorGrading=0.5`, `WaterWaves=0.5`, `WaterWind=1`,
-`WaterFoam=0.3`, `WaterReflections=0.5`, `WaterSpecular=1.5` and `WaterClarity=1.4`.
+`WaterFoam=0.3`, `WaterReflections=0.5`, `WaterSpecular=1.5` and `WaterClarity=1.4`; since 2026-11-18, at the owner's
+choice, also `ClassicPhase=1` and `Temporal=0.97`, which ends the sky dithering of `Quality=1` with `Temporal=0.85`.
 
 | Key | Default | Meaning |
 |---|---|---|

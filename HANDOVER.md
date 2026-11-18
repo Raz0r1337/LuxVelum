@@ -79,5 +79,5 @@ Not yet tested: the `ToggleKey` switch and `LightStay=0`.
 
 - Antialiasing stays as in the original.
 - Optimisations must leave the image unchanged; an image-identical package was stopped because the gain was too small.
-- `ClassicPhase=0` ships for simplicity; with 1 the README reports a white sunset halo at the harbour, which
-  `CheckSunsetHaloKeepsItsHue` checks on a GPU.
+- `ClassicPhase=1` ships since 18 November at the owner's choice (0 before); the README reports a white sunset halo
+  at the harbour with 1, which `CheckSunsetHaloKeepsItsHue` checks on a GPU with the shipped INI.

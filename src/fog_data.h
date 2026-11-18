@@ -227,3 +227,7 @@ private:
 };
 
 FogData& GlobalFogData();
+
+constexpr float kMinLoggedLightWeight = 0.005f;
+bool CountsInLoggedBlend(float weight);
+uint32_t BlendSetSignature(const AuthoredFog& fog);

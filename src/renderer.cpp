@@ -591,9 +591,7 @@ void Renderer::LogLightChange(const FrameInputs& in, const AuthoredFog& fog, boo
 {
     const LightParamsSelection& selection = in.lightParams;
     const auto loggedStormStep = static_cast<uint32_t>(std::lround(selection.stormBlend * kLoggedStormBlendSteps));
-    uint32_t signature = authored ? 0x80000000u : 0u;
-    for (int i = 0; i < fog.lightCount; ++i)
-        signature = signature * 31u + fog.lightIds[i];
+    uint32_t signature = (authored ? 0x80000000u : 0u) ^ BlendSetSignature(fog);
     signature = signature * 31u + loggedStormStep;
     signature = signature * 31u + static_cast<uint32_t>(selection.screenEffectSlot);
     const MapRegion region = RegionOf(CameraPlace(in));
@@ -606,8 +604,9 @@ void Renderer::LogLightChange(const FrameInputs& in, const AuthoredFog& fog, boo
     char lights[160] = {};
     int used = 0;
     for (int i = 0; i < fog.lightCount && used < static_cast<int>(sizeof(lights)) - 24; ++i)
-        used += std::snprintf(lights + used, sizeof(lights) - used, "%s%u:%.2f", i ? " " : "", fog.lightIds[i],
-                              fog.lightWeights[i]);
+        if (CountsInLoggedBlend(fog.lightWeights[i]))
+            used += std::snprintf(lights + used, sizeof(lights) - used, "%s%u:%.2f", used ? " " : "", fog.lightIds[i],
+                                  fog.lightWeights[i]);
     if (!authored && fog.lightCount == 0)
     {
         VF_LOG_INFO("map %d (%s) at (%.0f %.0f %.0f): no Classic fog data, derived layers", in.mapId,

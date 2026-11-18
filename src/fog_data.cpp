@@ -753,3 +753,17 @@ FogData& GlobalFogData()
     static FogData data;
     return data;
 }
+
+bool CountsInLoggedBlend(float weight)
+{
+    return weight >= kMinLoggedLightWeight;
+}
+
+uint32_t BlendSetSignature(const AuthoredFog& fog)
+{
+    uint32_t signature = 0;
+    for (int i = 0; i < fog.lightCount; ++i)
+        if (CountsInLoggedBlend(fog.lightWeights[i]))
+            signature = signature * 31u + fog.lightIds[i];
+    return signature;
+}
