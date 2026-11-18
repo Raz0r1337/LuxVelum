@@ -491,6 +491,15 @@ client's current stock fog colour, which blends the scene into its sky and follo
 luminance: the stock colour itself is far darker than the Classic emissive (0x282A2A against about 0.5 at dusk in the
 Bone Wastes), so taking it whole would blacken the fog.
 
+The region of these settings follows the camera, not the map alone. Map 530 holds Outland and also the Burning
+Crusade starting zones (Eversong Woods, the Ghostlands, Silvermoon City, the Isle of Quel'Danas, Azuremyst and Bloodmyst
+Isles and the Exodar), which lie in Azeroth and take the Azeroth settings: `AzerothDensity`, `AzerothSkyColor`,
+`AzerothLocalLights`, and their converted client lights whatever `OutlandClassicFog` says. Outland is the part of map
+530 at y ≥ −2550 yd. In the shipped `fogdata.bin` the 155 Outland lights of map 530 reach no further than y = −727 yd
+and its 23 starting-zone lights no closer than y = −4373 yd, so the line passes about 1800 yd from both; the land of
+both lies within its lights. While the camera position cannot be read, map 530 counts as Outland. The `map` lines of
+`LuxVelum.log` name the region, as in `map 530 (Azeroth) at (7595 -6782 87)`.
+
 The phase of the Classic sun and moon scattering peaks at 1 toward the light. The authored intensities rise as g
 falls, to about 4π for evenly scattering rows, which suggests that the modern lookup is energy-normalised (inferred;
 it is not in the kit); `ClassicPhase=1` multiplies the scattering by `k(g) = (1+g)/(4π(1−g)²)`, capped at g = 0.95.

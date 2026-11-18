@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 namespace
 {
@@ -184,12 +185,20 @@ struct WorldClient
     void (*writeStockFog)(const engine::StockFog& fog);
     void (*endWorld)();
     bool (*glowScreenEffectRuns)();
-    int (*mapId)();
+    MapPlace (*place)();
 };
 
 void CaptureGameOpaqueState(IDirect3DDevice9* device)
 {
     engine::CaptureOpaqueState(device);
+}
+
+MapPlace GameCameraPlace()
+{
+    float position[3];
+    if (!engine::ReadCameraPosition(position))
+        position[1] = std::numeric_limits<float>::quiet_NaN();
+    return PlaceOf(engine::CurrentMapId(), position);
 }
 
 const WorldClient kGameWorldClient = {&GameFogDevice,
@@ -201,7 +210,7 @@ const WorldClient kGameWorldClient = {&GameFogDevice,
                                       &engine::WriteStockFog,
                                       &engine::ClearOpaqueState,
                                       &engine::GlowScreenEffectRuns,
-                                      &engine::CurrentMapId};
+                                      &GameCameraPlace};
 
 FrameInputs g_testWorldFrame = {};
 bool g_testGlowScreenEffectRuns = false;
@@ -257,9 +266,9 @@ bool TestGlowScreenEffectRuns()
     return g_testGlowScreenEffectRuns;
 }
 
-int TestMapId()
+MapPlace TestCameraPlace()
 {
-    return g_testWorldFrame.mapId;
+    return CameraPlace(g_testWorldFrame);
 }
 
 const WorldClient kTestOpaqueCaptureClient = {&LatestFogDevice,
@@ -271,7 +280,7 @@ const WorldClient kTestOpaqueCaptureClient = {&LatestFogDevice,
                                               &TestWriteStockFog,
                                               &engine::ClearOpaqueState,
                                               &TestGlowScreenEffectRuns,
-                                              &TestMapId};
+                                              &TestCameraPlace};
 const WorldClient kTestFogClient = {&LatestFogDevice,
                                     &CaptureTestOpaqueState,
                                     &TestWorldCaptured,
@@ -281,7 +290,7 @@ const WorldClient kTestFogClient = {&LatestFogDevice,
                                     &TestWriteStockFog,
                                     &TestEndWorld,
                                     &TestGlowScreenEffectRuns,
-                                    &TestMapId};
+                                    &TestCameraPlace};
 const WorldClient* g_worldClient = &kGameWorldClient;
 
 bool FogDrawsInPlaceOfStockFog()
@@ -582,7 +591,7 @@ struct WorldFogInputs
 WorldFogInputs ReadWorldFogInputs(const Config& cfg)
 {
     WorldFogInputs world = {};
-    const PointLightUpload upload = LocalLightUpload(cfg, g_worldClient->mapId());
+    const PointLightUpload upload = LocalLightUpload(cfg, g_worldClient->place());
     world.valid = g_worldClient->frameInputs(world.in, cfg.localLights, upload);
     if (g_stockFogPushed)
         UseClientFogRangeInsteadOfPushed(world.in);

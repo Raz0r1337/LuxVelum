@@ -1020,7 +1020,7 @@ void CheckRendererDrawsLitStormNoise(Harness& harness)
     light.color[2] = 0.05f;
     light.attenuation[0] = 1;
     light.attenuation[2] = 0.005f;
-    engine::SelectLocalPointLight(input.localLights, light, input.camPos, LocalLightUpload(config, input.mapId));
+    engine::SelectLocalPointLight(input.localLights, light, input.camPos, LocalLightUpload(config, CameraPlace(input)));
     harness.BeginFrame();
     harness.DrawScene(kHarbourEye, view, projection, world);
     const char* skip = "";

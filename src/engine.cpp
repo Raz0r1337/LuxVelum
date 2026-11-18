@@ -903,6 +903,19 @@ int CurrentMapId()
     }
 }
 
+bool ReadCameraPosition(float* position)
+{
+    __try
+    {
+        ReadFloats(kCameraPosition, position, 3);
+        return Finite(position, 3);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
 bool IsSupportedClient()
 {
     auto* base = reinterpret_cast<const unsigned char*>(GetModuleHandleA(nullptr));

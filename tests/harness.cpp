@@ -761,6 +761,14 @@ constexpr int kOutland = 530;
 constexpr int kNorthrend = 571;
 constexpr int kMapWithoutClassicLights = 9999;
 const LightParamsSelection kClearWeather = {};
+const float kSomewhere[3] = {};
+const float kNowhereReadable[3] = {0.0f, std::numeric_limits<float>::quiet_NaN(), 0.0f};
+const float kTerokkarBoneWastes[3] = {-3005.0f, 4469.0f, -18.0f};
+const float kHowlingFjordAwayFromItsLights[3] = {1350.0f, -5000.0f, 210.0f};
+const MapPlace kInEasternKingdoms = PlaceOf(kEasternKingdoms, kSomewhere);
+const MapPlace kOnMapWithoutClassicLights = PlaceOf(kMapWithoutClassicLights, kSomewhere);
+const MapPlace kInOutland = PlaceOf(kOutland, kTerokkarBoneWastes);
+const MapPlace kInNorthrend = PlaceOf(kNorthrend, kHowlingFjordAwayFromItsLights);
 constexpr uint32_t kEasternKingdomsGlobalLight = 1;
 constexpr uint32_t kStormwindLight = 77;
 constexpr float kDayFraction1800 = 0.75f;
@@ -814,12 +822,11 @@ bool OnlyClientLights(const AuthoredFog& fog)
 
 void CheckOutlandAndNorthrendHaveTheirOwnLights(const FogData& data)
 {
-    const float boneWastes[3] = {-3005.0f, 4469.0f, -18.0f};
-    const float howlingFjord[3] = {1350.0f, -5000.0f, 210.0f};
     AuthoredFog outland = {};
     AuthoredFog northrend = {};
-    const bool outlandFog = data.Resolve(kOutland, boneWastes, kDayFraction1800, kClearWeather, outland);
-    const bool northrendFog = data.Resolve(kNorthrend, howlingFjord, kDayFraction1800, kClearWeather, northrend);
+    const bool outlandFog = data.Resolve(kOutland, kTerokkarBoneWastes, kDayFraction1800, kClearWeather, outland);
+    const bool northrendFog =
+        data.Resolve(kNorthrend, kHowlingFjordAwayFromItsLights, kDayFraction1800, kClearWeather, northrend);
     std::printf("     Bone Wastes: %d client lights (first %u), coverage %.2f, %d layers; Howling Fjord: light "
                 "%u weight %.2f, %d layers\n",
                 outland.lightCount, outland.lightCount ? outland.lightIds[0] : 0u, outland.coverage,
@@ -842,30 +849,30 @@ void CheckRegionalFogSettings()
     cfg.azerothDensity = 1.5f;
     cfg.outlandDensity = 0.5f;
     cfg.northrendDensity = 0.25f;
-    const Config azeroth = ConfigForMap(cfg, kEasternKingdoms);
-    const Config dungeon = ConfigForMap(cfg, kMapWithoutClassicLights);
-    const Config outland = ConfigForMap(cfg, kOutland);
-    const Config northrend = ConfigForMap(cfg, kNorthrend);
+    const Config azeroth = ConfigForPlace(cfg, kInEasternKingdoms);
+    const Config dungeon = ConfigForPlace(cfg, kOnMapWithoutClassicLights);
+    const Config outland = ConfigForPlace(cfg, kInOutland);
+    const Config northrend = ConfigForPlace(cfg, kInNorthrend);
     std::printf("     density 0.8 by region: Azeroth %.2f, other map %.2f, Outland %.2f, Northrend %.2f\n",
                 azeroth.density, dungeon.density, outland.density, northrend.density);
     Check(std::fabs(azeroth.density - 1.2f) < 1e-5f && std::fabs(dungeon.density - 1.2f) < 1e-5f &&
               std::fabs(outland.density - 0.4f) < 1e-5f && std::fabs(northrend.density - 0.2f) < 1e-5f,
           "each region scales Density by its own density: Azeroth on every map but Outland and Northrend");
-    Check(outland.dataMode == 1 && northrend.dataMode == 1 && UsesFogData(cfg, kOutland) &&
-              UsesFogData(cfg, kNorthrend),
+    Check(outland.dataMode == 1 && northrend.dataMode == 1 && UsesFogData(cfg, kInOutland) &&
+              UsesFogData(cfg, kInNorthrend),
           "Outland and Northrend borrow the Classic fog by default");
 
     cfg.outlandClassicFog = 0;
-    Check(ConfigForMap(cfg, kOutland).dataMode == 0 && !UsesFogData(cfg, kOutland) &&
-              ConfigForMap(cfg, kNorthrend).dataMode == 1 && ConfigForMap(cfg, kEasternKingdoms).dataMode == 1,
+    Check(ConfigForPlace(cfg, kInOutland).dataMode == 0 && !UsesFogData(cfg, kInOutland) &&
+              ConfigForPlace(cfg, kInNorthrend).dataMode == 1 && ConfigForPlace(cfg, kInEasternKingdoms).dataMode == 1,
           "OutlandClassicFog=0 gives Outland the derived layers and leaves Northrend and Azeroth alone");
     cfg.outlandClassicFog = 1;
     cfg.northrendClassicFog = 0;
-    Check(ConfigForMap(cfg, kNorthrend).dataMode == 0 && !UsesFogData(cfg, kNorthrend) &&
-              ConfigForMap(cfg, kOutland).dataMode == 1 && UsesFogData(cfg, kEasternKingdoms),
+    Check(ConfigForPlace(cfg, kInNorthrend).dataMode == 0 && !UsesFogData(cfg, kInNorthrend) &&
+              ConfigForPlace(cfg, kInOutland).dataMode == 1 && UsesFogData(cfg, kInEasternKingdoms),
           "NorthrendClassicFog=0 gives Northrend the derived layers and leaves Outland and Azeroth alone");
     cfg.dataMode = 0;
-    Check(ConfigForMap(cfg, kOutland).dataMode == 0, "DataMode=0 keeps the derived layers in every region");
+    Check(ConfigForPlace(cfg, kInOutland).dataMode == 0, "DataMode=0 keeps the derived layers in every region");
 }
 
 constexpr float kNoon = 0.5f;
@@ -1256,8 +1263,8 @@ void CheckOutlandDensityThinsTheConvertedFog(const FogData& data)
     full.outlandDensity = 1.0f;
     Config halved = full;
     halved.outlandDensity = 0.5f;
-    const FogParams fullParams = BuildFogParams(frame, ConfigForMap(full, kOutland), &fog);
-    const FogParams halvedParams = BuildFogParams(frame, ConfigForMap(halved, kOutland), &fog);
+    const FogParams fullParams = BuildFogParams(frame, ConfigForPlace(full, CameraPlace(frame)), &fog);
+    const FogParams halvedParams = BuildFogParams(frame, ConfigForPlace(halved, CameraPlace(frame)), &fog);
     const float fullDensity = SceneLayersDensity(fullParams);
     const float halvedDensity = SceneLayersDensity(halvedParams);
     std::printf("     Bone Wastes at dusk: scene layer density %.6f at OutlandDensity 1, %.6f at 0.5\n",
@@ -1376,8 +1383,8 @@ void CheckSunlessSkiesScatterNoSunOrMoon(const FogData& data)
     const Vec3 shattrathCity = {-1829.0f, 5248.0f, -46.0f};
     const Vec3 toLight = {0.607f, 0.607f, 0.513f};
     const float evening = 0.7279f;
-    const Config cfg = ConfigForMap(Config{}, kOutland);
     const FrameInputs sunOverNetherstorm = ContinentFrame(kOutland, netherstorm, evening, toLight, false);
+    const Config cfg = ConfigForPlace(Config{}, CameraPlace(sunOverNetherstorm));
     const FrameInputs moonOverNetherstorm = ContinentFrame(kOutland, netherstorm, evening, toLight, true);
     const FrameInputs sunOverShattrath = ContinentFrame(kOutland, shattrathCity, evening, toLight, false);
     AuthoredFog sunless = {};
@@ -1525,7 +1532,7 @@ void CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(const FogData& data)
 
     const Vec3 toLight = {0.607f, 0.607f, 0.513f};
     const Vec3 eye = {grizzlemaw[0], grizzlemaw[1], grizzlemaw[2]};
-    const Config cfg = ConfigForMap(Config{}, kNorthrend);
+    const Config cfg = ConfigForPlace(Config{}, PlaceOf(kNorthrend, grizzlemaw));
     const FogParams sun = BuildFogParams(ContinentFrame(kNorthrend, eye, kDayFraction1800, toLight, false), cfg,
                                          &grizzly);
     const FogParams moon = BuildFogParams(ContinentFrame(kNorthrend, eye, kDayFraction1800, toLight, true), cfg,
@@ -1559,7 +1566,7 @@ void CheckGhostlandsScattersNoSun(const FogData& data)
     const Vec3 toLight = {0.607f, 0.607f, 0.513f};
     const Vec3 tranquillien = {ghostlands[0].position[0], ghostlands[0].position[1], ghostlands[0].position[2]};
     const Vec3 silvermoon = {quelThalas[0].position[0], quelThalas[0].position[1], quelThalas[0].position[2]};
-    const Config cfg = ConfigForMap(Config{}, kOutland);
+    const Config cfg = ConfigForPlace(Config{}, PlaceOf(kOutland, ghostlands[0].position));
     AuthoredFog ghostly = {};
     AuthoredFog sunlit = {};
     const bool resolved = data.Resolve(kOutland, ghostlands[0].position, kDayFraction1800, kClearWeather, ghostly) &&
@@ -1582,6 +1589,68 @@ void CheckGhostlandsScattersNoSun(const FogData& data)
           "Silvermoon City keeps its sun scatter and god rays");
 }
 
+template <size_t N>
+bool LandmarksInRegion(const Landmark (&landmarks)[N], MapRegion region, const char* label)
+{
+    bool all = true;
+    std::printf("     %s:", label);
+    for (const Landmark& landmark : landmarks)
+    {
+        const MapRegion found = RegionOf(PlaceOf(landmark.map, landmark.position));
+        std::printf(" %s %s", landmark.name, RegionName(found));
+        all = all && found == region;
+    }
+    std::printf("\n");
+    return all;
+}
+
+void CheckMap530StartingZonesTakeTheAzerothSettings()
+{
+    const Landmark outland[] = {
+        {"Bone Wastes", kOutland, {-3005.0f, 4469.0f, -18.0f}},
+        {"Shattrath City", kOutland, {-1829.0f, 5248.0f, -46.0f}},
+        {"Netherstorm", kOutland, {3054.0f, 3654.0f, 142.0f}},
+        {"Netherwing Ledge", kOutland, {-5248.0f, 166.0f, 72.0f}},
+        {"farthest reach of an Outland light", kOutland, {-3824.0f, -727.0f, 94.0f}},
+    };
+    const Landmark startingZones[] = {
+        {"Tranquillien", kOutland, {7595.0f, -6782.0f, 87.0f}},
+        {"Silvermoon City", kOutland, {9473.0f, -7279.7f, 14.2f}},
+        {"Sunstrider Isle", kOutland, {10349.6f, -6357.3f, 33.4f}},
+        {"Isle of Quel'Danas", kOutland, {12806.5f, -6911.1f, 41.1f}},
+        {"edge of the Quel'Thalas light nearest Outland", kOutland, {6099.0f, -4373.0f, 37.0f}},
+        {"The Exodar", kOutland, {-3965.0f, -11653.0f, -138.0f}},
+        {"Azure Watch", kOutland, {-4127.0f, -12520.0f, 45.0f}},
+        {"Blood Watch", kOutland, {-1920.0f, -11850.0f, 50.0f}},
+    };
+    Check(LandmarksInRegion(outland, MapRegion::Outland, "map 530, Outland"),
+          "Outland proper on map 530 keeps the Outland settings, out to the farthest reach of its lights");
+    Check(LandmarksInRegion(startingZones, MapRegion::Azeroth, "map 530, Quel'Thalas and the Azuremyst isles"),
+          "Eversong Woods, the Ghostlands, Silvermoon, Quel'Danas, the Azuremyst and Bloodmyst isles and the Exodar "
+          "share map 530 with Outland but lie in Azeroth");
+
+    Config cfg = {};
+    cfg.azerothDensity = 1.0f;
+    cfg.outlandDensity = 0.5f;
+    cfg.azerothLocalLights = 1.0f;
+    cfg.outlandLocalLights = 4.0f;
+    cfg.outlandClassicFog = 0;
+    const MapPlace tranquillien = PlaceOf(kOutland, startingZones[0].position);
+    const MapPlace boneWastes = PlaceOf(kOutland, outland[0].position);
+    const PointLightUpload ghostlandsLamps = LocalLightUpload(cfg, tranquillien);
+    const PointLightUpload outlandLamps = LocalLightUpload(cfg, boneWastes);
+    std::printf("     Tranquillien: density %.2f, reach x%.3g; Bone Wastes: density %.2f, reach x%.3g\n",
+                ConfigForPlace(cfg, tranquillien).density, ghostlandsLamps.reach,
+                ConfigForPlace(cfg, boneWastes).density, outlandLamps.reach);
+    Check(Near(ConfigForPlace(cfg, tranquillien).density, cfg.density * cfg.azerothDensity) &&
+              Near(ghostlandsLamps.reach, cfg.azerothLocalLights) && UsesFogData(cfg, tranquillien) &&
+              Near(ConfigForPlace(cfg, boneWastes).density, cfg.density * cfg.outlandDensity) &&
+              Near(outlandLamps.reach, cfg.outlandLocalLights) && !UsesFogData(cfg, boneWastes),
+          "the Ghostlands take Azeroth's density, local lights and fog data, the Bone Wastes Outland's");
+    Check(RegionOf(PlaceOf(kOutland, kNowhereReadable)) == MapRegion::Outland,
+          "map 530 counts as Outland while the camera position is unreadable");
+}
+
 AuthoredFog WithoutClearSky(AuthoredFog fog)
 {
     fog.clearSky = 0.0f;
@@ -1600,8 +1669,8 @@ void CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(const FogData& data)
     const float clearAtOneDegree = 1.0e-6f;
     const float groundThinEnoughForDistanceFog = 0.01f;
     const uint32_t hellfireLight = kFirstClientLight + 520;
-    const Config cfg = ConfigForMap(Config{}, kOutland);
     const FrameInputs frame = ContinentFrame(kOutland, hellfirePeninsula, evening, toLight, false);
+    const Config cfg = ConfigForPlace(Config{}, CameraPlace(frame));
     AuthoredFog hellfire = {};
     AuthoredFog other = {};
     const bool resolved = data.Resolve(kOutland, frame.camPos, evening, kClearWeather, hellfire) &&
@@ -1699,15 +1768,15 @@ void CheckLocalLightsGlowByRegion()
         for (const RegionLights& region : regions)
         {
             const FrameInputs frame = ContinentFrame(region.map, eye, evening, toLight, false);
-            const FogParams fog = BuildFogParams(frame, ConfigForMap(cfg, region.map), nullptr);
+            const FogParams fog = BuildFogParams(frame, ConfigForPlace(cfg, CameraPlace(frame)), nullptr);
             followsRegion = followsRegion && Near(fog.localLightGain * density, region.intensity);
         }
     }
     const Config defaults;
-    const FogParams outland = BuildFogParams(ContinentFrame(kOutland, eye, evening, toLight, false),
-                                             ConfigForMap(defaults, kOutland), nullptr);
-    const FogParams azeroth = BuildFogParams(ContinentFrame(kEasternKingdoms, eye, evening, toLight, false),
-                                             ConfigForMap(defaults, kEasternKingdoms), nullptr);
+    const FrameInputs inOutland = ContinentFrame(kOutland, eye, evening, toLight, false);
+    const FrameInputs inAzeroth = ContinentFrame(kEasternKingdoms, eye, evening, toLight, false);
+    const FogParams outland = BuildFogParams(inOutland, ConfigForPlace(defaults, CameraPlace(inOutland)), nullptr);
+    const FogParams azeroth = BuildFogParams(inAzeroth, ConfigForPlace(defaults, CameraPlace(inAzeroth)), nullptr);
     std::printf("     local light gain by default: Outland %.3f, Azeroth %.3f\n", outland.localLightGain,
                 azeroth.localLightGain);
     Check(followsRegion && Near(azeroth.localLightGain, 1.0f) && defaults.outlandLocalLights == 8.0f &&
@@ -1732,9 +1801,9 @@ void CheckOutlandSkyColourTintsTheConvertedFog(const FogData& data)
     sky.outlandSkyColor = 1.0f;
     Config half = asConverted;
     half.outlandSkyColor = 0.5f;
-    const FogParams converted = BuildFogParams(frame, ConfigForMap(asConverted, kOutland), &fog);
-    const FogParams own = BuildFogParams(frame, ConfigForMap(sky, kOutland), &fog);
-    const FogParams mixed = BuildFogParams(frame, ConfigForMap(half, kOutland), &fog);
+    const FogParams converted = BuildFogParams(frame, ConfigForPlace(asConverted, CameraPlace(frame)), &fog);
+    const FogParams own = BuildFogParams(frame, ConfigForPlace(sky, CameraPlace(frame)), &fog);
+    const FogParams mixed = BuildFogParams(frame, ConfigForPlace(half, CameraPlace(frame)), &fog);
     float clientFog[3];
     UnpackColor(frame.fogColor, clientFog);
     for (float& c : clientFog)
@@ -1768,8 +1837,8 @@ void CheckOutlandSkyColourTintsTheConvertedFog(const FogData& data)
     stormwind.fogColor = frame.fogColor;
     AuthoredFog classic = {};
     data.Resolve(kEasternKingdoms, stormwind.camPos, evening, kClearWeather, classic);
-    const FogParams plain = BuildFogParams(stormwind, ConfigForMap(asConverted, kEasternKingdoms), &classic);
-    const FogParams tinted = BuildFogParams(stormwind, ConfigForMap(sky, kEasternKingdoms), &classic);
+    const FogParams plain = BuildFogParams(stormwind, ConfigForPlace(asConverted, CameraPlace(stormwind)), &classic);
+    const FogParams tinted = BuildFogParams(stormwind, ConfigForPlace(sky, CameraPlace(stormwind)), &classic);
     Check(std::memcmp(plain.layers, tinted.layers, sizeof(plain.layers)) == 0,
           "the sky colour settings leave the Classic fog of the old continents as authored");
 }
@@ -3213,6 +3282,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckSunlessSkiesScatterNoSunOrMoon(classic);
     CheckGrizzlyHillsSholazarAndBoreanTundraKeepTheSun(classic);
     CheckGhostlandsScattersNoSun(classic);
+    CheckMap530StartingZonesTakeTheAzerothSettings();
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
     CheckLocalLightsGlowByRegion();

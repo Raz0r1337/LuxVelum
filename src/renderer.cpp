@@ -596,7 +596,9 @@ void Renderer::LogLightChange(const FrameInputs& in, const AuthoredFog& fog, boo
         signature = signature * 31u + fog.lightIds[i];
     signature = signature * 31u + loggedStormStep;
     signature = signature * 31u + static_cast<uint32_t>(selection.screenEffectSlot);
+    const MapRegion region = RegionOf(CameraPlace(in));
     signature ^= static_cast<uint32_t>(in.mapId) << 20;
+    signature = signature * 31u + static_cast<uint32_t>(region);
     if (m_lightsLogged && signature == m_lightSignature)
         return;
     m_lightsLogged = true;
@@ -608,18 +610,19 @@ void Renderer::LogLightChange(const FrameInputs& in, const AuthoredFog& fog, boo
                               fog.lightWeights[i]);
     if (!authored && fog.lightCount == 0)
     {
-        VF_LOG_INFO("map %d at (%.0f %.0f %.0f): no Classic fog data, derived layers", in.mapId, in.camPos[0],
-                    in.camPos[1], in.camPos[2]);
+        VF_LOG_INFO("map %d (%s) at (%.0f %.0f %.0f): no Classic fog data, derived layers", in.mapId,
+                    RegionName(region), in.camPos[0], in.camPos[1], in.camPos[2]);
         return;
     }
     if (!authored)
     {
-        VF_LOG_INFO("map %d at (%.0f %.0f %.0f): Classic lights %s (coverage %.2f) without Classic fog, derived layers",
-                    in.mapId, in.camPos[0], in.camPos[1], in.camPos[2], lights, fog.coverage);
+        VF_LOG_INFO("map %d (%s) at (%.0f %.0f %.0f): Classic lights %s (coverage %.2f) without Classic fog, "
+                    "derived layers",
+                    in.mapId, RegionName(region), in.camPos[0], in.camPos[1], in.camPos[2], lights, fog.coverage);
         return;
     }
-    VF_LOG_INFO("map %d at (%.0f %.0f %.0f): Classic lights %s, %d layers, storm %.1f, screen effect slot %d",
-                in.mapId, in.camPos[0], in.camPos[1], in.camPos[2], lights, fog.layerCount,
+    VF_LOG_INFO("map %d (%s) at (%.0f %.0f %.0f): Classic lights %s, %d layers, storm %.1f, screen effect slot %d",
+                in.mapId, RegionName(region), in.camPos[0], in.camPos[1], in.camPos[2], lights, fog.layerCount,
                 loggedStormStep / kLoggedStormBlendSteps, selection.screenEffectSlot);
 }
 
@@ -669,7 +672,7 @@ void Renderer::LogUploadedLocalLights(const FrameInputs& in, const Config& cfg, 
     const float* colour = lights[brightest].uploadedColor;
     char pool[kLightPoolText];
     DescribeLightPool(in.localLights, uploaded, pool, sizeof(pool));
-    const PointLightUpload upload = LocalLightUpload(cfg, in.mapId);
+    const PointLightUpload upload = LocalLightUpload(cfg, CameraPlace(in));
     VF_LOG_INFO("local lights: %u uploaded, brightest %s (%.4g %.4g %.4g), nearest %.1f yd, reach x%.3g%s", uploaded,
                 upload.linear ? "linear" : "gamma", colour[0], colour[1], colour[2], nearest, upload.reach, pool);
     if (detailed)
@@ -1236,10 +1239,11 @@ void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const Frame
                 toLightInView[0], toLightInView[1], toLightInView[2], fog.lightVisibility, fog.lightAboveHorizon,
                 sunPx[0], sunPx[1], rayStrength, in.celestialShadow.hidden, in.celestialShadow.occluderDistance,
                 fog.haloShadow);
-    VF_LOG_INFO("  map %d fog %08X start %.1f end %.1f zone %.1f sun %08X direct %08X ambient %08X refZ %.1f "
+    VF_LOG_INFO("  map %d (%s) fog %08X start %.1f end %.1f zone %.1f sun %08X direct %08X ambient %08X refZ %.1f "
                 "glow %.2f, direct light vs Classic %.2f",
-                in.mapId, in.fogColor, in.fogStart, in.fogEnd, in.zoneFogDistance, in.sunColor, in.directColor,
-                in.ambientColor, fog.referenceZ, in.clientGlowAmount, fog.directLightMatch);
+                in.mapId, RegionName(RegionOf(CameraPlace(in))), in.fogColor, in.fogStart, in.fogEnd,
+                in.zoneFogDistance, in.sunColor, in.directColor, in.ambientColor, fog.referenceZ, in.clientGlowAmount,
+                fog.directLightMatch);
     char localPoints[32] = "not captured";
     if (cfg.localLights)
         std::snprintf(localPoints, sizeof(localPoints), "%u", in.localLights.pointLightCount);
@@ -1318,7 +1322,7 @@ bool Renderer::Render(IDirect3DDevice9* dev, const SceneDepth& depth, const Fram
     if (!EnsureShaders(dev) || !EnsureStateBlock(dev))
         return false;
     return WithClientStateSaved(dev, depth, [&](IDirect3DSurface9* target, const D3DSURFACE_DESC& depthDesc) {
-        return RenderPasses(dev, depth, target, depthDesc, in, ConfigForMap(cfg, in.mapId), pass);
+        return RenderPasses(dev, depth, target, depthDesc, in, ConfigForPlace(cfg, CameraPlace(in)), pass);
     });
 }
 

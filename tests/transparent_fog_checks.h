@@ -1168,7 +1168,7 @@ View LampLitView(const Config& cfg)
             lamp.color[c] = placement.colour[c];
         lamp.attenuation[0] = 1.0f;
         lamp.attenuation[2] = placement.quadraticAttenuation;
-        engine::SelectLocalPointLight(v.in.localLights, lamp, v.in.camPos, LocalLightUpload(cfg, v.in.mapId));
+        engine::SelectLocalPointLight(v.in.localLights, lamp, v.in.camPos, LocalLightUpload(cfg, CameraPlace(v.in)));
     }
     return v;
 }

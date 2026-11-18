@@ -242,14 +242,14 @@ bool DrawRegions(Config& c)
     bool changed = Toggle("Outland fog data", c.outlandClassicFog,
                           "On: Outland's fog layers come from its own client lights, converted into fogdata.bin with "
                           "the layers of the most alike Classic light. Off: derived layers, with the client's glow and "
-                          "no colour grading");
+                          "no colour grading. The Burning Crusade starting zones keep their converted lights");
     changed |= Toggle("Northrend fog data", c.northrendClassicFog,
                       "On: Northrend's fog layers come from its own client lights, converted into fogdata.bin with "
                       "the layers of the most alike Classic light. Off: derived layers, with the client's glow and no "
                       "colour grading");
     changed |= Multiplier("Azeroth density", c.azerothDensity,
-                          "Fog thickness on the old continents, in their dungeons and on every other map, on top "
-                          "of Density");
+                          "Fog thickness on the old continents, in their dungeons, in the Burning Crusade starting "
+                          "zones and on every other map, on top of Density");
     changed |= SkyColour("Azeroth sky colour", c.azerothSkyColor, "Azeroth and on every other map");
     changed |= RegionLocalLights("Azeroth local lights", c.azerothLocalLights, "Azeroth and on every other map");
     changed |= Multiplier("Outland density", c.outlandDensity, "Fog thickness in Outland, on top of Density");

@@ -219,7 +219,7 @@ bool AddPointLight(FrameInputs& inputs, Vec3 position, const float* color, float
     std::memcpy(light.color, color, sizeof(light.color));
     light.attenuation[0] = 1.0f;
     light.attenuation[2] = quadraticAttenuation;
-    const PointLightUpload upload = LocalLightUpload(Config{}, inputs.mapId);
+    const PointLightUpload upload = LocalLightUpload(Config{}, CameraPlace(inputs));
     return engine::SelectLocalPointLight(inputs.localLights, light, inputs.camPos, upload);
 }
 

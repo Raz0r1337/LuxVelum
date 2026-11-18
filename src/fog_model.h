@@ -89,10 +89,19 @@ enum class MapRegion
     Northrend,
 };
 
-MapRegion RegionOfMap(int mapId);
-bool UsesFogData(const Config& cfg, int mapId);
-Config ConfigForMap(const Config& cfg, int mapId);
-PointLightUpload LocalLightUpload(const Config& cfg, int mapId);
+struct MapPlace
+{
+    int mapId;
+    float y;
+};
+
+MapPlace PlaceOf(int mapId, const float* position);
+MapPlace CameraPlace(const FrameInputs& in);
+MapRegion RegionOf(const MapPlace& place);
+const char* RegionName(MapRegion region);
+bool UsesFogData(const Config& cfg, const MapPlace& place);
+Config ConfigForPlace(const Config& cfg, const MapPlace& place);
+PointLightUpload LocalLightUpload(const Config& cfg, const MapPlace& place);
 bool AnyLayerNoise(const FogParams& fog);
 float EnergyNormalisedPhaseScale(float g);
 float HaloEdgePhase(float g);

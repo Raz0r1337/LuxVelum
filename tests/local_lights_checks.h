@@ -179,9 +179,9 @@ LocalPointLight RegionLampFixture(float x, float z)
 void CheckLocalLightReachFollowsRegion()
 {
     const Config defaults;
-    const PointLightUpload azeroth = LocalLightUpload(defaults, kEasternKingdoms);
-    const PointLightUpload outland = LocalLightUpload(defaults, kOutland);
-    const PointLightUpload northrend = LocalLightUpload(defaults, kNorthrend);
+    const PointLightUpload azeroth = LocalLightUpload(defaults, kInEasternKingdoms);
+    const PointLightUpload outland = LocalLightUpload(defaults, kInOutland);
+    const PointLightUpload northrend = LocalLightUpload(defaults, kInNorthrend);
     const LocalPointLight lamp = RegionLampFixture(0.0f, 300.0f);
     float uploaded[3];
     engine::UploadedPointLightColor(lamp.color, northrend, uploaded);

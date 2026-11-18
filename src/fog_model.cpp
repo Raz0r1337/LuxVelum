@@ -52,7 +52,8 @@ constexpr float kMinClassicDirectLuminance = 1.0e-3f;
 constexpr float kLuminanceWeights[3] = {0.2126f, 0.7152f, 0.0722f};
 constexpr float kReferenceFarTarget = 200.0f;
 constexpr float kNoLimit = 1.0e9f;
-constexpr int kOutlandMap = 530;
+constexpr int kExpansion01Map = 530;
+constexpr float kOutlandMinY = -2550.0f;
 constexpr float kMinClientFogLuminance = 1.0e-4f;
 constexpr float kMinRegionDensityForLocalLights = 0.05f;
 constexpr int kNorthrendMap = 571;
@@ -446,7 +447,7 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     p.horizonStart = in.farClip * 0.85f;
     p.referenceZ = ReferenceZ(in);
     p.farLimit = std::clamp(in.fogEnd, 100.0f, in.farClip);
-    const MapRegion region = RegionOfMap(in.mapId);
+    const MapRegion region = RegionOf(CameraPlace(in));
     p.localLightGain =
         RegionLocalLights(cfg, region) / std::max(RegionDensity(cfg, region), kMinRegionDensityForLocalLights);
 
@@ -461,7 +462,7 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     {
         p.directLightMatch = ClientToClassicDirectLight(*authored, p.lightColor, p.linear);
         AuthoredLayers(*authored, cfg, p, scatter * p.directLightMatch, p.layers, p.noise);
-        const float skyShare = std::clamp(RegionSkyColorShare(cfg, RegionOfMap(in.mapId)), 0.0f, 1.0f);
+        const float skyShare = std::clamp(RegionSkyColorShare(cfg, region), 0.0f, 1.0f);
         if (skyShare > 0.0f)
             TakeClientFogHue(fogColor, skyShare, p.layers);
         HaloHue(*authored, p.rayColor);
@@ -478,18 +479,41 @@ FogParams BuildFogParams(const FrameInputs& in, const Config& cfg, const Authore
     return p;
 }
 
-MapRegion RegionOfMap(int mapId)
+MapPlace PlaceOf(int mapId, const float* position)
 {
-    if (mapId == kOutlandMap)
-        return MapRegion::Outland;
-    if (mapId == kNorthrendMap)
+    return {mapId, position[1]};
+}
+
+MapPlace CameraPlace(const FrameInputs& in)
+{
+    return PlaceOf(in.mapId, in.camPos);
+}
+
+MapRegion RegionOf(const MapPlace& place)
+{
+    if (place.mapId == kExpansion01Map)
+        return place.y < kOutlandMinY ? MapRegion::Azeroth : MapRegion::Outland;
+    if (place.mapId == kNorthrendMap)
         return MapRegion::Northrend;
     return MapRegion::Azeroth;
 }
 
-bool UsesFogData(const Config& cfg, int mapId)
+const char* RegionName(MapRegion region)
 {
-    switch (RegionOfMap(mapId))
+    switch (region)
+    {
+    case MapRegion::Outland:
+        return "Outland";
+    case MapRegion::Northrend:
+        return "Northrend";
+    default:
+        return "Azeroth";
+    }
+}
+
+bool UsesFogData(const Config& cfg, const MapPlace& place)
+{
+    switch (RegionOf(place))
     {
     case MapRegion::Outland:
         return cfg.outlandClassicFog != 0;
@@ -500,11 +524,11 @@ bool UsesFogData(const Config& cfg, int mapId)
     }
 }
 
-Config ConfigForMap(const Config& cfg, int mapId)
+Config ConfigForPlace(const Config& cfg, const MapPlace& place)
 {
     Config regional = cfg;
-    regional.density = cfg.density * RegionDensity(cfg, RegionOfMap(mapId));
-    if (!UsesFogData(cfg, mapId))
+    regional.density = cfg.density * RegionDensity(cfg, RegionOf(place));
+    if (!UsesFogData(cfg, place))
         regional.dataMode = 0;
     return regional;
 }
@@ -527,9 +551,9 @@ float PhaseUnderHaloShadow(float forwardPhase, float g, float haloShadow)
     return forwardPhase - haloShadow * std::max(forwardPhase - HaloEdgePhase(g), 0.0f);
 }
 
-PointLightUpload LocalLightUpload(const Config& cfg, int mapId)
+PointLightUpload LocalLightUpload(const Config& cfg, const MapPlace& place)
 {
-    return {ScattersInLinearLight(cfg), cfg.localLightIntensity, RegionLocalLights(cfg, RegionOfMap(mapId))};
+    return {ScattersInLinearLight(cfg), cfg.localLightIntensity, RegionLocalLights(cfg, RegionOf(place))};
 }
 
 bool AnyLayerNoise(const FogParams& fog)

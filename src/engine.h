@@ -119,6 +119,7 @@ bool IsSupportedClient();
 void ChooseCurrentMap();
 void ChooseCameraFocus();
 int CurrentMapId();
+bool ReadCameraPosition(float* position);
 void* GameD3DDevice();
 bool CameraInLiquid();
 
