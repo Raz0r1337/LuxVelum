@@ -111,7 +111,7 @@ void CheckFogDataChoice()
     std::printf("     darker nights -> %d, without -> %d (%zu of %zu matched), other table -> %d, not loaded -> %d, "
                 "default without probes -> %d\n",
                 darker, brighter, brighterScore.matched, brighterScore.read, unknown, unloaded, fromUnprobed);
-    Check(darker == 0 && brighter == 1 && brighterScore.matched == 2 && unknown == 0 && unloaded == -1 &&
+    Check(darker == 0 && brighter == 1 && brighterScore.matched == 3 && unknown == 0 && unloaded == -1 &&
               fromUnprobed == 1,
           "the fog data whose band probes match the client's LightIntBand is chosen, the default fogdata.bin when "
           "none matches more than half, and nothing before the table is loaded");
