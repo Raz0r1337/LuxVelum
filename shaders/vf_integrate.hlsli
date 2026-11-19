@@ -244,9 +244,9 @@ float3 StepSamplePosition(MarchRay ray, float stepStart, float stepEnd, float ji
 }
 
 void AccumulateLayers(float4 noiseDensities, float cosToLight, float skyMask, float upward, float stepStart,
-                      float stepEnd, float jitter, MarchRay ray, inout float3 radiance, inout float opticalDepth)
+                      float stepEnd, float jitter, MarchRay ray, StepVariation stepVariation, inout float3 radiance,
+                      inout float opticalDepth)
 {
-    StepVariation stepVariation = StepVariationAt(ray, stepStart, stepEnd, jitter);
     [branch] if (kUnrollsLayers)
     {
         [unroll] for (int j = 0; j < kFogLayers; j++)
@@ -319,13 +319,14 @@ float4 IntegrateFogAtDepth(float2 pixel, float depth, float jitter)
         float3 stepRadiance = 0;
         float stepOpticalDepth = 0;
         float4 noiseDensities = LayerNoiseDensities(StepSamplePosition(ray, stepStart, stepEnd, jitter));
-        AccumulateLayers(noiseDensities, cosToLight, skyMask, upward, stepStart, stepEnd, jitter, ray, stepRadiance,
-                         stepOpticalDepth);
+        StepVariation stepVariation = StepVariationAt(ray, stepStart, stepEnd, jitter);
+        AccumulateLayers(noiseDensities, cosToLight, skyMask, upward, stepStart, stepEnd, jitter, ray, stepVariation,
+                         stepRadiance, stepOpticalDepth);
         [branch] if (kMarchesLocalLights && lightCoverage.nextEndpoint <= stepStart)
             lightCoverage = ChordCoverageFrom(lightCoverage, viewDirection, stepStart, marchLength);
         [branch] if (kMarchesLocalLights && StepMeetsLocalLights(lightCoverage, stepEnd))
             stepRadiance += LocalLightScattering(lightCoverage, lightDensityScales, ray, stepStart, stepEnd,
-                                                 noiseDensities);
+                                                 noiseDensities, stepVariation.variation);
         [branch] if (stepOpticalDepth > 0)
         {
             float stepOpacity = stepOpticalDepth < 1e-3
