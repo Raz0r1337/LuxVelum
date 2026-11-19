@@ -313,7 +313,7 @@ float4 IntegrateFogAtDepth(float2 pixel, float depth, float jitter)
         float startFraction = s * stepFraction;
         float endFraction = startFraction + stepFraction;
         float stepStart = marchLength * startFraction * startFraction;
-        [branch] if (kUnrollsLayers && stepStart >= layersEnd)
+        [branch] if (stepStart >= layersEnd)
             break;
         float stepEnd = marchLength * endFraction * endFraction;
         float3 stepRadiance = 0;
