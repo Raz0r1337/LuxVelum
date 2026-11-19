@@ -278,12 +278,9 @@ float4 FogWithoutMatchingTap(float2 pixel, float depth, float viewZ)
                 return taps.currentMarch;
         }
     }
-    [branch] if (kMarchesLocalLights)
-    {
-        float4 surroundingFog = SameSurfaceFogAroundFootprint(pixel, depth, viewZ);
-        [branch] if (surroundingFog.a >= 0)
-            return surroundingFog;
-    }
+    float4 surroundingFog = kMarchesLocalLights ? SameSurfaceFogAroundFootprint(pixel, depth, viewZ) : -1;
+    [branch] if (surroundingFog.a >= 0)
+        return surroundingFog;
     return IntegrateFogAtDepth(pixel, depth, 0.5);
 }
 
