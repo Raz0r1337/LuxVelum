@@ -26,6 +26,7 @@ static const float kTapPlaneRelativeDepth = 0.005;
 static const float kWholeBilinearWeight = 0.999;
 static const float kMaxDisplayedMarchCurvature = 2.0 / 255;
 static const int kSurroundingTaps = 16;
+static const float kNearestTapRelativeDepth = 0.25;
 
 float Exposure()
 {
@@ -247,6 +248,8 @@ float4 SameSurfaceFogAroundFootprint(float2 pixel, float depth, float viewZ)
     float2 firstTexel = floor(lowResCoord) - 1;
     float4 weightedFog = 0;
     float weightSum = 0;
+    float2 nearestDepthTexel = 0;
+    float nearestRelativeDepth = kNearestTapRelativeDepth;
     [loop] for (int j = 0; j < kSurroundingTaps; j++)
     {
         float2 offset = float2(frac(j * 0.25) * 4, floor(j * 0.25));
@@ -254,14 +257,25 @@ float4 SameSurfaceFogAroundFootprint(float2 pixel, float depth, float viewZ)
         float tapDepth = SampleDepth(sDepth, LowResTexelToFullPixel(tapTexel));
         float tapViewZ = LinearDepth(tapDepth);
         float2 toTap = tapTexel - lowResCoord;
+        float relativeDepth = abs(tapViewZ - viewZ) / max(viewZ, 1e-3);
+        bool sameClass = SameDepthClass(depth, tapDepth);
         float weight = !InnerBilinearTap(offset) && SameSurfaceTap(depth, viewZ, tapDepth, tapViewZ)
-            ? 1 / ((1e-3 + abs(tapViewZ - viewZ) / max(viewZ, 1e-3)) * (1 + dot(toTap, toTap)))
+            ? 1 / ((1e-3 + relativeDepth) * (1 + dot(toTap, toTap)))
             : 0;
         [branch] if (weight > 0)
             weightedFog += tex2Dlod(sFog, float4(LowResTexelToUv(tapTexel), 0, 0)) * weight;
         weightSum += weight;
+        [flatten] if (sameClass && relativeDepth < nearestRelativeDepth)
+        {
+            nearestRelativeDepth = relativeDepth;
+            nearestDepthTexel = tapTexel;
+        }
     }
-    return weightSum > 1e-6 ? weightedFog / weightSum : -1;
+    [branch] if (weightSum > 1e-6)
+        return weightedFog / weightSum;
+    [branch] if (nearestRelativeDepth < kNearestTapRelativeDepth)
+        return tex2Dlod(sFog, float4(LowResTexelToUv(nearestDepthTexel), 0, 0));
+    return -1;
 }
 
 float4 FogWithoutMatchingTap(float2 pixel, float depth, float viewZ)
