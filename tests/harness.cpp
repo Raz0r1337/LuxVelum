@@ -2592,6 +2592,50 @@ std::wstring FreshClientFolder(const std::wstring& outDir, const wchar_t* name)
     return dir;
 }
 
+void CheckZoneHaloOwnOverShipped(const std::wstring& outDir)
+{
+    constexpr int kDuskwood = 10;
+    const std::wstring shippedFile = FullPath(outDir + L"\\zones-shipped.ini");
+    const std::wstring ownFile = FullPath(outDir + L"\\zones-own.ini");
+    const std::string shippedText = "[SunHalo]\n17=0.25\n10=0.65\n[MoonHalo]\n17=1.00\n10=1.00\n";
+    DeleteFileW(ownFile.c_str());
+    const bool written = WriteText(shippedFile, shippedText) && WriteText(ownFile, "[SunHalo]\n10=0.80\n");
+    ZoneHaloBook book;
+    book.Load(NarrowPath(shippedFile), NarrowPath(ownFile));
+    const ZoneHalo barrens = book.Advance(kTheBarrens, "The Barrens", 1.0);
+    const ZoneHaloSource barrensSource = book.Current().source;
+    const ZoneHalo duskwood = book.Advance(kDuskwood, "Duskwood", 1.016);
+    const ZoneHaloSource duskwoodSource = book.Current().source;
+    const ZoneHalo durotar = book.Advance(kDurotar, "Durotar", 1.032);
+    const ZoneHaloSource durotarSource = book.Current().source;
+    std::printf("     shipped Barrens %.2f, own Duskwood %.2f over shipped 0.65, unlisted Durotar %.2f\n", barrens.sun,
+                duskwood.sun, durotar.sun);
+    Check(written && Near(barrens.sun, 0.25f) && barrensSource == ZoneHaloSource::Shipped &&
+              Near(duskwood.sun, 0.8f) && duskwoodSource == ZoneHaloSource::Own && Near(durotar.sun, 1.0f) &&
+              durotarSource == ZoneHaloSource::Unlisted,
+          "a zone takes the player's own halo from WTF\\LuxVelum-zones.ini, else the shipped one from "
+          "Data\\LuxVelum\\zones.ini, else 1");
+
+    book.Advance(kTheBarrens, "The Barrens", 2.0);
+    book.Edit({0.5f, 1.0f});
+    const bool saved = book.SaveCurrent();
+    book.Advance(kDuskwood, "Duskwood", 3.0);
+    const bool forgotten = book.ForgetCurrent();
+    const ZoneHaloView afterReset = book.Current();
+    ZoneHaloTable own;
+    own.Load(NarrowPath(ownFile));
+    std::printf("     own file after an edit in the Barrens and a reset in Duskwood: Barrens %.2f, Duskwood %s; "
+                "Duskwood back to %.2f\n",
+                own.Factors(kTheBarrens).sun, own.Listed(kDuskwood) ? "listed" : "not listed",
+                afterReset.factors.sun);
+    Check(saved && forgotten && Near(own.Factors(kTheBarrens).sun, 0.5f) && !own.Listed(kDuskwood) &&
+              Near(afterReset.factors.sun, 0.65f) && afterReset.source == ZoneHaloSource::Shipped &&
+              ReadText(shippedFile) == shippedText,
+          "the settings window writes and resets only the player's own halos, a reset falls back to the shipped "
+          "halo, and the shipped file is never written, so a release can replace it without losing the player's "
+          "edits");
+}
+
 void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& shippedIni)
 {
     const std::wstring fresh = FreshClientFolder(outDir, L"client-fresh");
@@ -2602,7 +2646,8 @@ void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& sh
     Check(paths.log == freshFolder + "Logs\\LuxVelum.log" && paths.ini == freshFolder + "WTF\\LuxVelum.ini" &&
               paths.fogData == freshFolder + "Data\\LuxVelum\\fogdata.bin" &&
               paths.waterData == freshFolder + "Data\\LuxVelum\\waterdata.bin" &&
-              paths.zoneHalo == freshFolder + "WTF\\LuxVelum-zones.ini" && IsFolder(fresh + L"\\Logs") &&
+              paths.zoneHalo == freshFolder + "WTF\\LuxVelum-zones.ini" &&
+              paths.shippedZoneHalo == freshFolder + "Data\\LuxVelum\\zones.ini" && IsFolder(fresh + L"\\Logs") &&
               IsFolder(fresh + L"\\WTF"),
           "in the client folder the log goes into Logs and the settings and zone halos into WTF, both made when "
           "missing, and the fog and water data come from Data\\LuxVelum");
@@ -3446,6 +3491,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckSettingsSaveKeepsTheIni(outDir, FullPath(iniPath));
     CheckRegionLocalLightsSetting(outDir, FullPath(iniPath));
     CheckZoneHaloTable(outDir);
+    CheckZoneHaloOwnOverShipped(outDir);
     CheckEarlierSettingsAreTakenOver(outDir, FullPath(iniPath));
     CheckEarlierSettingsAreTakenOverWhateverTheirShape(outDir, FullPath(iniPath));
     CheckClientInstallLayout(outDir, FullPath(iniPath));

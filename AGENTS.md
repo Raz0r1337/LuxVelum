@@ -31,9 +31,12 @@ reverse-engineering evidence.
 - Ask before launching the game client. Install only when the owner says the client is closed: check that no process
   runs from the client folder and that the installed `WTF\LuxVelum.ini` still matches the repository, then replace
   `LuxVelum.dll` next to `Wow.exe` (and `version.dll` where the owner's client uses it), `WTF\LuxVelum.ini`,
-  `Data\LuxVelum\fogdata.bin` and `Data\LuxVelum\waterdata.bin`. While there is no `WTF\LuxVelum.ini` yet and a
-  `LuxVelum.ini`, `Luxveil.ini` or `CoAVolFog.ini` lies next to `Wow.exe`, leave `WTF\LuxVelum.ini` out so the DLL takes
-  the owner's settings over. After an owner test, read `Logs\LuxVelum.log` in the client folder.
+  `Data\LuxVelum\fogdata.bin`, `Data\LuxVelum\waterdata.bin` and `Data\LuxVelum\zones.ini`. While there is no
+  `WTF\LuxVelum.ini` yet and a `LuxVelum.ini`, `Luxveil.ini` or `CoAVolFog.ini` lies next to `Wow.exe`, leave
+  `WTF\LuxVelum.ini` out so the DLL takes the owner's settings over. Never replace `WTF\LuxVelum-zones.ini`: it holds
+  the player's own zone halos. After an owner test, read `Logs\LuxVelum.log` in the client folder.
+- `data/zones.ini` holds the owner's zone halos, shipped to every player. Before a release, fold the entries of the
+  owner's `WTF\LuxVelum-zones.ini` into it, then, with his consent, empty his file so the shipped halos apply to him.
 - Keep plans and results in the conversation. Routine edits need no backups, receipts or standalone reports; use Git.
 
 ## Owner and testing
@@ -75,7 +78,8 @@ reverse-engineering evidence.
   input chaining, `OverlayKey` and `ToggleKey`, drawing at `Present`), `settings_panel` (its widgets),
   `luxvelum_switch` (the off and on request of `ToggleKey` and the window, taken once per world frame by the hooks),
   `config`, `install_paths` (the client folder's `Logs`, `WTF` and `Data\LuxVelum`, the DLL's folder as fallback),
-  `zone_halo` (the sun and moon halo factor per client zone, `WTF\LuxVelum-zones.ini`, faded across zone borders),
+  `zone_halo` (the sun and moon halo factor per client zone, shipped in `Data\LuxVelum\zones.ini` and the player's
+  own in `WTF\LuxVelum-zones.ini`, faded across zone borders),
   `log`, `status_log`; water: `water_data` (Forever presets, FFT tiles, foam masks), `water_classify` (liquid classes),
   `water_spectrum` and `water_fft` (GPU FFT waves), `water_contacts` (contact tracker, ring impulses at the client's
   ripple events), `water_ripples` (ripple map simulation), `client_ripple_sprites` (hold on the client's `waterRipples`

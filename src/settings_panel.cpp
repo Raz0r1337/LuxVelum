@@ -271,6 +271,20 @@ bool DrawRegions(Config& c)
     return changed;
 }
 
+const char* ZoneHaloSourceName(ZoneHaloSource source)
+{
+    switch (source)
+    {
+    case ZoneHaloSource::Own:
+        return "your own";
+    case ZoneHaloSource::Shipped:
+        return "shipped";
+    case ZoneHaloSource::Unlisted:
+        break;
+    }
+    return "not listed";
+}
+
 void DrawZoneHalo()
 {
     const Section section("This zone", ImGuiTreeNodeFlags_DefaultOpen);
@@ -283,25 +297,26 @@ void DrawZoneHalo()
         ImGui::TextDisabled("No zone yet");
         return;
     }
-    ImGui::Text("%s (zone %d)%s", view.zoneName[0] ? view.zoneName : "Unnamed zone", view.zoneId,
-                view.listed ? "" : ", not listed");
+    ImGui::Text("%s (zone %d), %s", view.zoneName[0] ? view.zoneName : "Unnamed zone", view.zoneId,
+                ZoneHaloSourceName(view.source));
     ZoneHaloFactors factors = view.factors;
     bool changed = Slider("Sun halo here", factors.sun, 0.0f, kZoneHaloMax, "%.2f",
-                          "The sun's halo in this zone, on top of Sun scatter; saved to LuxVelum-zones.ini when you "
-                          "let go. 1 = as Sun scatter alone");
+                          "The sun's halo in this zone, on top of Sun scatter; saved as your own to "
+                          "WTF\\LuxVelum-zones.ini when you let go. 1 = as Sun scatter alone");
     bool released = ImGui::IsItemDeactivatedAfterEdit();
     changed |= Slider("Moon halo here", factors.moon, 0.0f, kZoneHaloMax, "%.2f",
-                      "The moon's halo in this zone, on top of Moon scatter; saved to LuxVelum-zones.ini when you let "
-                      "go. 1 = as Moon scatter alone");
+                      "The moon's halo in this zone, on top of Moon scatter; saved as your own to "
+                      "WTF\\LuxVelum-zones.ini when you let go. 1 = as Moon scatter alone");
     released |= ImGui::IsItemDeactivatedAfterEdit();
     if (changed)
         book.Edit(factors);
     if (released)
         book.SaveCurrent();
-    ImGui::BeginDisabled(!view.listed);
+    ImGui::BeginDisabled(view.source != ZoneHaloSource::Own);
     if (ImGui::Button("Reset this zone"))
         book.ForgetCurrent();
-    ImGui::SetItemTooltip("Remove this zone from LuxVelum-zones.ini, back to 1 for the sun and the moon");
+    ImGui::SetItemTooltip("Remove your own halo for this zone from WTF\\LuxVelum-zones.ini, back to the shipped "
+                          "halo of Data\\LuxVelum\\zones.ini, or 1 where it lists none");
     ImGui::EndDisabled();
 }
 

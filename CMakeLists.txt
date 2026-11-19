@@ -211,8 +211,9 @@ add_custom_target(luxvelum_runtime_files ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
             $<TARGET_FILE_DIR:LuxVelum>/WTF
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
-            ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin $<TARGET_FILE_DIR:LuxVelum>/Data/LuxVelum
-    COMMENT "Copying LuxVelum.ini into WTF and fogdata.bin and waterdata.bin into Data/LuxVelum beside LuxVelum.dll"
+            ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin ${CMAKE_CURRENT_SOURCE_DIR}/data/zones.ini
+            $<TARGET_FILE_DIR:LuxVelum>/Data/LuxVelum
+    COMMENT "Copying LuxVelum.ini into WTF and the fog, water and zone data into Data/LuxVelum beside LuxVelum.dll"
     VERBATIM)
 add_dependencies(LuxVelum luxvelum_runtime_files)
 add_dependencies(vfog_harness luxvelum_runtime_files version)

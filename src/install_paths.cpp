@@ -12,6 +12,7 @@ constexpr const char* kIniName = "LuxVelum.ini";
 constexpr const char* kZoneHaloName = "LuxVelum-zones.ini";
 constexpr const char* kFogDataName = "fogdata.bin";
 constexpr const char* kWaterDataName = "waterdata.bin";
+constexpr const char* kShippedZoneHaloName = "zones.ini";
 
 bool IsFolder(const std::string& path)
 {
@@ -44,5 +45,6 @@ InstallPaths ClientInstallPaths(const std::string& clientFolder)
 {
     const std::string settings = FolderOrClientFolder(clientFolder, kSettingsFolder);
     return {FolderOrClientFolder(clientFolder, kLogFolder) + kLogName, settings + kIniName,
-            DataFile(clientFolder, kFogDataName), DataFile(clientFolder, kWaterDataName), settings + kZoneHaloName};
+            DataFile(clientFolder, kFogDataName), DataFile(clientFolder, kWaterDataName), settings + kZoneHaloName,
+            DataFile(clientFolder, kShippedZoneHaloName)};
 }

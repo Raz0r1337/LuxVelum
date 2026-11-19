@@ -49,7 +49,8 @@ jobs:
         run: |
           $package = 'build/package'
           New-Item -ItemType Directory -Path $package | Out-Null
-          $files = 'LuxVelum.dll', 'WTF/LuxVelum.ini', 'Data/LuxVelum/fogdata.bin', 'Data/LuxVelum/waterdata.bin'
+          $files = 'LuxVelum.dll', 'WTF/LuxVelum.ini', 'Data/LuxVelum/fogdata.bin', 'Data/LuxVelum/waterdata.bin',
+            'Data/LuxVelum/zones.ini'
           foreach ($file in $files) {
             $destination = "$package/$file"
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
@@ -165,8 +166,10 @@ jobs:
             echo "never loaded and no \`LuxVelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
-            echo "into \`Data\\LuxVelum\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is"
+            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
+            echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\LuxVelum\`, and"
+            echo "\`LuxVelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
+            echo "\`WTF\\LuxVelum-zones.ini\` are not in the package and stay as they are. The log is"
             echo "written to \`Logs\\LuxVelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
             echo "or the client does not start."
             echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
@@ -368,8 +371,10 @@ jobs:
             echo "never loaded and no \`LuxVelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and \`waterdata.bin\`"
-            echo "into \`Data\\LuxVelum\`, and \`LuxVelum.ini\` (the default settings) into \`WTF\`. The log is"
+            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
+            echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\LuxVelum\`, and"
+            echo "\`LuxVelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
+            echo "\`WTF\\LuxVelum-zones.ini\` are not in the package and stay as they are. The log is"
             echo "written to \`Logs\\LuxVelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
             echo "or the client does not start."
             echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"

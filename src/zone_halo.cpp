@@ -134,27 +134,60 @@ ZoneHalo ZoneHaloFade::Advance(int zoneId, const ZoneHaloFactors& target, double
     return m_current;
 }
 
-void ZoneHaloBook::Load(const std::string& path)
+static const char* SourceNote(ZoneHaloSource source)
 {
-    m_table.Load(path);
-    VF_LOG_INFO("zone halo: %d zone(s) from %s", m_table.Count(), path.c_str());
+    switch (source)
+    {
+    case ZoneHaloSource::Own:
+        return " (your own)";
+    case ZoneHaloSource::Shipped:
+        return " (shipped)";
+    case ZoneHaloSource::Unlisted:
+        break;
+    }
+    return " (not listed)";
+}
+
+void ZoneHaloBook::Load(const std::string& shippedPath, const std::string& ownPath)
+{
+    m_shipped.Load(shippedPath);
+    m_own.Load(ownPath);
+    VF_LOG_INFO("zone halo: %d zone(s) shipped in %s, %d of your own in %s", m_shipped.Count(), shippedPath.c_str(),
+                m_own.Count(), ownPath.c_str());
+}
+
+ZoneHaloFactors ZoneHaloBook::Factors(int zoneId) const
+{
+    return m_own.Listed(zoneId) ? m_own.Factors(zoneId) : m_shipped.Factors(zoneId);
+}
+
+ZoneHaloSource ZoneHaloBook::SourceOf(int zoneId) const
+{
+    if (m_own.Listed(zoneId))
+        return ZoneHaloSource::Own;
+    return m_shipped.Listed(zoneId) ? ZoneHaloSource::Shipped : ZoneHaloSource::Unlisted;
+}
+
+void ZoneHaloBook::Show(int zoneId)
+{
+    m_view.factors = Factors(zoneId);
+    m_view.source = SourceOf(zoneId);
 }
 
 ZoneHalo ZoneHaloBook::Advance(int zoneId, const char* zoneName, double seconds)
 {
     if (zoneId <= 0 && m_view.zoneId > 0)
-        return m_fade.Advance(m_view.zoneId, m_table.Factors(m_view.zoneId), seconds);
-    const ZoneHaloFactors target = m_table.Factors(zoneId);
+        return m_fade.Advance(m_view.zoneId, Factors(m_view.zoneId), seconds);
     if (zoneId != m_view.zoneId)
     {
         m_view.zoneId = zoneId;
         std::snprintf(m_view.zoneName, sizeof(m_view.zoneName), "%s", zoneName ? zoneName : "");
+        const ZoneHaloFactors target = Factors(zoneId);
         VF_LOG_INFO("zone %d (%s): sun halo %.2f, moon halo %.2f%s", zoneId, m_view.zoneName, target.sun,
-                    target.moon, m_table.Listed(zoneId) ? "" : " (not listed)");
+                    target.moon, SourceNote(SourceOf(zoneId)));
     }
-    m_view.factors = target;
-    m_view.listed = m_table.Listed(zoneId);
-    return m_fade.Advance(zoneId, target, seconds);
+    Show(zoneId);
+    return m_fade.Advance(zoneId, m_view.factors, seconds);
 }
 
 ZoneHaloView ZoneHaloBook::Current() const
@@ -164,26 +197,25 @@ ZoneHaloView ZoneHaloBook::Current() const
 
 void ZoneHaloBook::Edit(const ZoneHaloFactors& factors)
 {
-    m_table.Edit(m_view.zoneId, factors);
-    m_view.factors = m_table.Factors(m_view.zoneId);
-    m_view.listed = m_table.Listed(m_view.zoneId);
+    m_own.Edit(m_view.zoneId, factors);
+    Show(m_view.zoneId);
 }
 
 bool ZoneHaloBook::SaveCurrent()
 {
-    const bool saved = m_table.Save(m_view.zoneId, m_view.zoneName);
-    const ZoneHaloFactors factors = m_table.Factors(m_view.zoneId);
-    VF_LOG_INFO("zone %d (%s): halo saved as sun %.2f, moon %.2f%s", m_view.zoneId, m_view.zoneName, factors.sun,
-                factors.moon, saved ? "" : " (write failed)");
+    const bool saved = m_own.Save(m_view.zoneId, m_view.zoneName);
+    const ZoneHaloFactors factors = m_own.Factors(m_view.zoneId);
+    VF_LOG_INFO("zone %d (%s): your halo saved as sun %.2f, moon %.2f%s", m_view.zoneId, m_view.zoneName,
+                factors.sun, factors.moon, saved ? "" : " (write failed)");
     return saved;
 }
 
 bool ZoneHaloBook::ForgetCurrent()
 {
-    const bool forgotten = m_table.Forget(m_view.zoneId);
-    m_view.factors = {};
-    m_view.listed = false;
-    VF_LOG_INFO("zone %d (%s): halo back to 1%s", m_view.zoneId, m_view.zoneName,
+    const bool forgotten = m_own.Forget(m_view.zoneId);
+    Show(m_view.zoneId);
+    VF_LOG_INFO("zone %d (%s): your halo removed, back to sun %.2f, moon %.2f%s%s", m_view.zoneId,
+                m_view.zoneName, m_view.factors.sun, m_view.factors.moon, SourceNote(m_view.source),
                 forgotten ? "" : " (write failed)");
     return forgotten;
 }

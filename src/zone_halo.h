@@ -49,27 +49,40 @@ private:
     bool m_fading = false;
 };
 
+enum class ZoneHaloSource
+{
+    Unlisted,
+    Shipped,
+    Own,
+};
+
 struct ZoneHaloView
 {
     int zoneId = 0;
     char zoneName[kZoneNameSize] = {};
     ZoneHaloFactors factors;
-    bool listed = false;
+    ZoneHaloSource source = ZoneHaloSource::Unlisted;
 };
 
 class ZoneHaloBook
 {
 public:
-    void Load(const std::string& path);
+    void Load(const std::string& shippedPath, const std::string& ownPath);
     ZoneHalo Advance(int zoneId, const char* zoneName, double seconds);
     ZoneHaloView Current() const;
     void Edit(const ZoneHaloFactors& factors);
     bool SaveCurrent();
     bool ForgetCurrent();
-    const ZoneHaloTable& Table() const { return m_table; }
+    const ZoneHaloTable& Shipped() const { return m_shipped; }
+    const ZoneHaloTable& Own() const { return m_own; }
 
 private:
-    ZoneHaloTable m_table;
+    ZoneHaloFactors Factors(int zoneId) const;
+    ZoneHaloSource SourceOf(int zoneId) const;
+    void Show(int zoneId);
+
+    ZoneHaloTable m_shipped;
+    ZoneHaloTable m_own;
     ZoneHaloFade m_fade;
     ZoneHaloView m_view;
 };

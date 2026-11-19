@@ -9,6 +9,7 @@ struct InstallPaths
     std::string fogData;
     std::string waterData;
     std::string zoneHalo;
+    std::string shippedZoneHalo;
 };
 
 InstallPaths ClientInstallPaths(const std::string& clientFolder);

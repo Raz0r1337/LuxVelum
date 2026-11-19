@@ -4,7 +4,8 @@ Atmospheric Immersion for Project Reforged — WoW 3.3.5.
 
 LuxVelum is a fork of [CoAVolFog](https://github.com/jealous-sound/coa-vfog): volumetric fog and modern water for the
 Ascension/CoA 3.3.5a (build 12340) Direct3D 9 client. It installs as `LuxVelum.dll` next to `Wow.exe`, its settings
-`WTF\LuxVelum.ini` and its data `Data\LuxVelum\fogdata.bin` and `Data\LuxVelum\waterdata.bin`, and writes
+`WTF\LuxVelum.ini` and its data `Data\LuxVelum\fogdata.bin`, `Data\LuxVelum\waterdata.bin` and
+`Data\LuxVelum\zones.ini`, and writes
 `Logs\LuxVelum.log` (`CoAVolFog.*` before TEST Build-24-11, `Luxveil.*` in TEST Build-24-11 and 24-12, all next to
 `Wow.exe` in earlier packages); without a `WTF\LuxVelum.ini` it takes over an existing `LuxVelum.ini` next to `Wow.exe`,
 else `Luxveil.ini` or `CoAVolFog.ini`.
@@ -961,16 +962,20 @@ commit of `BUILD.txt` (as in `LuxVelum reforged-dev ec0af3b`; `local` for a buil
 first line of `LuxVelum.log`.
 
 The **This zone** section names the client's current zone and sets its sun and moon halo: factors on top of `SunScatter`
-and `MoonScatter` (0..4, 1 = the global value alone), saved to `WTF\LuxVelum-zones.ini` when a slider is let go, as
-`[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone id with the zone's name under `[Zones]`. A zone the file does
-not list keeps 1, and **Reset this zone** removes it. The halo follows the zone the map shows (Booty Bay belongs to
-Stranglethorn Vale), so it does not depend on which Classic light covers the place: Redridge has none of its own and
-takes Eastern Kingdoms' global light, which a per-light factor would have shared with the Badlands, Arathi and the sea.
-Crossing into another zone fades the factors over about two seconds (time constant 0.6 s); a slider takes effect at
-once. While the client reports no zone (id 0, for a second in Duskwood in TEST Build-2-9), the last zone's halo stays.
-Each zone change writes a `zone 44 (Redridge Mountains): sun halo …` line to the log. The owner judged the halo per
-zone, not per region: Durotar right, the Barrens and Booty Bay far too large, Tirisfal nearly right (2026-11-18,
-`ClassicPhase=1`).
+and `MoonScatter` (0..4, 1 = the global value alone), kept as `[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone
+id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning, are in `Data\LuxVelum\zones.ini`, which
+every release replaces and LuxVelum never writes; the player's own go to `WTF\LuxVelum-zones.ini` when a slider is let
+go, which no package contains, and win over the shipped ones for the zones they list. A zone neither lists keeps 1;
+**Reset this zone** removes the player's own entry and falls back to the shipped halo. The section and the log name the
+source (`shipped`, `your own`, `not listed`). Before a release the owner's own entries are folded into `data/zones.ini`,
+so the players' copies of the shipped halos follow his corrections while their own edits stay. The halo follows the zone
+the map shows (Booty Bay belongs to Stranglethorn Vale), so it does not depend on which Classic light covers the place:
+Redridge has none of its own and takes Eastern Kingdoms' global light, which a per-light factor would have shared with
+the Badlands, Arathi and the sea. Crossing into another zone fades the factors over about two seconds (time constant 0.6
+s); a slider takes effect at once. While the client reports no zone (id 0, for a second in Duskwood in TEST Build-2-9),
+the last zone's halo stays. Each zone change writes a `zone 44 (Redridge Mountains): sun halo …` line to the log. The
+owner judged the halo per zone, not per region: Durotar right, the Barrens and Booty Bay far too large, Tirisfal nearly
+right (2026-11-18, `ClassicPhase=1`).
 
 While the window is open, clicks and the wheel go to it only while the cursor is over it or a drag started on
 it, and keys only while one of its text fields is active (Ctrl+click on a slider). The hotkey never reaches the
@@ -1027,7 +1032,8 @@ cmake --build build --config Release
 ```
 
 Outputs in `build/Release`: `LuxVelum.dll`, the optional `version.dll` loader and `vfog_harness.exe`, laid out like a
-client folder with `LuxVelum.ini` copied into `WTF` and `fogdata.bin` and `waterdata.bin` into `Data\LuxVelum` on every
+client folder with `LuxVelum.ini` copied into `WTF` and `fogdata.bin`, `waterdata.bin` and `zones.ini` into
+`Data\LuxVelum` on every
 build, also of `--target LuxVelum` alone and when only the INI or a data file has changed. The DLL the harness loads
 reads them there and writes `Logs\LuxVelum.log`.
 
@@ -1039,7 +1045,8 @@ push to `main` (including merged pull requests), on pull requests targeting `mai
 merged into `main`; select a branch to rebuild that revision.
 
 Open a successful run and download its `LuxVelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a ZIP
-containing `LuxVelum.dll`, `WTF/LuxVelum.ini`, `Data/LuxVelum/fogdata.bin`, `Data/LuxVelum/waterdata.bin`, the README,
+containing `LuxVelum.dll`, `WTF/LuxVelum.ini`, `Data/LuxVelum/fogdata.bin`, `Data/LuxVelum/waterdata.bin`,
+`Data/LuxVelum/zones.ini`, the README,
 licenses and a `BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
 rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision. The optional
 `version.dll` loader comes with the licence as a second artifact, `LuxVelum-version-dll-Win32-<commit>`.
@@ -1124,8 +1131,9 @@ It also times the harbour in a full storm and the colour grading pass; `--sample
 ## Install
 
 Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then unzip the package into
-the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin` and `waterdata.bin` into `Data\LuxVelum` and
-`LuxVelum.ini` into `WTF`, in the client's own folders for its data and settings. Without the patch, unzip
+the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin`, `waterdata.bin` and `zones.ini` into
+`Data\LuxVelum` and `LuxVelum.ini` into `WTF`, in the client's own folders for its data and settings; a player's own
+`WTF\LuxVelum-zones.ini` is not in the package and stays. Without the patch, unzip
 `LuxVelum-version-dll-Win32.zip` next to `Wow.exe` as well: its `version.dll` loads `LuxVelum.dll`, and a patched
 `Wow.exe` does not need it. Remove `LuxVelum.dll` to uninstall, with the `version.dll` loader too, which keeps the
 client from starting on its own; the patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the
