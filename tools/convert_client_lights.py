@@ -37,8 +37,12 @@ CLIENT_UNITS_PER_YARD = 36.0
 SAME_LIGHT_TOLERANCE_YARDS = 5.0
 
 FILE_MAGIC = b"VFD1"
-FORMAT_VERSION = 4
-HEADER_FORMAT = "<4s8I"
+FORMAT_VERSION = 5
+HEADER_FORMAT = "<4s9I"
+INPUT_HEADER_FORMATS = {4: "<4s8I", 5: "<4s9I"}
+BAND_PROBE_FORMAT = "<3I"
+BAND_PROBE_COUNT = 64
+MIDNIGHT_KEY = 0
 LIGHT_FORMAT = "<Ii5f8I"
 PARAMS_FORMAT = "<3If"
 KEY_FORMAT = "<2H3I"
@@ -177,6 +181,18 @@ def int_bands(tables):
     return bands
 
 
+def midnight_band_probes(tables):
+    keyed = []
+    for record in tables.records("LightIntBand.dbc", DBC_INT_BAND_FORMAT):
+        value = record[18] & RGB_MASK
+        if record[1] > 0 and record[2] == 0 and value:
+            keyed.append((record[0], MIDNIGHT_KEY, value))
+    keyed.sort()
+    if len(keyed) <= BAND_PROBE_COUNT:
+        return keyed
+    return [keyed[i * len(keyed) // BAND_PROBE_COUNT] for i in range(BAND_PROBE_COUNT)]
+
+
 def float_bands(tables):
     bands = {}
     for record in tables.records("LightFloatBand.dbc", DBC_FLOAT_BAND_FORMAT):
@@ -198,6 +214,7 @@ class ClientLighting:
     def __init__(self, tables):
         self.lights = tables.records("Light.dbc", DBC_LIGHT_FORMAT)
         self.ints = int_bands(tables)
+        self.band_probes = midnight_band_probes(tables)
         self.floats = float_bands(tables)
         self.light_params = {p[0]: p for p in tables.records("LightParams.dbc", DBC_LIGHT_PARAMS_FORMAT)}
         self.skyboxes = skyboxes(tables)
@@ -304,19 +321,22 @@ def recoloured(packed, template_client, target_client):
 
 class FogData:
     def __init__(self, data):
-        magic, version, *counts = struct.unpack_from(HEADER_FORMAT, data)
-        if magic != FILE_MAGIC or version != FORMAT_VERSION:
-            raise SystemExit("the input is not a format %d fogdata.bin" % FORMAT_VERSION)
-        offset = struct.calcsize(HEADER_FORMAT)
+        magic, version = struct.unpack_from("<4sI", data)
+        if magic != FILE_MAGIC or version not in INPUT_HEADER_FORMATS:
+            raise SystemExit("the input is not a fogdata.bin of format %s"
+                             % " or ".join(str(v) for v in INPUT_HEADER_FORMATS))
+        header_format = INPUT_HEADER_FORMATS[version]
+        counts = struct.unpack_from(header_format, data)[2:]
+        offset = struct.calcsize(header_format)
         tables = []
         for record_format, count in zip((LIGHT_FORMAT, PARAMS_FORMAT, KEY_FORMAT, LAYER_FORMAT, ZONE_LIGHT_FORMAT,
-                                         ZONE_POINT_FORMAT, GRADING_CURVE_FORMAT), counts):
+                                         ZONE_POINT_FORMAT, GRADING_CURVE_FORMAT, BAND_PROBE_FORMAT), counts):
             size = struct.calcsize(record_format)
             tables.append([struct.unpack_from(record_format, data, offset + i * size) for i in range(count)])
             offset += size * count
         if offset != len(data):
             raise SystemExit("the input fogdata.bin has %d bytes, its header promises %d" % (len(data), offset))
-        lights, params, self.keys, self.layers, zone_lights, zone_points, self.curves = tables
+        lights, params, self.keys, self.layers, zone_lights, zone_points, self.curves = tables[:7]
         self.lights = [light for light in lights if light[0] < GENERATED_ID_BASE]
         self.params = {p[0]: p for p in params if p[0] < GENERATED_ID_BASE}
         self.zone_lights = []
@@ -454,7 +474,8 @@ class Builder:
         params = [self.params[p] for p in sorted(self.params)]
         tables = ((LIGHT_FORMAT, self.lights), (PARAMS_FORMAT, params), (KEY_FORMAT, self.keys),
                   (LAYER_FORMAT, self.layers), (ZONE_LIGHT_FORMAT, self.zone_lights),
-                  (ZONE_POINT_FORMAT, self.zone_points), (GRADING_CURVE_FORMAT, self.fog.curves))
+                  (ZONE_POINT_FORMAT, self.zone_points), (GRADING_CURVE_FORMAT, self.fog.curves),
+                  (BAND_PROBE_FORMAT, self.client.band_probes))
         header = struct.pack(HEADER_FORMAT, FILE_MAGIC, FORMAT_VERSION, *(len(rows) for _, rows in tables))
         return header + b"".join(struct.pack(f, *row) for f, rows in tables for row in rows)
 

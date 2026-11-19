@@ -548,14 +548,35 @@ noisy composites, which draw noisy fog wherever a point light is marched, interp
 the pixel's plane instead. They take the filtered fog rather than the current march, whose samples jitter each frame,
 so that the noise cannot turn the jitter into shimmer on every other row (inferred).
 
-`fogdata.bin` format 4 holds the lights, the light params they reference (with `LightParams.Glow`), the fog keys (with
-a grading curve index), the layers, the zone lights and their outlines, and the grading curves; the loader rejects any
-other format. The layer noise columns are inferred (`FogData::UnpackNoise`): c4 the fade colour, c16–18 and c19–21 the
-octaves' scroll directions, c27[i] octave i's tile in hundreds of yards, c28[i] its drift in yd/s; c24 is carried raw
-and unused. `LightData.ColorGradingFileDataID` names a 32³ LUT; every LUT placed lights reach applies one curve alike
-to R, G and B, so the file keeps 32 codes per LUT and the converter fails otherwise (`DarkerColorGradingFileDataID` is
-left out). The curve is interpolated between the nearest keys that set one, wrapping past midnight (inferred). Glow
-and grading blend like the fog, on every map with a placed light.
+`fogdata.bin` format 5 holds the lights, the light params they reference (with `LightParams.Glow`), the fog keys (with a
+grading curve index), the layers, the zone lights and their outlines, the grading curves and the band probes; format 4
+is the same without the probes, and the loader rejects any other format. The layer noise columns are inferred
+(`FogData::UnpackNoise`): c4 the fade colour, c16–18 and c19–21 the octaves' scroll directions, c27[i] octave i's tile
+in hundreds of yards, c28[i] its drift in yd/s; c24 is carried raw and unused. `LightData.ColorGradingFileDataID` names
+a 32³ LUT; every LUT placed lights reach applies one curve alike to R, G and B, so the file keeps 32 codes per LUT and
+the converter fails otherwise (`DarkerColorGradingFileDataID` is left out). The curve is interpolated between the
+nearest keys that set one, wrapping past midnight (inferred). Glow and grading blend like the fog, on every map with a
+placed light.
+
+The converted maps depend on the client's `LightIntBand`. Project Reforged ships it in two variants, with its optional
+"darker nights" patch and without; the darker variant scales the night keys of 10735 of its 15568 bands to about 0.66
+(median of the changed channels, as low as 0.09) and never empties the sun and moon band 9 of a light params that keeps
+it in the other, so the sunless decision is the same in both (2026-11-19, the owner's `LightIntBand_darker_nights` and
+`LightIntBand_sem_darker_nights`). Fog converted from one variant is therefore about a third too dark or too bright at
+night for a client with the other. `tools/convert_client_lights.py` writes 64 band probes into the file it makes: id,
+key 0 and colour of every n-th band (by id) whose first key is at midnight with a colour other than black, from the
+`LightIntBand` it converted from. Of the darker variant's 64 probes one matches the other variant. With the variants
+converted into `fogdata.bin` and further `fogdata*.bin` files in `Data\LuxVelum`, LuxVelum reads the probes of every
+such file at start-up, scores each against the client's loaded `LightIntBand` at the first world frame after the table
+is loaded, and loads the file whose probes match best if more than half match; otherwise, and with a single file,
+`fogdata.bin` stays. The log names every file's score. The client keeps the table as a `WowClientDB` at `0x00AF49BC`,
+vtable `0x00A419E0`; its exit destructor at `0x009DCB90` installs that vtable and releases the table through
+`0x007EB1B0`. The loader at `0x007EB540` (vtable slot 2) checks the file's 34 fields of 0x88 bytes
+(`DBFilesClient\LightIntBand.dbc` from `0x008BE100`), keeps the record count at `+0x08`, sets `+0x0C` to 0 and `+0x10`
+to `0x0FFFFFFF` before the records come in, and marks the table loaded at `+0x04`. Its record lookup at `0x007EB210`
+takes an id between `+0x10` (lowest) and `+0x0C` (highest) and reads the record pointer from the index at `+0x20`,
+`[+0x20 + (id − lowest)·4]`; a record is the file's: id, key count, 16 times, 16 colours at `+0x48`. The fog code calls
+it at `0x007EBF5D` with `ecx = 0x00AF49BC` and the id `params·18 − 17 + band`, the converter's numbering.
 
 ## Forever water data
 

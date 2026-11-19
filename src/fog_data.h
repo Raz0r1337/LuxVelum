@@ -71,10 +71,19 @@ struct AuthoredFog
     float clearSky;
 };
 
+struct FogBandProbe
+{
+    uint32_t bandId;
+    uint32_t keyIndex;
+    uint32_t rgb;
+};
+
 class FogData
 {
 public:
     bool Load(const std::string& path);
+    const std::string& Path() const { return m_path; }
+    const std::vector<FogBandProbe>& BandProbes() const { return m_bandProbes; }
     bool Loaded() const { return !m_lights.empty(); }
 
     bool Resolve(int mapId, const float* position, float dayFraction, const LightParamsSelection& selection,
@@ -222,11 +231,16 @@ private:
     std::vector<ZoneLight> m_zoneLights;
     std::vector<ZonePoint> m_zonePoints;
     std::vector<GradingCurve> m_gradingCurves;
+    std::vector<FogBandProbe> m_bandProbes;
+    std::string m_path;
     std::vector<ZoneOutline> m_zonesLargestFirst;
     std::vector<int32_t> m_mapsWithFog;
 };
 
+constexpr uint32_t kMaxBandProbes = 4096;
+
 FogData& GlobalFogData();
+bool ReadFogBandProbes(const std::string& path, std::vector<FogBandProbe>& probes);
 
 constexpr float kMinLoggedLightWeight = 0.005f;
 bool CountsInLoggedBlend(float weight);

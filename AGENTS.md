@@ -69,18 +69,19 @@ reverse-engineering evidence.
   merged), `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `client_code`
   (client code views and byte guards), `client_light_stay` (the in-memory lightstay byte), `client_map` (the map id the
   far clip setter reads, the loading screen's as fallback), `client_camera_focus` (the position of the unit the camera
-  follows, the camera position as fallback), `fog_data` (Classic fog data), `fog_model` (layer parameters), `renderer`
-  (passes), `light_on_screen` (the sun's or moon's position on screen), `celestial_occlusion` (the smoothed share of the
-  sun's or moon's sight line that the world hides, with the farthest occluder), `character_on_screen` (the own
-  character's cylinder around the camera focus and its box on screen, kept out of the god rays), `fullscreen_triangle`
-  (the triangle every full-screen pass draws, its edges outside the viewport), `transparent_fog` (linear stock fog
-  fitted to the volumetric fog for see-through models after the early composite), `overlay` (ImGui settings window:
-  input chaining, `OverlayKey` and `ToggleKey`, drawing at `Present`), `settings_panel` (its widgets),
-  `luxvelum_switch` (the off and on request of `ToggleKey` and the window, taken once per world frame by the hooks),
-  `config`, `install_paths` (the client folder's `Logs`, `WTF` and `Data\LuxVelum`, the DLL's folder as fallback),
-  `zone_halo` (the sun and moon halo factor per client zone, shipped in `Data\LuxVelum\zones.ini` and the player's
-  own in `WTF\LuxVelum-zones.ini`, faded across zone borders),
-  `log`, `status_log`; water: `water_data` (Forever presets, FFT tiles, foam masks), `water_classify` (liquid classes),
+  follows, the camera position as fallback), `fog_data` (Classic fog data), `fog_data_choice` (the `fogdata*.bin` whose
+  band probes match the client's loaded `LightIntBand`), `client_light_bands` (that table's records in the client),
+  `fog_model` (layer parameters), `renderer` (passes), `light_on_screen` (the sun's or moon's position on screen),
+  `celestial_occlusion` (the smoothed share of the sun's or moon's sight line that the world hides, with the farthest
+  occluder), `character_on_screen` (the own character's cylinder around the camera focus and its box on screen, kept out
+  of the god rays), `fullscreen_triangle` (the triangle every full-screen pass draws, its edges outside the viewport),
+  `transparent_fog` (linear stock fog fitted to the volumetric fog for see-through models after the early composite),
+  `overlay` (ImGui settings window: input chaining, `OverlayKey` and `ToggleKey`, drawing at `Present`),
+  `settings_panel` (its widgets), `luxvelum_switch` (the off and on request of `ToggleKey` and the window, taken once
+  per world frame by the hooks), `config`, `install_paths` (the client folder's `Logs`, `WTF` and `Data\LuxVelum`, the
+  DLL's folder as fallback), `zone_halo` (the sun and moon halo factor per client zone, shipped in
+  `Data\LuxVelum\zones.ini` and the player's own in `WTF\LuxVelum-zones.ini`, faded across zone borders), `log`,
+  `status_log`; water: `water_data` (Forever presets, FFT tiles, foam masks), `water_classify` (liquid classes),
   `water_spectrum` and `water_fft` (GPU FFT waves), `water_contacts` (contact tracker, ring impulses at the client's
   ripple events), `water_ripples` (ripple map simulation), `client_ripple_sprites` (hold on the client's `waterRipples`
   splash and wake sprites), `water_renderer` (copies, stencil tagging, shading); look: `forever_look` (Forever glow byte

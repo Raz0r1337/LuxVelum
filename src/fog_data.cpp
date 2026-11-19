@@ -12,7 +12,9 @@
 namespace
 {
 constexpr char kFileMagic[4] = {'V', 'F', 'D', '1'};
-constexpr uint32_t kFormatVersion = 4;
+constexpr uint32_t kFormatVersion = 5;
+constexpr uint32_t kFormatWithoutBandProbes = 4;
+constexpr uint32_t kBandKeys = 16;
 constexpr float kHalfMinutesPerDay = 2880.0f;
 constexpr uint32_t kMinimumOutlinePoints = 3;
 constexpr uint32_t kClientSelectedLayerFlag = 0x8;
@@ -34,7 +36,28 @@ struct Header
     uint32_t zoneLightCount;
     uint32_t zonePointCount;
     uint32_t gradingCurveCount;
+    uint32_t bandProbeCount;
 };
+
+constexpr size_t kHeaderWithoutBandProbes = sizeof(Header) - sizeof(uint32_t);
+
+size_t HeaderSize(uint32_t version)
+{
+    return version == kFormatWithoutBandProbes ? kHeaderWithoutBandProbes : sizeof(Header);
+}
+
+bool ReadHeader(std::FILE* f, Header& h)
+{
+    h = {};
+    if (std::fread(&h, kHeaderWithoutBandProbes, 1, f) != 1 || std::memcmp(h.magic, kFileMagic, sizeof(kFileMagic)))
+        return false;
+    return h.version != kFormatVersion || std::fread(&h.bandProbeCount, sizeof(h.bandProbeCount), 1, f) == 1;
+}
+
+bool KnownFormat(uint32_t version)
+{
+    return version == kFormatVersion || version == kFormatWithoutBandProbes;
+}
 
 template <typename T>
 bool ReadArray(std::FILE* f, std::vector<T>& out, uint32_t count)
@@ -43,13 +66,13 @@ bool ReadArray(std::FILE* f, std::vector<T>& out, uint32_t count)
     return count == 0 || std::fread(out.data(), sizeof(T), count, f) == count;
 }
 
-bool FileHasSize(std::FILE* file, uint64_t expected)
+bool FileHasSize(std::FILE* file, uint64_t expected, size_t headerSize)
 {
     if (std::fseek(file, 0, SEEK_END) != 0)
         return false;
     const long size = std::ftell(file);
     return size >= 0 && static_cast<uint64_t>(size) == expected &&
-           std::fseek(file, sizeof(Header), SEEK_SET) == 0;
+           std::fseek(file, static_cast<long>(headerSize), SEEK_SET) == 0;
 }
 
 bool ContainsRange(size_t size, uint32_t first, uint32_t count)
@@ -250,7 +273,7 @@ bool CrossesRayToPositiveX(float px, float py, float ax, float ay, float bx, flo
 }
 }
 
-static_assert(sizeof(Header) == 36, "fogdata header");
+static_assert(sizeof(Header) == 40 && sizeof(FogBandProbe) == 12, "fogdata header and band probe");
 
 void FogData::GradingBlend::Add(const GradingBlend& other, float factor)
 {
@@ -302,6 +325,8 @@ bool FogData::Load(const std::string& path)
     m_zoneLights.clear();
     m_zonePoints.clear();
     m_gradingCurves.clear();
+    m_bandProbes.clear();
+    m_path = path;
     m_zonesLargestFirst.clear();
     m_mapsWithFog.clear();
     std::FILE* f = std::fopen(path.c_str(), "rb");
@@ -311,26 +336,28 @@ bool FogData::Load(const std::string& path)
         return false;
     }
     Header h = {};
-    bool ok = std::fread(&h, sizeof(h), 1, f) == 1 && std::memcmp(h.magic, kFileMagic, sizeof(kFileMagic)) == 0;
-    if (ok && h.version != kFormatVersion)
+    bool ok = ReadHeader(f, h);
+    if (ok && !KnownFormat(h.version))
     {
         std::fclose(f);
-        VF_LOG_ERROR("Classic fog data %s is format %u, but this build reads format %u; regenerate it with "
+        VF_LOG_ERROR("Classic fog data %s is format %u, but this build reads formats %u and %u; regenerate it with "
                      "tools/convert_classic_fog.py; derived layers only",
-                     path.c_str(), h.version, kFormatVersion);
+                     path.c_str(), h.version, kFormatWithoutBandProbes, kFormatVersion);
         return false;
     }
-    const uint64_t expectedSize = sizeof(Header) + static_cast<uint64_t>(h.lightCount) * sizeof(Light) +
+    const uint64_t expectedSize = HeaderSize(h.version) + static_cast<uint64_t>(h.lightCount) * sizeof(Light) +
                                   static_cast<uint64_t>(h.paramsCount) * sizeof(Params) +
                                   static_cast<uint64_t>(h.keyCount) * sizeof(Key) +
                                   static_cast<uint64_t>(h.layerCount) * sizeof(Layer) +
                                   static_cast<uint64_t>(h.zoneLightCount) * sizeof(ZoneLight) +
                                   static_cast<uint64_t>(h.zonePointCount) * sizeof(ZonePoint) +
-                                  static_cast<uint64_t>(h.gradingCurveCount) * sizeof(GradingCurve);
-    ok = ok && FileHasSize(f, expectedSize) && ReadArray(f, m_lights, h.lightCount) &&
+                                  static_cast<uint64_t>(h.gradingCurveCount) * sizeof(GradingCurve) +
+                                  static_cast<uint64_t>(h.bandProbeCount) * sizeof(FogBandProbe);
+    ok = ok && FileHasSize(f, expectedSize, HeaderSize(h.version)) && ReadArray(f, m_lights, h.lightCount) &&
               ReadArray(f, m_params, h.paramsCount) && ReadArray(f, m_keys, h.keyCount) &&
               ReadArray(f, m_layers, h.layerCount) && ReadArray(f, m_zoneLights, h.zoneLightCount) &&
-              ReadArray(f, m_zonePoints, h.zonePointCount) && ReadArray(f, m_gradingCurves, h.gradingCurveCount);
+              ReadArray(f, m_zonePoints, h.zonePointCount) && ReadArray(f, m_gradingCurves, h.gradingCurveCount) &&
+              ReadArray(f, m_bandProbes, h.bandProbeCount);
     std::fclose(f);
     ok = ok && ValidateRecords() && BuildZoneOutlines();
     if (!ok)
@@ -341,8 +368,10 @@ bool FogData::Load(const std::string& path)
         return false;
     }
     CollectMapsWithFog();
-    VF_LOG_INFO("Classic fog data: %u lights, %u light params, %u keys, %u layers, %u zone lights, %u grading curves",
-                h.lightCount, h.paramsCount, h.keyCount, h.layerCount, h.zoneLightCount, h.gradingCurveCount);
+    VF_LOG_INFO("Classic fog data: %u lights, %u light params, %u keys, %u layers, %u zone lights, %u grading curves, "
+                "%u band probes",
+                h.lightCount, h.paramsCount, h.keyCount, h.layerCount, h.zoneLightCount, h.gradingCurveCount,
+                h.bandProbeCount);
     return true;
 }
 
@@ -354,6 +383,9 @@ bool FogData::ValidateRecords() const
     for (const Key& key : m_keys)
         if (!ContainsRange(m_layers.size(), key.firstLayer, key.layerCount) ||
             key.halfMinuteOfDay >= kHalfMinutesPerDay || key.gradingCurve > m_gradingCurves.size())
+            return false;
+    for (const FogBandProbe& probe : m_bandProbes)
+        if (probe.keyIndex >= kBandKeys)
             return false;
     return true;
 }
@@ -752,6 +784,22 @@ FogData& GlobalFogData()
 {
     static FogData data;
     return data;
+}
+
+bool ReadFogBandProbes(const std::string& path, std::vector<FogBandProbe>& probes)
+{
+    probes.clear();
+    std::FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f)
+        return false;
+    Header h = {};
+    bool ok = ReadHeader(f, h) && KnownFormat(h.version) && h.bandProbeCount <= kMaxBandProbes &&
+              std::fseek(f, -static_cast<long>(h.bandProbeCount * sizeof(FogBandProbe)), SEEK_END) == 0 &&
+              ReadArray(f, probes, h.bandProbeCount);
+    std::fclose(f);
+    if (!ok)
+        probes.clear();
+    return ok;
 }
 
 bool CountsInLoggedBlend(float weight)

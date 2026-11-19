@@ -5,6 +5,7 @@
 #include "d3d9_wrap.h"
 #include "engine.h"
 #include "fog_data.h"
+#include "fog_data_choice.h"
 #include "forever_look.h"
 #include "grading_renderer.h"
 #include "hooks.h"
@@ -85,6 +86,7 @@ void Attach(HMODULE module)
     if (adoptedFrom)
         VF_LOG_INFO("settings taken over from %s into %s", adoptedFrom, paths.ini.c_str());
     GlobalFogData().Load(paths.fogData);
+    GlobalFogDataChoice().Prepare(paths.fogData);
     GlobalZoneHalo().Load(paths.shippedZoneHalo, paths.zoneHalo);
 
     if (!engine::IsSupportedClient())

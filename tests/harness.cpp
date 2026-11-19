@@ -2,11 +2,13 @@
 #include "character_on_screen.h"
 #include "client_camera_focus.h"
 #include "client_light_stay.h"
+#include "client_light_bands.h"
 #include "client_map.h"
 #include "client_ripple_sprites.h"
 #include "config.h"
 #include "engine.h"
 #include "fog_data.h"
+#include "fog_data_choice.h"
 #include "fog_model.h"
 #include "forever_look.h"
 #include "fullscreen_triangle.h"
@@ -3185,6 +3187,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "local_light_stabiliser_checks.h"
 #include "twin_light_checks.h"
 #include "client_light_stay_checks.h"
+#include "fog_data_choice_checks.h"
 #include "client_map_checks.h"
 #include "camera_focus_checks.h"
 #include "noise_variation_checks.h"
@@ -3498,6 +3501,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckTheDllUsesTheClientFolders();
     CheckTheVersionDllLoader();
     CheckFogDataBounds(outDir, dataPath);
+    fog_data_choice_checks::CheckFogDataFilesAreChosen(outDir, dataPath);
     forever_look_checks::CheckForeverGlow();
     forever_look_checks::CheckLookSettings(outDir, FullPath(iniPath));
     water_data_checks::CheckWaterData(outDir, waterDataPath);
@@ -3525,6 +3529,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         twin_light_checks::CheckTwinLights();
         celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
         client_light_stay_checks::CheckClientLightStay();
+    fog_data_choice_checks::CheckClientIntBandReads();
+    fog_data_choice_checks::CheckFogDataChoice();
         client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
         camera_focus_checks::CheckTheFocusFollowsTheClientStores();
         camera_focus_checks::CheckTheCharacterBoxFollowsTheFocus();
@@ -3613,6 +3619,8 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     twin_light_checks::CheckTwinLights();
     celestial_shadow::CheckTheSmoothedShareOfTheSightLine();
     client_light_stay_checks::CheckClientLightStay();
+    fog_data_choice_checks::CheckClientIntBandReads();
+    fog_data_choice_checks::CheckFogDataChoice();
     client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
     camera_focus_checks::CheckTheFocusFollowsTheClientStores();
     camera_focus_checks::CheckTheCharacterBoxFollowsTheFocus();

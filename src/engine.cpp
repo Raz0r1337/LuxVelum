@@ -1,7 +1,10 @@
 #include "engine.h"
 
 #include "client_camera_focus.h"
+#include "client_light_bands.h"
 #include "client_map.h"
+#include "fog_data.h"
+#include "fog_data_choice.h"
 #include "local_light_stabiliser.h"
 
 #include "log.h"
@@ -275,6 +278,11 @@ void ReadFloats(uintptr_t address, float* out, int count)
     std::memcpy(out, reinterpret_cast<const void*>(address), sizeof(float) * count);
 }
 
+bool ReadLoadedIntBand(uint32_t bandId, uint32_t keyIndex, uint32_t& rgb)
+{
+    return ReadClientIntBandValue({}, bandId, keyIndex, rgb);
+}
+
 void ReadZoneName(char* out, size_t size)
 {
     out[0] = '\0';
@@ -495,6 +503,7 @@ bool BuildFrameInputsUnsafe(FrameInputs& out, bool withPointLights, const PointL
     }
 
     out.zoneFogDistance = Read<float>(kZoneFogDistance);
+    GlobalFogDataChoice().Decide(GlobalFogData(), ReadLoadedIntBand);
     char zoneName[kZoneNameSize];
     ReadZoneName(zoneName, sizeof(zoneName));
     out.zoneHalo = GlobalZoneHalo().Advance(Read<int32_t>(kCurrentZoneId), zoneName, ClockSeconds());
