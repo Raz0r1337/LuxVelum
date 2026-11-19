@@ -107,6 +107,18 @@ across them and no light's sphere meets the ray; thin silhouettes that every tap
 resolution. Under authored noise the lit noisy composite interpolates the filtered fog wherever the taps lie on the
 pixel's plane, lights and curvature aside, and marches only the rest through the noise (see Authored noise).
 
+Before the lit composites march a pixel again with every lamp, they look at the twelve low-resolution taps around
+the bilinear footprint: the fog of those within the 2 % surface test, weighted by depth difference and distance, or
+else the fog of the tap of the same depth class nearest in depth if it lies within 25 % of the pixel's depth. Only a
+pixel that neither finds marches. In foliage, distant trees and grazing ground almost every pixel misses its four
+bilinear taps, and the misses are scattered single pixels; each makes its whole group of neighbouring pixels on the
+GPU wait through a march with every lamp, so the cost followed the foliage's area. At Darkshire at night with eight
+lamps (Quality 2, 2560x1080, MSAA 4x) the fog took 8.53 ms with the lit composite against 2.33 ms with the unlit one
+(TEST Build-2-15), 6.79 ms with the surrounding taps (Build-2-16) and 3.21 ms with the nearest-depth tap as well
+(Build-2-18, 48 to 69 FPS against a 72 FPS cap), and the tester saw no change in the image. The lit march itself with no
+lamp uploaded cost 0.08 ms more than the unlit one, and the lit composite with no lamp 1.1 ms more than the unlit one.
+`DebugView=4` paints the pixels that still march magenta over the transmittance.
+
 Every full-screen pass draws one triangle whose edges lie outside the viewport (NDC −1.5 and 4.5), so it covers every
 4x sample of the edge columns; Direct3D 9 maps NDC −1 onto the first column's centres.
 

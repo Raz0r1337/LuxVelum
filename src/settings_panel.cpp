@@ -331,11 +331,6 @@ bool DrawLight(Config& c)
                       "How every point light scatters in the fog: 0 evenly in all directions; toward 0.9 mostly in "
                       "the fog between you and the light; below 0 the fog behind the light, steeply brighter toward "
                       "-0.9. The modern client uses one such value for all its lights; 0.3 is a calibration");
-    changed |= ImGui::SliderInt("Max local lights", &c.localLightMaxCount, 0, 8);
-    ImGui::SetItemTooltip("How many of the uploaded point lights the fog march takes, for measuring their cost; 0 "
-                          "keeps the lit shaders with no light");
-    changed |= Toggle("Lit composite", c.litComposite,
-                      "Off: the full-resolution composite takes the unlit shader, for measuring its cost");
     changed |= Slider("God rays", c.godRays, 0.0f, 4.0f, "%.2f",
                       "Shafts of light through gaps in trees, buildings and terrain in front of the sun, 0 = off. An "
                       "open sky, its clouds included, gets none; the glow around the sun is Sun scatter's");
