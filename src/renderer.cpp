@@ -1598,7 +1598,9 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     dev->SetPixelShaderConstantF(79, &haloShadow[0].x, 2);
     static_assert(sizeof(FogLayer) == 6 * sizeof(Float4), "FogLayer is six shader registers");
     dev->SetPixelShaderConstantF(12, &fog.layers[0].start, 6 * kFogLayers);
-    uint32_t pointLightCount = cfg.localLights ? std::min(in.localLights.pointLightCount, kMaxLocalPointLights) : 0;
+    const uint32_t lightLimit =
+        std::min(static_cast<uint32_t>(std::max(cfg.localLightMaxCount, 1)), kMaxLocalPointLights);
+    uint32_t pointLightCount = cfg.localLights ? std::min(in.localLights.pointLightCount, lightLimit) : 0;
     Float4 localConstants[32] = {};
     for (uint32_t i = 0; i < pointLightCount; ++i)
     {

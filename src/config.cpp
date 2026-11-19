@@ -71,6 +71,7 @@ const IntSetting kIntSettings[] = {
     {"ClassicPhase", &Config::classicPhase, 0, 1},
     {"OutlandClassicFog", &Config::outlandClassicFog, 0, 1},
     {"NorthrendClassicFog", &Config::northrendClassicFog, 0, 1},
+    {"LocalLightMaxCount", &Config::localLightMaxCount, 1, 8},
 };
 
 const IntSetting kLookIntSettings[] = {
