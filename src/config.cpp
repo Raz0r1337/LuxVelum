@@ -71,7 +71,7 @@ const IntSetting kIntSettings[] = {
     {"ClassicPhase", &Config::classicPhase, 0, 1},
     {"OutlandClassicFog", &Config::outlandClassicFog, 0, 1},
     {"NorthrendClassicFog", &Config::northrendClassicFog, 0, 1},
-    {"LocalLightMaxCount", &Config::localLightMaxCount, 1, 8},
+    {"LocalLightMaxCount", &Config::localLightMaxCount, 0, 8},
 };
 
 const IntSetting kLookIntSettings[] = {
@@ -139,6 +139,7 @@ const BoolSetting kBoolSettings[] = {
     {"LiquidDepth", &Config::liquidDepth},           {"SunMarker", &Config::sunMarker},
     {"Water", &Config::water},                       {"Multisampling", &Config::multisampling},
     {"ClassicNoise", &Config::classicNoise},       {"TransparentFog", &Config::transparentFog},
+    {"LitComposite", &Config::litComposite},
 };
 
 const BoolSetting kWaterBoolSettings[] = {

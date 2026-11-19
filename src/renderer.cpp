@@ -1201,6 +1201,27 @@ IDirect3DTexture9* Renderer::FilterWithHistory(IDirect3DDevice9* dev, IDirect3DT
     return m_history[write];
 }
 
+static int LightSetupOf(const Config& cfg)
+{
+    return (cfg.localLights ? 1 : 0) | (cfg.litComposite ? 2 : 0) | (std::clamp(cfg.localLightMaxCount, 0, 8) << 2);
+}
+
+void Renderer::LogGpuTimeOfLightSetup(IDirect3DDevice9* dev, const Config& cfg)
+{
+    const int setup = LightSetupOf(cfg);
+    if (setup == m_measuredLightSetup)
+        return;
+    const int previous = m_measuredLightSetup;
+    m_measuredLightSetup = setup;
+    if (previous < 0 || !LogEnabled(LogLevel::Info))
+        return;
+    char gpuTime[96] = {};
+    DescribeGpuTime(m_gpuTimer, dev, gpuTime, sizeof(gpuTime));
+    if (gpuTime[0])
+        VF_LOG_INFO("%s with LocalLights %d, LocalLightMaxCount %d, LitComposite %d, until this settings change",
+                    gpuTime, previous & 1, previous >> 2, (previous >> 1) & 1);
+}
+
 void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const FrameInputs& in, const Config& cfg,
                                const FogParams& fog, const AuthoredFog& authored, const D3DSURFACE_DESC& depthDesc,
                                const float* viewToWorld, const float* toLightInView, const float* sunPx,
@@ -1573,6 +1594,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     godRays.character = ProjectCharacterOntoViewport(in.cameraFocus, in.camPos, in.cameraRelativeView, proj, vp);
 
     LogFrameSummary(dev, now, in, cfg, fog, authored, depthDesc, viewToWorld, toLightInView, sunPx, rayStrength);
+    LogGpuTimeOfLightSetup(dev, cfg);
 
     if (LogEnabled(LogLevel::Info))
         m_gpuTimer.Begin(dev);
@@ -1599,7 +1621,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     static_assert(sizeof(FogLayer) == 6 * sizeof(Float4), "FogLayer is six shader registers");
     dev->SetPixelShaderConstantF(12, &fog.layers[0].start, 6 * kFogLayers);
     const uint32_t lightLimit =
-        std::min(static_cast<uint32_t>(std::max(cfg.localLightMaxCount, 1)), kMaxLocalPointLights);
+        std::min(static_cast<uint32_t>(std::max(cfg.localLightMaxCount, 0)), kMaxLocalPointLights);
     uint32_t pointLightCount = cfg.localLights ? std::min(in.localLights.pointLightCount, lightLimit) : 0;
     Float4 localConstants[32] = {};
     for (uint32_t i = 0; i < pointLightCount; ++i)
@@ -1639,7 +1661,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     LogUploadedLocalLights(in, cfg, pointLightCount);
     const Float4 localControl = {static_cast<float>(pointLightCount), marchLightLimit, cfg.localLightPhase,
                                  fog.localLightGain};
-    const bool marchesLocalLights = pointLightCount > 0;
+    const bool marchesLocalLights = pointLightCount > 0 || (cfg.localLights && cfg.localLightMaxCount == 0);
     IDirect3DPixelShader9* const* marches = marchesLocalLights ? (samplesNoise ? m_litNoisyMarch : m_litMarch)
                                                                : (samplesNoise ? m_noisyMarch : m_march);
     m_drawnMarch = marches[std::clamp(cfg.quality, 1, 3) - 1];
@@ -1694,7 +1716,7 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
     dev->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
     dev->SetRenderState(D3DRS_COLORWRITEENABLE,
                         D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE);
-    const CompositeChoice compositeChoice = {marchesLocalLights, samplesNoise, cfg.quality};
+    const CompositeChoice compositeChoice = {marchesLocalLights && cfg.litComposite, samplesNoise, cfg.quality};
     const bool splitSamples = depth.Multisampled() && EnsureSplitComposites(dev);
     m_drawnComposite = CompositeShader(compositeChoice, false);
     m_drawnSplitComposite = splitSamples ? CompositeShader(compositeChoice, true) : nullptr;

@@ -66,6 +66,7 @@ struct Config
     float localLightIntensity = 1.0f;
     float localLightPhase = 0.3f;
     int localLightMaxCount = 8;
+    bool litComposite = true;
     bool interiorAware = true;
     float interiorDensity = 0.15f;
     float interiorFarFog = 1.0f;
