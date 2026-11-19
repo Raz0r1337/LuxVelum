@@ -489,7 +489,7 @@ bool BuildFrameInputsUnsafe(FrameInputs& out, bool withPointLights, const PointL
     if (withPointLights)
     {
         const double seconds = ClockSeconds();
-        engine::MergeTwinPointLights(out.localLights, lightCamera.position, upload.reach);
+        engine::MergeTwinPointLights(out.localLights, lightCamera.position, upload.reach, upload.maxRadius);
         engine::KeepStrongestCandidates(out.localLights);
         FogLightStabiliser().Step(lightCamera, out.mapId, g_opaqueCaptures, seconds, out.localLights);
     }

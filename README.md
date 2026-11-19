@@ -1230,6 +1230,7 @@ choice, also `ClassicPhase=1` and `Temporal=0.97`, which ends the sky dithering 
 | `ClassicPhase` | 0 | Classic sun and moon scattering: 0 phase peaks at 1 toward the light, 1 energy-normalised |
 | `LocalLights`, `LocalLightIntensity` | 1, 1 | Scatter up to eight world point lights in view; intensity 0..8 |
 | `LocalLightPhase` | 0.3 | Henyey–Greenstein g of every point light in the fog, −0.9..0.9 (a calibration) |
+| `LocalLightMaxReach` | 200 | Farthest reach of any point light's glow, 20..200 yd (cost against faint outer glow) |
 | `InteriorAware`, `InteriorDensity` | 1, 0.15 | Fade outdoor layers indoors, keeping this fraction of their density |
 | `InteriorFarFog` | 1.0 | Native distance-fog density retained indoors (0..1); lower values clear dungeon haze |
 | `GodRays` | 0 | Shafts of light through gaps in trees, buildings and terrain in front of the sun, 0 = off |

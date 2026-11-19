@@ -59,6 +59,23 @@ void CheckLocalLightInputs()
     const float invalidRadius = engine::PointLightCutoff(light.color, light.attenuation);
     Check(dimRadius == 0.0f && negativeRadius == 0.0f && invalidRadius == 0.0f,
           "dim, negative and nonfinite point-light inputs cannot create a fog light");
+    light = PointLightFixture(0.0f);
+    light.attenuation[1] = 2.0f;
+    light.attenuation[2] = 0.0f;
+    const float cappedRadius = engine::PointLightCutoff(light.color, light.attenuation, 1.0f, 60.0f);
+    const float nearRadius = engine::PointLightCutoff(light.color, light.attenuation, 1.0f, 150.0f);
+    Config capped = {};
+    capped.localLightMaxReach = 60.0f;
+    const MapPlace somewhere = PlaceOf(kEasternKingdoms, kSomewhere);
+    std::printf("     linear light: reach %.1f yd, capped at 60 yd %.1f, at 150 yd %.1f; upload cap %.0f "
+                "(default %.0f)\n",
+                linearRadius, cappedRadius, nearRadius, LocalLightUpload(capped, somewhere).maxRadius,
+                LocalLightUpload(Config{}, somewhere).maxRadius);
+    Check(LocalNear(cappedRadius, 60.0f) && LocalNear(nearRadius, linearRadius) &&
+              LocalNear(LocalLightUpload(capped, somewhere).maxRadius, 60.0f) &&
+              LocalNear(LocalLightUpload(Config{}, somewhere).maxRadius, kMaxLocalPointLightRadius),
+          "LocalLightMaxReach caps every point light's reach and leaves shorter ones alone; the default 200 yd "
+          "changes nothing");
 
     const float camera[3] = {};
     LocalLightInputs forwards;

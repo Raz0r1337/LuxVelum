@@ -561,7 +561,8 @@ float PhaseUnderHaloShadow(float forwardPhase, float g, float haloShadow)
 
 PointLightUpload LocalLightUpload(const Config& cfg, const MapPlace& place)
 {
-    return {ScattersInLinearLight(cfg), cfg.localLightIntensity, RegionLocalLights(cfg, RegionOf(place))};
+    return {ScattersInLinearLight(cfg), cfg.localLightIntensity, RegionLocalLights(cfg, RegionOf(place)),
+            cfg.localLightMaxReach};
 }
 
 bool AnyLayerNoise(const FogParams& fog)
