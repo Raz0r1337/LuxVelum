@@ -2602,17 +2602,17 @@ void CheckZoneHaloOwnOverShipped(const std::wstring& outDir)
     const bool written = WriteText(shippedFile, shippedText) && WriteText(ownFile, "[SunHalo]\n10=0.80\n");
     ZoneHaloBook book;
     book.Load(NarrowPath(shippedFile), NarrowPath(ownFile));
-    const ZoneHalo barrens = book.Advance(kTheBarrens, "The Barrens", 1.0);
-    const ZoneHaloSource barrensSource = book.Current().source;
-    const ZoneHalo duskwood = book.Advance(kDuskwood, "Duskwood", 1.016);
-    const ZoneHaloSource duskwoodSource = book.Current().source;
-    const ZoneHalo durotar = book.Advance(kDurotar, "Durotar", 1.032);
-    const ZoneHaloSource durotarSource = book.Current().source;
-    std::printf("     shipped Barrens %.2f, own Duskwood %.2f over shipped 0.65, unlisted Durotar %.2f\n", barrens.sun,
-                duskwood.sun, durotar.sun);
-    Check(written && Near(barrens.sun, 0.25f) && barrensSource == ZoneHaloSource::Shipped &&
-              Near(duskwood.sun, 0.8f) && duskwoodSource == ZoneHaloSource::Own && Near(durotar.sun, 1.0f) &&
-              durotarSource == ZoneHaloSource::Unlisted,
+    book.Advance(kTheBarrens, "The Barrens", 1.0);
+    const ZoneHaloView barrens = book.Current();
+    book.Advance(kDuskwood, "Duskwood", 1.016);
+    const ZoneHaloView duskwood = book.Current();
+    book.Advance(kDurotar, "Durotar", 1.032);
+    const ZoneHaloView durotar = book.Current();
+    std::printf("     shipped Barrens %.2f, own Duskwood %.2f over shipped 0.65, unlisted Durotar %.2f\n",
+                barrens.factors.sun, duskwood.factors.sun, durotar.factors.sun);
+    Check(written && Near(barrens.factors.sun, 0.25f) && barrens.source == ZoneHaloSource::Shipped &&
+              Near(duskwood.factors.sun, 0.8f) && duskwood.source == ZoneHaloSource::Own &&
+              Near(durotar.factors.sun, 1.0f) && durotar.source == ZoneHaloSource::Unlisted,
           "a zone takes the player's own halo from WTF\\LuxVelum-zones.ini, else the shipped one from "
           "Data\\LuxVelum\\zones.ini, else 1");
 
