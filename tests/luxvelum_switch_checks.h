@@ -3,7 +3,7 @@
 namespace luxvelum_switch_checks
 {
 constexpr Hotkey kCtrlF9 = {VK_F9, true, false, false};
-constexpr const char* kSwitchedOff = "LuxVelum is switched off";
+constexpr const char* kSwitchedOff = "Luxvelum is switched off";
 
 struct SwitchState
 {
@@ -42,7 +42,7 @@ public:
 
     void Write(const wchar_t* key, const std::wstring& value)
     {
-        WritePrivateProfileStringW(L"LuxVelum", key, value.c_str(), m_path.c_str());
+        WritePrivateProfileStringW(L"Luxvelum", key, value.c_str(), m_path.c_str());
         ULARGE_INTEGER time = {};
         time.LowPart = m_time.dwLowDateTime;
         time.HighPart = m_time.dwHighDateTime;
@@ -75,7 +75,7 @@ void CheckToggleKeySetting(const std::wstring& outDir, const std::wstring& shipp
           "ToggleKey takes no key by default and the shipped INI lists it empty for each player to set");
 
     const std::wstring iniPath = FullPath(outDir + L"\\settings-toggle-key.ini");
-    Check(CopyFileW(shippedIni.c_str(), iniPath.c_str(), FALSE) != FALSE, "shipped LuxVelum.ini copied for ToggleKey");
+    Check(CopyFileW(shippedIni.c_str(), iniPath.c_str(), FALSE) != FALSE, "shipped Luxvelum.ini copied for ToggleKey");
     ConfigStore store;
     store.Load(NarrowPath(iniPath));
     LogSetLevel(static_cast<int>(LogLevel::Info));
@@ -104,7 +104,7 @@ void CheckToggleKeySetting(const std::wstring& outDir, const std::wstring& shipp
     const std::string text = water_settings_checks::LoggedByTheHarnessSince(start);
     std::printf("%s", text.c_str());
     Check(reloaded && SameHotkey(set, kCtrlF9) &&
-              runtime_cost::HasLine(text, "settings from LuxVelum.ini: ToggleKey none -> Ctrl+F9"),
+              runtime_cost::HasLine(text, "settings from Luxvelum.ini: ToggleKey none -> Ctrl+F9"),
           "an INI reload sets ToggleKey while the game runs and logs the new key");
     Check(keptByTheWindow, "settings window edits keep the ToggleKey read from the INI");
     const std::string refused =
@@ -144,7 +144,7 @@ void CheckTheSwitchTakesEffectAtTheNextFrame()
     const SwitchState on = CurrentSwitch();
     Check(!start.latchedOff && !start.flippedOff && flipped.flippedOff && !flipped.latchedOff && latched &&
               off.latchedOff && !latchedAgain && !on.latchedOff && !on.flippedOff,
-          "LuxVelum starts switched on, a flip takes effect once at the next frame, and a second flip switches it on "
+          "Luxvelum starts switched on, a flip takes effect once at the next frame, and a second flip switches it on "
           "again");
 }
 
@@ -228,10 +228,10 @@ void CheckSwitchedOffFogLeavesTheFrameToTheClient(Harness& h)
     Check(text.depthWrite == TRUE && onText.depthWrite == FALSE,
           "switched off, the world-name text keeps the client's depth writes; switched on, they are suppressed again");
     Check(!fogDrawn && std::strcmp(fogReason, kSwitchedOff) == 0,
-          "the settings window reports the fog as not drawn because LuxVelum is switched off");
+          "the settings window reports the fog as not drawn because Luxvelum is switched off");
     Check(offStats.find("transparent fog:") == std::string::npos &&
               runtime_cost::HasLine(resumedStats, "transparent fog: 1 frames, 0 early composites"),
-          "at LogLevel 2 the M2 batch fog is not counted and no transparent fog summary is logged while LuxVelum is "
+          "at LogLevel 2 the M2 batch fog is not counted and no transparent fog summary is logged while Luxvelum is "
           "switched off; switched on again, the counting starts afresh");
     Check(backVsOn == 0 && Rewritten(back) && SameStockFog(back.stockFogInFrame, kPushedStockFogStart,
                                                            kPushedStockFogEnd),
@@ -319,7 +319,7 @@ void CheckToggleKeyInput(Harness& h)
     const SwitchState again = CurrentSwitch();
     Check(!start.flippedOff && pressed.flippedOff && !again.flippedOff && settingsClosed &&
               g_clientInput.keyDowns == 0 && g_clientInput.keyUps == 0,
-          "ToggleKey switches LuxVelum off and on again, without reaching the client or opening the settings window");
+          "ToggleKey switches Luxvelum off and on again, without reaching the client or opening the settings window");
 
     const Hotkey overlayKey = keyed.overlayKey;
     HoldHotkeyDown(h.window, overlayKey);
@@ -340,7 +340,7 @@ void CheckToggleKeyInput(Harness& h)
     vf_test_set_config(&unset);
     PressHotkey(h.window, kCtrlF9);
     Check(!CurrentSwitch().flippedOff && g_clientInput.keyDowns == 1,
-          "without a ToggleKey the same key reaches the client and LuxVelum stays on");
+          "without a ToggleKey the same key reaches the client and Luxvelum stays on");
 
     Config withoutOverlay = keyed;
     withoutOverlay.overlay = false;
@@ -349,7 +349,7 @@ void CheckToggleKeyInput(Harness& h)
     const bool offWithoutOverlay = CurrentSwitch().flippedOff;
     PressHotkey(h.window, kCtrlF9);
     Check(offWithoutOverlay && !CurrentSwitch().flippedOff && g_clientInput.keyDowns == 1,
-          "with Overlay=0 ToggleKey still switches LuxVelum off and on");
+          "with Overlay=0 ToggleKey still switches Luxvelum off and on");
     vf_test_latch_luxvelum_switch();
     vf_test_set_config(&saved);
 }
@@ -379,10 +379,10 @@ void CheckSwitchedOnWhenNothingCouldSwitchItOn()
     const SwitchState after = CurrentSwitch();
     std::printf("%s", text.c_str());
     Check(offWhileTheKeyIsSet && !offWithoutAKey && !after.flippedOff &&
-              runtime_cost::HasLine(text, "LuxVelum switched on because neither ToggleKey nor the settings window "
+              runtime_cost::HasLine(text, "Luxvelum switched on because neither ToggleKey nor the settings window "
                                           "could switch it on again") &&
-              runtime_cost::HasLine(text, "LuxVelum switched on again"),
-          "with Overlay=0, taking the ToggleKey away while LuxVelum is switched off switches it on at the next frame, "
+              runtime_cost::HasLine(text, "Luxvelum switched on again"),
+          "with Overlay=0, taking the ToggleKey away while Luxvelum is switched off switches it on at the next frame, "
           "so it never stays off with no way back");
     vf_test_set_config(&saved);
 }

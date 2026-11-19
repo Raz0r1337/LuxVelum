@@ -144,9 +144,9 @@ include(cmake/BuildId.cmake)
 luxvelum_build_id(LUXVELUM_BUILD_ID)
 set(BUILD_ID_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 configure_file(cmake/build_id.h.in ${BUILD_ID_DIR}/build_id.h @ONLY)
-message(STATUS "LuxVelum build id: ${LUXVELUM_BUILD_ID}")
+message(STATUS "Luxvelum build id: ${LUXVELUM_BUILD_ID}")
 
-add_library(LuxVelum SHARED
+add_library(Luxvelum SHARED
     src/celestial_occlusion.cpp
     src/character_on_screen.cpp
     src/client_camera_focus.cpp
@@ -187,15 +187,15 @@ add_library(LuxVelum SHARED
     src/water_ripples.cpp
     src/water_spectrum.cpp
     src/zone_halo.cpp
-    src/LuxVelum.def)
-add_dependencies(LuxVelum vf_shaders)
-target_include_directories(LuxVelum PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
-target_compile_definitions(LuxVelum PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
-target_compile_options(LuxVelum PRIVATE /W4 /wd4100 /arch:SSE2 /fp:fast /GS)
-target_link_libraries(LuxVelum PRIVATE kernel32 user32 imgui)
+    src/Luxvelum.def)
+add_dependencies(Luxvelum vf_shaders)
+target_include_directories(Luxvelum PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
+target_compile_definitions(Luxvelum PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
+target_compile_options(Luxvelum PRIVATE /W4 /wd4100 /arch:SSE2 /fp:fast /GS)
+target_link_libraries(Luxvelum PRIVATE kernel32 user32 imgui)
 
 add_library(version SHARED proxy/version_proxy.cpp proxy/version.def)
-target_link_libraries(version PRIVATE LuxVelum)
+target_link_libraries(version PRIVATE Luxvelum)
 target_compile_definitions(version PRIVATE WIN32_LEAN_AND_MEAN)
 
 add_executable(vfog_harness tests/harness.cpp src/celestial_occlusion.cpp src/character_on_screen.cpp
@@ -208,35 +208,35 @@ add_executable(vfog_harness tests/harness.cpp src/celestial_occlusion.cpp src/ch
                src/fog_data_choice.cpp)
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(vfog_harness PRIVATE LuxVelum user32 ole32 windowscodecs)
+target_link_libraries(vfog_harness PRIVATE Luxvelum user32 ole32 windowscodecs)
 add_custom_target(luxvelum_runtime_files ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:LuxVelum>/WTF $<TARGET_FILE_DIR:LuxVelum>/Data/LuxVelum
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
-            $<TARGET_FILE_DIR:LuxVelum>/WTF
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:Luxvelum>/WTF $<TARGET_FILE_DIR:Luxvelum>/Data/Luxvelum
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/Luxvelum.ini
+            $<TARGET_FILE_DIR:Luxvelum>/WTF
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
             ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin ${CMAKE_CURRENT_SOURCE_DIR}/data/zones.ini
-            $<TARGET_FILE_DIR:LuxVelum>/Data/LuxVelum
-    COMMENT "Copying LuxVelum.ini into WTF and the fog, water and zone data into Data/LuxVelum beside LuxVelum.dll"
+            $<TARGET_FILE_DIR:Luxvelum>/Data/Luxvelum
+    COMMENT "Copying Luxvelum.ini into WTF and the fog, water and zone data into Data/Luxvelum beside Luxvelum.dll"
     VERBATIM)
-add_dependencies(LuxVelum luxvelum_runtime_files)
+add_dependencies(Luxvelum luxvelum_runtime_files)
 add_dependencies(vfog_harness luxvelum_runtime_files version)
 
 enable_testing()
 add_test(NAME interior_fog
     COMMAND vfog_harness --scene interior --out ${CMAKE_CURRENT_BINARY_DIR}/interior-out
-            --ini ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
+            --ini ${CMAKE_CURRENT_SOURCE_DIR}/Luxvelum.ini
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 add_test(NAME vfog_harness
     COMMAND vfog_harness --out ${CMAKE_CURRENT_BINARY_DIR}/harness-out
             --data ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
-            --ini ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
+            --ini ${CMAKE_CURRENT_SOURCE_DIR}/Luxvelum.ini
             --water-data ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 set_tests_properties(vfog_harness PROPERTIES LABELS gpu)
 add_test(NAME cpu_harness
     COMMAND vfog_harness --scene cpu --out ${CMAKE_CURRENT_BINARY_DIR}/cpu-harness-out
             --data ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
-            --ini ${CMAKE_CURRENT_SOURCE_DIR}/LuxVelum.ini
+            --ini ${CMAKE_CURRENT_SOURCE_DIR}/Luxvelum.ini
             --water-data ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin
     WORKING_DIRECTORY $<TARGET_FILE_DIR:vfog_harness>)
 set_tests_properties(cpu_harness PROPERTIES LABELS cpu)

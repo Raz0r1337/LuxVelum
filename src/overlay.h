@@ -10,5 +10,5 @@ void DetachOverlay(IDirect3DDevice9* device);
 void ReleaseOverlayDeviceObjects(IDirect3DDevice9* device);
 void DrawOverlay(IDirect3DDevice9* device);
 bool OverlayVisible();
-bool OverlayCanSwitchLuxVelumOn();
+bool OverlayCanSwitchLuxvelumOn();
 PanelPlacement OverlayPanelPlacement();

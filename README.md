@@ -1,13 +1,13 @@
-# LuxVelum
+# Luxvelum
 
 Atmospheric Immersion for Project Reforged — WoW 3.3.5.
 
-LuxVelum is a fork of [CoAVolFog](https://github.com/jealous-sound/coa-vfog): volumetric fog and modern water for the
-Ascension/CoA 3.3.5a (build 12340) Direct3D 9 client. It installs as `LuxVelum.dll` next to `Wow.exe`, its settings
-`WTF\LuxVelum.ini` and its data `Data\LuxVelum\fogdata.bin`, `Data\LuxVelum\waterdata.bin` and
-`Data\LuxVelum\zones.ini`, and writes
-`Logs\LuxVelum.log` (`CoAVolFog.*` before TEST Build-24-11, `Luxveil.*` in TEST Build-24-11 and 24-12, all next to
-`Wow.exe` in earlier packages); without a `WTF\LuxVelum.ini` it takes over an existing `LuxVelum.ini` next to `Wow.exe`,
+Luxvelum is a fork of [CoAVolFog](https://github.com/jealous-sound/coa-vfog): volumetric fog and modern water for the
+Ascension/CoA 3.3.5a (build 12340) Direct3D 9 client. It installs as `Luxvelum.dll` next to `Wow.exe`, its settings
+`WTF\Luxvelum.ini` and its data `Data\Luxvelum\fogdata.bin`, `Data\Luxvelum\waterdata.bin` and
+`Data\Luxvelum\zones.ini`, and writes
+`Logs\Luxvelum.log` (`CoAVolFog.*` before TEST Build-24-11, `Luxveil.*` in TEST Build-24-11 and 24-12, all next to
+`Wow.exe` in earlier packages); without a `WTF\Luxvelum.ini` it takes over an existing `Luxvelum.ini` next to `Wow.exe`,
 else `Luxveil.ini` or `CoAVolFog.ini`.
 
 It consists of a loader, a D3D9 device wrapper with a readable depth buffer, world-render hooks, a per-pixel
@@ -20,12 +20,12 @@ textures.
 ## About this fork
 
 **Please note:** I am not the author or maintainer of CoAVolFog. The project belongs to
-[jealous-sound](https://github.com/jealous-sound/coa-vfog); this fork, LuxVelum, only tries to adapt it to Project
+[jealous-sound](https://github.com/jealous-sound/coa-vfog); this fork, Luxvelum, only tries to adapt it to Project
 Reforged. I have no background in volumetric lighting or fog effects, so while I do my best, I cannot guarantee that a
-change here does not make things worse instead of better. If in doubt, leave LuxVelum disabled (`Enable=0` in
-`WTF\LuxVelum.ini`).
+change here does not make things worse instead of better. If in doubt, leave Luxvelum disabled (`Enable=0` in
+`WTF\Luxvelum.ini`).
 
-This fork ([Stormhand-dev/LuxVelum](https://github.com/Stormhand-dev/LuxVelum), development on `reforged-dev`,
+This fork ([Stormhand-dev/Luxvelum](https://github.com/Stormhand-dev/Luxvelum), development on `reforged-dev`,
 releases from `reforged-main`) builds on [jealous-sound/coa-vfog](https://github.com/jealous-sound/coa-vfog) and fixes
 fog lights that flickered or went out:
 
@@ -42,7 +42,7 @@ fog lights that flickered or went out:
   at low quality is filtered away.
 - **Fog in the rain**: where the Forever kit has no storm fog for a light, the clear fog stays when it rains.
 - **Releases**: every push to `reforged-main` publishes the install zip and keeps only the newest build:
-  [LuxVelum-Win32.zip](https://github.com/Stormhand-dev/LuxVelum/releases/latest/download/LuxVelum-Win32.zip).
+  [Luxvelum-Win32.zip](https://github.com/Stormhand-dev/Luxvelum/releases/latest/download/Luxvelum-Win32.zip).
   A push to `reforged-dev` that `reforged-main` does not contain yet publishes a pre-release
   `build-<next>-<k>-test` for testing the next version, `<k>` counting the test builds since the last release.
 
@@ -518,7 +518,7 @@ lamps right again at local lights 4 with density 1; the region starts at 2.5, th
 map 530 at y ≥ −2550 yd. In the shipped `fogdata.bin` the 155 Outland lights of map 530 reach no further than y = −727
 yd and its 23 starting-zone lights no closer than y = −4373 yd, so the line passes about 1800 yd from both; the land of
 both lies within its lights. While the camera position cannot be read, map 530 counts as Outland. The `map` lines of
-`LuxVelum.log` name the region, as in `map 530 (TBCStart) at (7595 -6782 87)`.
+`Luxvelum.log` name the region, as in `map 530 (TBCStart) at (7595 -6782 87)`.
 
 The phase of the Classic sun and moon scattering peaks at 1 toward the light. The authored intensities rise as g
 falls, to about 4π for evenly scattering rows, which suggests that the modern lookup is energy-normalised (inferred;
@@ -566,7 +566,7 @@ it in the other, so the sunless decision is the same in both (2026-11-19, the ow
 night for a client with the other. `tools/convert_client_lights.py` writes 64 band probes into the file it makes: id,
 key 0 and colour of every n-th band (by id) whose first key is at midnight with a colour other than black, from the
 `LightIntBand` it converted from. Of the darker variant's 64 probes one matches the other variant. With the variants
-converted into `fogdata.bin` and further `fogdata*.bin` files in `Data\LuxVelum`, LuxVelum reads the probes of every
+converted into `fogdata.bin` and further `fogdata*.bin` files in `Data\Luxvelum`, Luxvelum reads the probes of every
 such file at start-up, scores each against the client's loaded `LightIntBand` at the first world frame after the table
 is loaded, and loads the file whose probes match best if more than half match; otherwise, and with a single file,
 `fogdata.bin` stays. The log names every file's score. The client keeps the table as a `WowClientDB` at `0x00AF49BC`,
@@ -599,10 +599,10 @@ rates from fields 4–9. The water is tuned by eye against this mapping, not mat
 
 ## How it attaches
 
-- **Loader.** `Wow.exe` loads `LuxVelum.dll` at startup, before the client resolves Direct3D, through the LuxVelum
+- **Loader.** `Wow.exe` loads `Luxvelum.dll` at startup, before the client resolves Direct3D, through the Luxvelum
   loader of St0ny's AIO WoW EXE Patcher; `DllMain` does the rest and no export is called. A `Wow.exe` without that
   patch loads it through the optional `version.dll` proxy instead: all 17 exports forward lazily to the system copy,
-  and its static import of the `vf_loader_anchor` export loads `LuxVelum.dll` before the client starts.
+  and its static import of the `vf_loader_anchor` export loads `Luxvelum.dll` before the client starts.
   Loaded with `LoadLibraryA`, the DLL pins itself before it patches anything, so no `FreeLibrary` can unmap the code
   the hooks call, and an exception during start-up is logged and leaves the load successful with the hooks installed
   so far.
@@ -714,7 +714,7 @@ Engine notes behind the code:
   loader in `Wow.exe` runs after the client's first call through it, the `GetProcAddress` the thunk resolved
   (kernel32's or KernelBase's export; the filter calls its own import either way). Any other value is another hook:
   the engine, transparent fog and water hooks are not installed, while `LightStay` and the far-clip calls still
-  apply, and `LuxVelum.log` names the state it found. A `Direct3DCreate9` resolved before the DLL loaded is not
+  apply, and `Luxvelum.log` names the state it found. A `Direct3DCreate9` resolved before the DLL loaded is not
   wrapped, and the hooks then find no fog device.
 - Matrices. `0x6821A4` reads the camera-relative view matrix at Gx `+0x1B00 + 64·[+0x1AF8]` and then the projection at
   `+0xF88`. The engine builds its projection with `0x6BF370` (OpenGL depth range, w = view z); the D3D backend
@@ -974,18 +974,18 @@ Engine notes behind the code:
 game. On laptops whose F-keys send media keys by
 default, hold Fn (the log names the key that arrived). The window edits every setting below except `Enable`,
 `EngineHooks`, `Overlay`, `OverlayKey` and `ToggleKey`, and the next frame uses the change.
-**Save** writes the settings changed in the window back to `WTF\LuxVelum.ini`, keeping the comments and every other
+**Save** writes the settings changed in the window back to `WTF\Luxvelum.ini`, keeping the comments and every other
 line; settings not changed in the window keep what the file holds. **Revert** reloads the file, and a hand edit of the
 file also replaces unsaved changes. The window shows whether the fog drew in the last frame, or why it did not. It also
 shows whether the game's multisampling is kept, or why it is off (`Multisampling` applies later, see Settings). It can
 be moved and resized, and keeps its place and size for the session. Its title bar names the build, the branch and
-commit of `BUILD.txt` (as in `LuxVelum reforged-dev ec0af3b`; `local` for a build outside the CI), and so does the
-first line of `LuxVelum.log`.
+commit of `BUILD.txt` (as in `Luxvelum reforged-dev ec0af3b`; `local` for a build outside the CI), and so does the
+first line of `Luxvelum.log`.
 
 The **This zone** section names the client's current zone and sets its sun and moon halo: factors on top of `SunScatter`
 and `MoonScatter` (0..4, 1 = the global value alone), kept as `[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone
-id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning, are in `Data\LuxVelum\zones.ini`, which
-every release replaces and LuxVelum never writes; the player's own go to `WTF\LuxVelum-zones.ini` when a slider is let
+id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning, are in `Data\Luxvelum\zones.ini`, which
+every release replaces and Luxvelum never writes; the player's own go to `WTF\Luxvelum-zones.ini` when a slider is let
 go, which no package contains, and win over the shipped ones for the zones they list. A zone neither lists keeps 1;
 **Reset this zone** removes the player's own entry and falls back to the shipped halo. The section and the log name the
 source (`shipped`, `your own`, `not listed`). Before a release the owner's own entries are folded into `data/zones.ini`,
@@ -1005,9 +1005,9 @@ client; mouse moves and key-ups always do, so no game key sticks. The window is 
 exception in the overlay turns it off for the session and is logged; `Overlay=0` leaves the game window
 untouched from the next start, unless `ToggleKey` is set.
 
-### Switching LuxVelum off
+### Switching Luxvelum off
 
-`ToggleKey` and the window's **LuxVelum on** box switch LuxVelum off and on while the game runs. The shipped INI
+`ToggleKey` and the window's **Luxvelum on** box switch Luxvelum off and on while the game runs. The shipped INI
 leaves `ToggleKey` empty, so no key is taken until a player sets one (same names as `OverlayKey`, for example
 `Ctrl+F9`); a key that arrives as `OverlayKey` does is refused and logged (Windows sends `Ctrl+Pause` and
 `Ctrl+ScrollLock` alike), and the key itself never reaches the client. The window procedure only flips a request, and
@@ -1026,7 +1026,7 @@ Switched off, each hook takes the path it already takes when the matching settin
 - the glow byte is not fed and the grading copies are released, as with `ForeverGlow=0` and `ColorGrading=0`;
 - the transparent fog counters of `LogLevel=2` stop, so the M2 batch fog calls go straight to the client;
 - the INI is still re-read every second, and the settings window reports the fog and water as not drawn because
-  LuxVelum is switched off.
+  Luxvelum is switched off.
 
 Switched on again, the first frame keeps the stock fog and draws the fog after the world, as after a loading screen, and
 the early composite returns with the next frame. Nothing needs a reset: the temporal history is used only within 0.25 s
@@ -1052,11 +1052,11 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-Outputs in `build/Release`: `LuxVelum.dll`, the optional `version.dll` loader and `vfog_harness.exe`, laid out like a
-client folder with `LuxVelum.ini` copied into `WTF` and `fogdata.bin`, `waterdata.bin` and `zones.ini` into
-`Data\LuxVelum` on every
-build, also of `--target LuxVelum` alone and when only the INI or a data file has changed. The DLL the harness loads
-reads them there and writes `Logs\LuxVelum.log`.
+Outputs in `build/Release`: `Luxvelum.dll`, the optional `version.dll` loader and `vfog_harness.exe`, laid out like a
+client folder with `Luxvelum.ini` copied into `WTF` and `fogdata.bin`, `waterdata.bin` and `zones.ini` into
+`Data\Luxvelum` on every
+build, also of `--target Luxvelum` alone and when only the INI or a data file has changed. The DLL the harness loads
+reads them there and writes `Logs\Luxvelum.log`.
 
 ### Download a CI build
 
@@ -1065,31 +1065,31 @@ push to `main` (including merged pull requests), on pull requests targeting `mai
 **Actions → Windows release build → Run workflow**. The manual button becomes available after the workflow is
 merged into `main`; select a branch to rebuild that revision.
 
-Open a successful run and download its `LuxVelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a ZIP
-containing `LuxVelum.dll`, `WTF/LuxVelum.ini`, `Data/LuxVelum/fogdata.bin`, `Data/LuxVelum/waterdata.bin`,
-`Data/LuxVelum/zones.ini`, the README,
+Open a successful run and download its `Luxvelum-Win32-<commit>` artifact under **Artifacts**. GitHub supplies a ZIP
+containing `Luxvelum.dll`, `WTF/Luxvelum.ini`, `Data/Luxvelum/fogdata.bin`, `Data/Luxvelum/waterdata.bin`,
+`Data/Luxvelum/zones.ini`, the README,
 licenses and a `BUILD.txt` identifying the commit and validation. Artifacts are kept for 30 days; rerun the workflow to
 rebuild an expired download. Pull-request artifacts are builds of GitHub's proposed merge revision. The optional
-`version.dll` loader comes with the licence as a second artifact, `LuxVelum-version-dll-Win32-<commit>`.
+`version.dll` loader comes with the licence as a second artifact, `Luxvelum-version-dll-Win32-<commit>`.
 
 On a push to the release branch `reforged-main`, and on a manual run of that branch, a second job publishes the same
-files as a GitHub release `build-<n>` titled `LuxVelum Build-<n> (reforged-main <commit>)` with the assets
-`LuxVelum-Win32.zip` and `LuxVelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence), which
+files as a GitHub release `build-<n>` titled `Luxvelum Build-<n> (reforged-main <commit>)` with the assets
+`Luxvelum-Win32.zip` and `Luxvelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence), which
 need no login to download, and then deletes every other release with its tag, test releases included, so the fork keeps
-only the newest build at `releases/latest/download/LuxVelum-Win32.zip`. `<n>` counts on from the highest `build-<n>`
+only the newest build at `releases/latest/download/Luxvelum-Win32.zip`. `<n>` counts on from the highest `build-<n>`
 release; a rerun for the commit that a `build-<n>` tag already points at uploads both zips to that release again. A
 manual run of `reforged-main` with `refresh` set rebuilds the highest `build-<n>` at the new commit under the same
 `<n>`: it moves the tag to the commit and replaces the title, notes and zips of the release in place, so the release is
 never deleted and keeps its publication date. GitHub may refuse to move a tag with the workflow's `GITHUB_TOKEN` when
 files under `.github/workflows` changed since the tagged commit; a refresh whose tag cannot be moved publishes the
 commit as `build-<n+1>` instead, as a push would, and `build-<n>` is deleted only once `build-<n+1>` exists. A refresh
-uploads the new zip as `LuxVelum-Win32.new.zip` before it moves the tag, then renames the old zip away, gives the new
+uploads the new zip as `Luxvelum-Win32.new.zip` before it moves the tag, then renames the old zip away, gives the new
 one its name and deletes the old one, so the download is missing only between those two renames, never while an upload
 runs; if the upload fails, the release stays as it was. A push whose commit message carries `[skip ci]` runs nothing, so
 a fix can join the current release this way.
 On a push to the development branch `reforged-dev`, and on a manual run of it, a test job deletes every test release
 (`build-<n>-test` or `build-<n>-<k>-test`) and, when `reforged-dev` has commits that `reforged-main` lacks, publishes
-`build-<n+1>-<k>-test` as a pre-release titled `LuxVelum TEST Build-<n+1>-<k> (reforged-dev <commit>)`, which never
+`build-<n+1>-<k>-test` as a pre-release titled `Luxvelum TEST Build-<n+1>-<k> (reforged-dev <commit>)`, which never
 becomes `releases/latest`. `<k>` is one more than the successful runs of the workflow on `reforged-dev` since
 `build-<n>` was published, which a refresh does not change, or one more than the test build it replaces when that is
 higher (so the count goes on after the branch was renamed from `st0ny-dev`), so testers can tell the test builds of one
@@ -1144,39 +1144,39 @@ and wading-in units at `WaterRipples=0.5`, each as the shaded frame, its normals
 
 `vfog_harness --scene performance` times the fog passes at 1920×1080 at each quality on one street: derived
 layers with no point lights, eight flood lights or eight street lamps, Classic layers at the harbour with and
-without the lamps (skipped if the `fogdata.bin` of `LuxVelum.dll` does not resolve the harbour), and the shipped
+without the lamps (skipped if the `fogdata.bin` of `Luxvelum.dll` does not resolve the harbour), and the shipped
 `LogLevel=1`. It prints `quality,case,point_lights,median_ms,p95_ms` of GPU time; this is a controlled renderer
 cost, not a game frame-rate test.
 It also times the harbour in a full storm and the colour grading pass; `--samples 4` creates a 4x device.
 
 ## Install
 
-Patch `Wow.exe` with the LuxVelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then unzip the package into
-the client folder: `LuxVelum.dll` goes next to `Wow.exe`, `fogdata.bin`, `waterdata.bin` and `zones.ini` into
-`Data\LuxVelum` and `LuxVelum.ini` into `WTF`, in the client's own folders for its data and settings; a player's own
-`WTF\LuxVelum-zones.ini` is not in the package and stays. Without the patch, unzip
-`LuxVelum-version-dll-Win32.zip` next to `Wow.exe` as well: its `version.dll` loads `LuxVelum.dll`, and a patched
-`Wow.exe` does not need it. Remove `LuxVelum.dll` to uninstall, with the `version.dll` loader too, which keeps the
-client from starting on its own; the patched `Wow.exe` then starts without it. The DLL writes `LuxVelum.log` into the
+Patch `Wow.exe` with the Luxvelum loader of St0ny's AIO WoW EXE Patcher. Close the client, then unzip the package into
+the client folder: `Luxvelum.dll` goes next to `Wow.exe`, `fogdata.bin`, `waterdata.bin` and `zones.ini` into
+`Data\Luxvelum` and `Luxvelum.ini` into `WTF`, in the client's own folders for its data and settings; a player's own
+`WTF\Luxvelum-zones.ini` is not in the package and stays. Without the patch, unzip
+`Luxvelum-version-dll-Win32.zip` next to `Wow.exe` as well: its `version.dll` loads `Luxvelum.dll`, and a patched
+`Wow.exe` does not need it. Remove `Luxvelum.dll` to uninstall, with the `version.dll` loader too, which keeps the
+client from starting on its own; the patched `Wow.exe` then starts without it. The DLL writes `Luxvelum.log` into the
 client's `Logs` folder and makes `Logs` and `WTF` when they are missing; where it cannot, the log and the settings stay
-next to `LuxVelum.dll`. A `fogdata.bin` or `waterdata.bin` missing from `Data\LuxVelum` is still read from next to
-`LuxVelum.dll`, where earlier packages put it. The start-up line `LuxVelum loaded from` names the settings and data
-files in use. Deleting the `WTF` folder to reset the client deletes LuxVelum's settings too: the next start takes over
-an earlier INI still next to `Wow.exe` again, as below, or else runs on the built-in defaults until `WTF\LuxVelum.ini`
+next to `Luxvelum.dll`. A `fogdata.bin` or `waterdata.bin` missing from `Data\Luxvelum` is still read from next to
+`Luxvelum.dll`, where earlier packages put it. The start-up line `Luxvelum loaded from` names the settings and data
+files in use. Deleting the `WTF` folder to reset the client deletes Luxvelum's settings too: the next start takes over
+an earlier INI still next to `Wow.exe` again, as below, or else runs on the built-in defaults until `WTF\Luxvelum.ini`
 is unzipped from the package again. A client started from the same folder while another holds the log writes the first
-free one of `LuxVelum-2.log` to `LuxVelum-8.log` beside it instead, and its first line names that file and the client's
+free one of `Luxvelum-2.log` to `Luxvelum-8.log` beside it instead, and its first line names that file and the client's
 process id.
 A slot held by a running client is left as it is; a free one is reused and overwritten, so the clients of one folder
 share at most eight log files. A ninth client running beside eight others writes no log.
 Delete the `version.dll` of a CoAVolFog or Luxveil package: it keeps the client from starting once its old DLL is gone.
-The `version.dll` of an earlier LuxVelum package loads this `LuxVelum.dll` too; Build-1 and TEST Build-2-1 to 2-3
-shipped none, and their `LuxVelum.dll` lacked the `vf_loader_anchor` export it needs.
-To keep the settings of an earlier install, leave out `WTF\LuxVelum.ini`: on its next start the DLL then copies the
-`LuxVelum.ini` next to `Wow.exe` of an earlier package, also one with the `[Luxvelum]` section of the builds before the
-`LuxVelum` spelling, or without it `Luxveil.ini`, or `CoAVolFog.ini`, into `WTF\LuxVelum.ini` with its section renamed
-and logs which file it took; an existing `WTF\LuxVelum.ini` is never replaced, and the earlier file stays as it was. A
+The `version.dll` of an earlier Luxvelum package loads this `Luxvelum.dll` too; Build-1 and TEST Build-2-1 to 2-3
+shipped none, and their `Luxvelum.dll` lacked the `vf_loader_anchor` export it needs.
+To keep the settings of an earlier install, leave out `WTF\Luxvelum.ini`: on its next start the DLL then copies the
+`Luxvelum.ini` next to `Wow.exe` of an earlier package, also one with the `[LuxVelum]` section of the builds spelt
+`LuxVelum`, or without it `Luxveil.ini`, or `CoAVolFog.ini`, into `WTF\Luxvelum.ini` with its section renamed
+and logs which file it took; an existing `WTF\Luxvelum.ini` is never replaced, and the earlier file stays as it was. A
 file saved as UTF-8 or Unicode (UTF-16) and a section header followed by more text are taken over too; a file without
-its section is skipped with a log line, and the next one is tried. The `LuxVelum.ini`, `LuxVelum.log`, `fogdata.bin` and
+its section is skipped with a log line, and the next one is tried. The `Luxvelum.ini`, `Luxvelum.log`, `fogdata.bin` and
 `waterdata.bin` of an earlier package next to `Wow.exe`, and the old `Luxveil.dll`, `Luxveil.ini`, `Luxveil.log`,
 `CoAVolFog.dll`, `CoAVolFog.ini` and `CoAVolFog.log`, are then no longer used and can be deleted; delete the earlier INI
 once the log names it as taken over, so that a later reset of `WTF` does not bring it back.
@@ -1199,7 +1199,7 @@ Other Linux hardware and Proton/DXVK versions have not been verified by this tes
 
 ## Log
 
-The log is `Logs\LuxVelum.log` in the client folder.
+The log is `Logs\Luxvelum.log` in the client folder.
 At `LogLevel=1` the log holds a frame summary on the first frame, whenever the viewport or far clip changes, and
 every 60 s (`LogLevel=2` adds one every 600 frames). Its first line ends with the median GPU time of the fog
 passes since the previous summary, for example
@@ -1230,11 +1230,11 @@ are logged with the feature they leave off.
 
 ## Settings
 
-`WTF\LuxVelum.ini` is re-read within a second while the game runs (except `Enable`, `EngineHooks` and `LightStay`);
+`WTF\Luxvelum.ini` is re-read within a second while the game runs (except `Enable`, `EngineHooks` and `LightStay`);
 its comments describe every key. In the game, `Insert` (the shipped `OverlayKey`) opens the same settings in a window
 (see In-game settings).
 
-The Default column holds the built-in value that a key missing from the file takes. The shipped `LuxVelum.ini` differs
+The Default column holds the built-in value that a key missing from the file takes. The shipped `Luxvelum.ini` differs
 from it in `FarClipMax=1583` and, since it took a tester's settings (2026-11-16), in `OverlayKey=Insert`, `Quality=1`,
 `Density=0.8`, `Haze=0.4`, `FarFog=0`, `NoiseAmount=0`, `NoiseScale=0.001`, `NoiseWindSpeed=0`, `ClassicNoise=1`,
 `OutlandDensity=0.5`, `NorthrendDensity=0.7`, `AzerothSkyColor=0.5`, `OutlandSkyColor=1`, `NorthrendSkyColor=1`,
@@ -1250,7 +1250,7 @@ choice, also `ClassicPhase=1` and `Temporal=0.97`, which ends the sky dithering 
 | `LightStay` | 1 | Keep point lights on while their model is not drawn, exe patch No. 70 in memory (restart, hooks) |
 | `Overlay` | 1 | Settings window; 0 hides it at once, and from the next start leaves the game window alone unless `ToggleKey` is set |
 | `OverlayKey` | Ctrl+F7 | Key that shows and hides the window, with optional `Ctrl+`, `Shift+`, `Alt+` |
-| `ToggleKey` | none | Key that switches LuxVelum off and on while the game runs; empty = no key |
+| `ToggleKey` | none | Key that switches Luxvelum off and on while the game runs; empty = no key |
 | `Quality` | 2 | 1 quarter resolution / 16 steps, 2 half / 24, 3 half / 32 |
 | `Density`, `Haze`, `GroundFog`, `FarFog` | 1, 1, 0.6, 1 | Density multipliers; with Classic data `Haze`, `FarFog` and `GroundFog` relative to their defaults scale layers 0, 1 and 2 (haze, far wall, ground fog) |
 | `NoiseAmount` | 0.15 | World-space density variation, 0..1; 0 disables it |
@@ -1364,9 +1364,9 @@ game: both are off when their keys are missing, and the shipped INI keeps `Forev
 - The noise column mapping, the noise volume and `ClassicPhase`'s normalisation are inferred; `ClassicPhase` stays 0:
   the tester's settings set 1, but the shipped INI keeps 0, as 1 burnt the harbour's sunset halo to white.
 - `ForeverGlow` sets only the amount: the client's glow adds `g·blur²`, Forever's a linear term.
-- Switching LuxVelum off and on (`ToggleKey`) is harness-checked only. Switched off, the game is drawn by the client
-  but on LuxVelum's device setup, with the far clip of `FarClipMax` and `LightStay`, so it can differ from a start
-  without LuxVelum where those matter (a game that asked for multisampling LuxVelum could not keep, for example).
+- Switching Luxvelum off and on (`ToggleKey`) is harness-checked only. Switched off, the game is drawn by the client
+  but on Luxvelum's device setup, with the far clip of `FarClipMax` and `LightStay`, so it can differ from a start
+  without Luxvelum where those matter (a game that asked for multisampling Luxvelum could not keep, for example).
 - Ripples are harness-checked only; walkers (2.5 yd/s) push a mound rather than a V, and every unit is stamped round.
 - The ripple step, texel, window, footprint, fades, splash and contact limits are choices, not recovered values.
 - The sprite hold is global: units past the 32 nearest, the 24 yd window or the modern water get no wake at all.
@@ -1382,4 +1382,4 @@ As an additional permission under GPLv3 section 7, you may link or combine CoAVo
 with the World of Warcraft client, and distribute the resulting combination without providing the client's source
 code. GPLv3 continues to apply to CoAVolFog.
 
-LuxVelum is a modified version of CoAVolFog under the same licence and the same additional permission.
+Luxvelum is a modified version of CoAVolFog under the same licence and the same additional permission.

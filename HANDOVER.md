@@ -1,6 +1,6 @@
 # Handover
 
-LuxVelum changed maintainers on 17 November 2026: `Raz0r1337` transferred the repository to Stormhand
+Luxvelum changed maintainers on 17 November 2026: `Raz0r1337` transferred the repository to Stormhand
 (`Stormhand-dev`), who tested it until then and now builds, tests in the game and releases himself. `AGENTS.md` keeps
 the code conventions and `README.md` the design; this file holds the working state at the handover. Open work is
 tracked in the GitHub issues.
@@ -24,9 +24,9 @@ tracked in the GitHub issues.
 
 ## State on 17 November 2026
 
-- `reforged-main` `6656eee` = LuxVelum Build-1 (28 October 2026). `reforged-dev` `541ebe5` = TEST Build-2-3, 84
+- `reforged-main` `6656eee` = Luxvelum Build-1 (28 October 2026). `reforged-dev` `541ebe5` = TEST Build-2-3, 84
   commits ahead: Outland and Northrend fog from the client's light tables, god rays as shafts only, the `Logs`, `WTF`
-  and `Data\LuxVelum` folders, the Ghostlands without sun scattering, sun and moon hidden behind the world, twin torch
+  and `Data\Luxvelum` folders, the Ghostlands without sun scattering, sun and moon hidden behind the world, twin torch
   lights merged, the tester's INI as the shipped one, and the `ToggleKey` switch.
 - The CI runs only the CPU checks. The GPU checks of `vfog_harness` have not run on a real GPU since late October; run
   the full `ctest` suite on a Windows machine with a graphics card before trusting them, and expect some failures to lie
@@ -52,7 +52,7 @@ Not yet tested: the `ToggleKey` switch and `LightStay=0`.
 - The GitHub issues hold the findings of that round: map 530 zones read as Outland, the Ghostlands also losing the
   moon's scattering, the shipped INI dithering the sky, log spam at zone light borders, scatter per region, lit squares
   on the terrain at Light's Hope, and a possible cap on the light reach.
-- The lit squares on the terrain are not the fog. LuxVelum only draws the lights' glow in the fog; the light on floors
+- The lit squares on the terrain are not the fog. Luxvelum only draws the lights' glow in the fog; the light on floors
   and walls comes from the client and, where it is installed, from `Raz0r1337/WoW-lights-patch-shader`, which lights
   surfaces with eight lights of its own. Name which one a light report means.
 - The mist that seems to follow the character in Tirisfal Glades: the Tirisfal layers carry flag `0x2` (heights relative
@@ -68,11 +68,11 @@ Not yet tested: the `ToggleKey` switch and `LightStay=0`.
 
 - At most eight local lights; more coverage comes from selection (hysteresis, fades, twin merging), never from a
   higher limit.
-- Light emitters belong in the Project Reforged models and LuxVelum finds them at run time; there is no lamp catalogue.
+- Light emitters belong in the Project Reforged models and Luxvelum finds them at run time; there is no lamp catalogue.
   `git revert 1ca476e` would bring the catalogue back; `CatalogLampId` and the twin rule "same kind only" then need to
   be restored by hand.
 - Lumenveil (GPLv2-only) is a source of ideas, never of code.
-- `LuxVelum.dll` keeps the `vf_loader_anchor` export, or the client does not start with the `version.dll`.
+- `Luxvelum.dll` keeps the `vf_loader_anchor` export, or the client does not start with the `version.dll`.
 - The old world keeps its Classic fog data; only Outland, Northrend and maps Classic never had use the client's lights.
 
 ## Earlier decisions, open for the new maintainer

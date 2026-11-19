@@ -43,7 +43,7 @@ constexpr unsigned kFlatWavesBit = 1u << 31;
 constexpr const char* kCameraUnderLiquid = "camera under liquid";
 constexpr const char* kWorldNotCaptured = "the world render inputs were not captured";
 constexpr const char* kInvalidFrameInputs = "invalid frame inputs";
-constexpr const char* kSwitchedOff = "LuxVelum is switched off";
+constexpr const char* kSwitchedOff = "Luxvelum is switched off";
 constexpr DWORD kTransparentFogStatsIntervalMs = 60000;
 constexpr size_t kGlarePassEntryTextSize = 64;
 constexpr double kPercent = 100.0;
@@ -295,7 +295,7 @@ const WorldClient* g_worldClient = &kGameWorldClient;
 
 bool FogDrawsInPlaceOfStockFog()
 {
-    return !g_failed && !LuxVelumSwitchedOff() && g_renderedLastFrame && GlobalConfig().Get().stockFog == 1 &&
+    return !g_failed && !LuxvelumSwitchedOff() && g_renderedLastFrame && GlobalConfig().Get().stockFog == 1 &&
            !g_worldClient->cameraInLiquid() && g_worldClient->device();
 }
 
@@ -322,7 +322,7 @@ void RestorePushedStockFog()
 
 bool TransparentFogStatsCounted()
 {
-    return g_transparentFogHooksInstalled && LogEnabled(LogLevel::Debug) && !LuxVelumSwitchedOff();
+    return g_transparentFogHooksInstalled && LogEnabled(LogLevel::Debug) && !LuxvelumSwitchedOff();
 }
 
 void ObserveM2BatchFog()
@@ -360,7 +360,7 @@ void OnFrameBegin()
 
 void OnLiquidSurfaceBegin()
 {
-    if (g_failed || LuxVelumSwitchedOff() || !g_renderedLastFrame || !GlobalConfig().Get().liquidDepth)
+    if (g_failed || LuxvelumSwitchedOff() || !g_renderedLastFrame || !GlobalConfig().Get().liquidDepth)
         return;
     g_liquidDepthWriteDevice = GameFogDevice();
     ForceDepthWrite(g_liquidDepthWriteDevice, true);
@@ -444,19 +444,19 @@ void ReloadConfigAfterInterval()
 
 void SwitchOnWhenNothingCouldSwitchItOn()
 {
-    if (!LuxVelumSwitchFlippedOff() || OverlayCanSwitchLuxVelumOn())
+    if (!LuxvelumSwitchFlippedOff() || OverlayCanSwitchLuxvelumOn())
         return;
-    SwitchLuxVelumOn();
-    VF_LOG_INFO("LuxVelum switched on because neither ToggleKey nor the settings window could switch it on again");
+    SwitchLuxvelumOn();
+    VF_LOG_INFO("Luxvelum switched on because neither ToggleKey nor the settings window could switch it on again");
 }
 
-void FollowLuxVelumSwitch()
+void FollowLuxvelumSwitch()
 {
     SwitchOnWhenNothingCouldSwitchItOn();
-    if (LatchLuxVelumSwitch())
-        VF_LOG_INFO(LuxVelumSwitchedOff() ? "LuxVelum switched off; the client draws its own fog, water and glow"
-                                          : "LuxVelum switched on again");
-    if (LuxVelumSwitchedOff())
+    if (LatchLuxvelumSwitch())
+        VF_LOG_INFO(LuxvelumSwitchedOff() ? "Luxvelum switched off; the client draws its own fog, water and glow"
+                                          : "Luxvelum switched on again");
+    if (LuxvelumSwitchedOff())
         ReloadConfigAfterInterval();
 }
 
@@ -715,7 +715,7 @@ void OnTransparentsBegin()
     if (g_failed)
         return;
     ReloadConfigAfterInterval();
-    if (LuxVelumSwitchedOff())
+    if (LuxvelumSwitchedOff())
         return;
     const Config& cfg = GlobalConfig().Get();
     const char* blocked = EarlyCompositeBlocked(cfg);
@@ -830,7 +830,7 @@ void OnOpaqueDone()
 
 void DrawFogBeforeWorldText()
 {
-    if (g_failed || LuxVelumSwitchedOff() || !g_transparentFog.inWorld || g_transparentFog.composited ||
+    if (g_failed || LuxvelumSwitchedOff() || !g_transparentFog.inWorld || g_transparentFog.composited ||
         g_transparentFog.drawnBeforeWorldText)
         return;
     ForeverLookBeforeEarlyFog();
@@ -839,7 +839,7 @@ void DrawFogBeforeWorldText()
 
 void DrawFogAtWorldDone()
 {
-    if (g_failed || LuxVelumSwitchedOff())
+    if (g_failed || LuxvelumSwitchedOff())
         return;
     if (g_transparentFog.composited)
         RenderGodRaysOverTheWorld(g_worldClient->device());
@@ -953,7 +953,7 @@ void OnWaterPassBegin(const void* liquidRenderer)
     g_waterPassDevice = nullptr;
     g_waterClassesThisPass = 0;
     const Config& cfg = GlobalConfig().Get();
-    if (g_waterFailed || !cfg.water || LuxVelumSwitchedOff())
+    if (g_waterFailed || !cfg.water || LuxvelumSwitchedOff())
         return;
     if (g_failed)
     {
@@ -1020,7 +1020,7 @@ void AbortArmedWaterPass()
 
 void ReleaseWaterWhenOff()
 {
-    if (!g_waterResourcesDevice || (!g_waterFailed && GlobalConfig().Get().water && !LuxVelumSwitchedOff()))
+    if (!g_waterResourcesDevice || (!g_waterFailed && GlobalConfig().Get().water && !LuxvelumSwitchedOff()))
         return;
     FogDevice* device = g_waterResourcesDevice;
     g_waterResourcesDevice = nullptr;
@@ -1030,7 +1030,7 @@ void ReleaseWaterWhenOff()
 
 bool RingsReplaceClientSprites(const Config& cfg)
 {
-    return !g_waterFailed && cfg.water && !LuxVelumSwitchedOff() && cfg.waterRipples > 0.0f &&
+    return !g_waterFailed && cfg.water && !LuxvelumSwitchedOff() && cfg.waterRipples > 0.0f &&
            !cfg.waterClientSplashes && g_waterRipplesAvailable && g_waterClient->contactsSupported();
 }
 
@@ -1202,7 +1202,7 @@ extern "C" void __cdecl vf_on_frame_begin()
 {
     __try
     {
-        FollowLuxVelumSwitch();
+        FollowLuxvelumSwitch();
         OnFrameBegin();
     }
     __except (GuardFilter(GetExceptionCode(), "frame begin hook"))
@@ -1523,7 +1523,7 @@ static void __cdecl WorldTextDrawThunk(void* batch)
     FogDevice* device = nullptr;
     __try
     {
-        if (!g_failed && !LuxVelumSwitchedOff() && GlobalConfig().Get().enable)
+        if (!g_failed && !LuxvelumSwitchedOff() && GlobalConfig().Get().enable)
             device = g_worldClient->device();
         SuppressDepthWrite(device, true);
     }
@@ -1745,8 +1745,8 @@ bool InstallTransparentFogHooks()
 FogFrameStatus LastFogFrameStatus()
 {
     if (g_failed)
-        return {false, "stopped after an exception, see LuxVelum.log"};
-    if (LuxVelumSwitchedOff())
+        return {false, "stopped after an exception, see Luxvelum.log"};
+    if (LuxvelumSwitchedOff())
         return {false, kSwitchedOff};
     if (g_renderedLastFrame)
         return {true, ""};
@@ -1896,10 +1896,10 @@ WaterFrameStatus LastWaterFrameStatus()
     if (!g_waterHooksInstalled)
         return {false, "hooks not installed"};
     if (g_waterFailed)
-        return {false, "stopped after an exception, see LuxVelum.log"};
+        return {false, "stopped after an exception, see Luxvelum.log"};
     if (!GlobalConfig().Get().water)
         return {false, "off"};
-    if (LuxVelumSwitchedOff())
+    if (LuxvelumSwitchedOff())
         return {false, kSwitchedOff};
     return g_waterStatus;
 }

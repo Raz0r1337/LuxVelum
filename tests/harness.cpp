@@ -2229,7 +2229,7 @@ void CheckGetProcAddressSlotStates()
           "address");
 }
 
-std::wstring LuxVelumDllPath()
+std::wstring LuxvelumDllPath()
 {
     HMODULE module = nullptr;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -2244,24 +2244,24 @@ void CheckTheDllStaysLoadedAfterFreeLibrary(const std::wstring& outDir)
 {
     const std::wstring dir = FullPath(outDir + L"\\pin-check");
     CreateDirectoryW(dir.c_str(), nullptr);
-    const std::wstring dll = LuxVelumDllPath();
-    const std::wstring copy = dir + L"\\LuxVelumPinCheck.dll";
+    const std::wstring dll = LuxvelumDllPath();
+    const std::wstring copy = dir + L"\\LuxvelumPinCheck.dll";
     const bool copied = !dll.empty() && CopyFileW(dll.c_str(), copy.c_str(), FALSE);
     HMODULE loaded = copied ? LoadLibraryW(copy.c_str()) : nullptr;
     if (loaded)
         FreeLibrary(loaded);
-    Check(loaded && GetModuleHandleW(L"LuxVelumPinCheck.dll") == loaded,
-          "LuxVelum.dll pins itself while it loads, so a FreeLibrary by the loader in Wow.exe or by another tool "
+    Check(loaded && GetModuleHandleW(L"LuxvelumPinCheck.dll") == loaded,
+          "Luxvelum.dll pins itself while it loads, so a FreeLibrary by the loader in Wow.exe or by another tool "
           "cannot unmap the code its hooks call");
 }
 
 void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring& shippedIni)
 {
     const std::wstring savedIni = FullPath(outDir + L"\\saved.ini");
-    Check(CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE) != FALSE, "shipped LuxVelum.ini copied");
+    Check(CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE) != FALSE, "shipped Luxvelum.ini copied");
     for (const wchar_t* removedKey : {L"LightShafts", L"WorldShadows"})
-        WritePrivateProfileStringW(L"LuxVelum", removedKey, L"0", savedIni.c_str());
-    WritePrivateProfileStringW(L"LuxVelum", L"HaloOcclusion", L"1", savedIni.c_str());
+        WritePrivateProfileStringW(L"Luxvelum", removedKey, L"0", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"HaloOcclusion", L"1", savedIni.c_str());
     ConfigStore store;
     store.Load(NarrowPath(savedIni));
     const Config shipped = store.Get();
@@ -2299,7 +2299,7 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
               r.localLights == edited.localLights && r.enable == shipped.enable && r.overlay == shipped.overlay,
           "saved settings reload unchanged and the restart-only keys stay as they were");
     const std::string text = ReadText(savedIni);
-    Check(text.rfind("; LuxVelum settings.", 0) == 0 && text.find("\nDensity=2.5") != std::string::npos &&
+    Check(text.rfind("; Luxvelum settings.", 0) == 0 && text.find("\nDensity=2.5") != std::string::npos &&
               text.find("\nHaze=0.4") != std::string::npos && text.find("\nEnable=1") != std::string::npos &&
               text.find("; Global density multiplier") != std::string::npos &&
               text.find("\nLightShafts=0") != std::string::npos && text.find("\nWorldShadows=0") != std::string::npos &&
@@ -2315,7 +2315,7 @@ void CheckSettingsSaveKeepsTheIni(const std::wstring& outDir, const std::wstring
     Config typed = store.Get();
     typed.haze = 1.23456f;
     store.Apply(typed);
-    WritePrivateProfileStringW(L"LuxVelum", L"Quality", L"1", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"Quality", L"1", savedIni.c_str());
     const bool mergedSave = store.Save();
     ConfigStore afterMerge;
     afterMerge.Load(NarrowPath(savedIni));
@@ -2347,14 +2347,14 @@ void CheckZoneHaloTable(const std::wstring& outDir)
     Check(saved && Near(redridge.sun, 0.6f) && Near(redridge.moon, 1.3f) && Near(barrens.sun, kZoneHaloMax) &&
               Near(barrens.moon, 0.0f) && Near(durotar.sun, 1.0f) && Near(durotar.moon, 1.0f) &&
               reloaded.Count() == 2 && std::wstring(name) == L"Redridge Mountains",
-          "LuxVelum-zones.ini keeps each zone's sun and moon halo by zone id with its name, clamps them to "
+          "Luxvelum-zones.ini keeps each zone's sun and moon halo by zone id with its name, clamps them to "
           "0..4, and a zone it does not list keeps 1");
     const bool forgotten = reloaded.Forget(kRedridgeMountains);
     ZoneHaloTable afterReset;
     afterReset.Load(NarrowPath(file));
     Check(forgotten && !afterReset.Listed(kRedridgeMountains) && afterReset.Listed(kTheBarrens) &&
               Near(afterReset.Factors(kRedridgeMountains).sun, 1.0f),
-          "resetting a zone removes it from LuxVelum-zones.ini and leaves the others");
+          "resetting a zone removes it from Luxvelum-zones.ini and leaves the others");
 }
 
 void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstring& shippedIni)
@@ -2374,10 +2374,10 @@ void CheckRegionLocalLightsSetting(const std::wstring& outDir, const std::wstrin
 
     const std::wstring savedIni = FullPath(outDir + L"\\region-local-lights.ini");
     CopyFileW(shippedIni.c_str(), savedIni.c_str(), FALSE);
-    WritePrivateProfileStringW(L"LuxVelum", L"AzerothLocalLights", L"12", savedIni.c_str());
-    WritePrivateProfileStringW(L"LuxVelum", L"OutlandLocalLights", L"96", savedIni.c_str());
-    WritePrivateProfileStringW(L"LuxVelum", L"NorthrendLocalLights", L"200", savedIni.c_str());
-    WritePrivateProfileStringW(L"LuxVelum", L"TBCStartLocalLights", L"300", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"AzerothLocalLights", L"12", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"OutlandLocalLights", L"96", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"NorthrendLocalLights", L"200", savedIni.c_str());
+    WritePrivateProfileStringW(L"Luxvelum", L"TBCStartLocalLights", L"300", savedIni.c_str());
     ConfigStore written;
     written.Load(NarrowPath(savedIni));
     const Config& w = written.Get();
@@ -2397,16 +2397,16 @@ bool WriteText(const std::wstring& path, const std::string& text)
     return std::fclose(f) == 0 && written;
 }
 
-constexpr const char* kLuxVelumSectionLine = "[LuxVelum]";
+constexpr const char* kLuxvelumSectionLine = "[Luxvelum]";
 
 bool WriteEarlierIni(const std::wstring& shippedIni, const std::wstring& path, const char* sectionLine,
                      const wchar_t* section, const wchar_t* density)
 {
     std::string earlier = ReadText(shippedIni);
-    const size_t at = earlier.find(kLuxVelumSectionLine);
+    const size_t at = earlier.find(kLuxvelumSectionLine);
     if (at == std::string::npos)
         return false;
-    earlier.replace(at, std::strlen(kLuxVelumSectionLine), sectionLine);
+    earlier.replace(at, std::strlen(kLuxvelumSectionLine), sectionLine);
     return WriteText(path, earlier) && WritePrivateProfileStringW(section, L"Density", density, path.c_str()) != FALSE;
 }
 
@@ -2415,14 +2415,14 @@ std::wstring FreshTakeoverDirectory(const std::wstring& outDir, const wchar_t* n
     const std::wstring dir = FullPath(outDir + L"\\" + name);
     CreateDirectoryW(dir.c_str(), nullptr);
     for (const wchar_t* file :
-         {L"\\WTF\\LuxVelum.ini", L"\\LuxVelum.ini", L"\\Luxveil.ini", L"\\CoAVolFog.ini"})
+         {L"\\WTF\\Luxvelum.ini", L"\\Luxvelum.ini", L"\\Luxveil.ini", L"\\CoAVolFog.ini"})
         DeleteFileW((dir + file).c_str());
     return dir;
 }
 
 std::wstring SettingsIn(const std::wstring& dir)
 {
-    return dir + L"\\WTF\\LuxVelum.ini";
+    return dir + L"\\WTF\\Luxvelum.ini";
 }
 
 const char* TakeOverEarlierSettingsIn(const std::wstring& dir)
@@ -2449,10 +2449,10 @@ void CheckEarlierSettingsAreTakenOver(const std::wstring& outDir, const std::wst
     Config expected = shipped.Get();
     expected.density = 2.5f;
     Check(adopted && std::strcmp(adopted, "CoAVolFog.ini") == 0 && SameLiveSettings(store.Get(), expected) &&
-              taken.find(kLuxVelumSectionLine) != std::string::npos && taken.find("[coavolfog]") == std::string::npos &&
+              taken.find(kLuxvelumSectionLine) != std::string::npos && taken.find("[coavolfog]") == std::string::npos &&
               taken.find("; Global density multiplier") != std::string::npos && ReadText(coaVolFogIni) == before,
-          "without a WTF\\LuxVelum.ini the settings of an old CoAVolFog.ini beside LuxVelum.dll are taken over into "
-          "WTF, comments and all, under the LuxVelum section, and the old file stays as it was");
+          "without a WTF\\Luxvelum.ini the settings of an old CoAVolFog.ini beside Luxvelum.dll are taken over into "
+          "WTF, comments and all, under the Luxvelum section, and the old file stays as it was");
 
     WritePrivateProfileStringW(L"CoAVolFog", L"Density", L"3", coaVolFogIni.c_str());
     const char* again = TakeOverEarlierSettingsIn(dir);
@@ -2460,7 +2460,7 @@ void CheckEarlierSettingsAreTakenOver(const std::wstring& outDir, const std::wst
     const char* fromNothing = TakeOverEarlierSettingsIn(emptyDir);
     Check(!again && ReadText(luxvelumIni) == taken && !fromNothing &&
               GetFileAttributesW(SettingsIn(emptyDir).c_str()) == INVALID_FILE_ATTRIBUTES,
-          "an existing LuxVelum.ini is never overwritten, and without an earlier INI none is made");
+          "an existing Luxvelum.ini is never overwritten, and without an earlier INI none is made");
 
     const std::wstring both = FreshTakeoverDirectory(outDir, L"takeover-both");
     const bool written = WriteEarlierIni(shippedIni, both + L"\\CoAVolFog.ini", "[CoAVolFog]", L"CoAVolFog", L"2.5") &&
@@ -2483,12 +2483,12 @@ constexpr const char* kPlayerComment = "; Nebel f\xC3\xBCr Elwynn\r\n";
 std::string EarlierIniText(const std::wstring& shippedIni, const char* sectionLine)
 {
     std::string text = ReadText(shippedIni);
-    const size_t at = text.find(kLuxVelumSectionLine);
+    const size_t at = text.find(kLuxvelumSectionLine);
     const size_t density = text.find(kShippedDensityLine);
     if (at == std::string::npos || density == std::string::npos || density < at)
         return std::string();
     text.replace(density, std::strlen(kShippedDensityLine), kTakenOverDensityLine);
-    text.replace(at, std::strlen(kLuxVelumSectionLine), sectionLine);
+    text.replace(at, std::strlen(kLuxvelumSectionLine), sectionLine);
     return text;
 }
 
@@ -2540,15 +2540,15 @@ void CheckEarlierSettingsAreTakenOverWhateverTheirShape(const std::wstring& outD
     WriteText(trailing + L"\\CoAVolFog.ini", EarlierIniText(shippedIni, "[CoAVolFog] ; mine"));
     const TakenOver fromTrailing = TakeOverIn(trailing);
     Check(fromTrailing.From("CoAVolFog.ini") && SameLiveSettings(fromTrailing.settings, expected) &&
-              fromTrailing.text.find("\n[LuxVelum] ; mine") != std::string::npos,
+              fromTrailing.text.find("\n[Luxvelum] ; mine") != std::string::npos,
           "a CoAVolFog.ini whose header line goes on after its ] is taken over, the rest of the line kept");
 
     const std::wstring utf8 = FreshTakeoverDirectory(outDir, L"takeover-utf8-bom");
     WriteText(utf8 + L"\\CoAVolFog.ini", std::string(kUtf8Bom) + "[CoAVolFog]\r\nDensity=2.5\r\n");
     const TakenOver fromUtf8 = TakeOverIn(utf8);
     Check(fromUtf8.From("CoAVolFog.ini") && fromUtf8.settings.density == kTakenOverDensity &&
-              fromUtf8.text.rfind(kLuxVelumSectionLine, 0) == 0,
-          "a CoAVolFog.ini saved as UTF-8 with its header on the first line is taken over, and LuxVelum.ini starts "
+              fromUtf8.text.rfind(kLuxvelumSectionLine, 0) == 0,
+          "a CoAVolFog.ini saved as UTF-8 with its header on the first line is taken over, and Luxvelum.ini starts "
           "with its header, not with the byte order mark");
 
     const std::wstring utf16 = FreshTakeoverDirectory(outDir, L"takeover-utf16");
@@ -2557,14 +2557,14 @@ void CheckEarlierSettingsAreTakenOverWhateverTheirShape(const std::wstring& outD
     const TakenOver fromUtf16 = TakeOverIn(utf16);
     Check(fromUtf16.From("CoAVolFog.ini") && SameLiveSettings(fromUtf16.settings, expected) &&
               fromUtf16.text.rfind(kUtf16LeBom + Utf16Le(kPlayerComment), 0) == 0 &&
-              fromUtf16.text.find(Utf16Le(kLuxVelumSectionLine)) != std::string::npos,
+              fromUtf16.text.find(Utf16Le(kLuxvelumSectionLine)) != std::string::npos,
           "a CoAVolFog.ini saved as Unicode is taken over and stays Unicode, its comments unchanged");
 
     const std::wstring sectionless = FreshTakeoverDirectory(outDir, L"takeover-sectionless");
     WriteText(sectionless + L"\\CoAVolFog.ini", "[Settings]\r\nDensity=2.5\r\n");
     const TakenOver fromSectionless = TakeOverIn(sectionless);
     Check(fromSectionless.from.empty() && !fromSectionless.written,
-          "an earlier INI without its section is not taken over, and no LuxVelum.ini is made from it");
+          "an earlier INI without its section is not taken over, and no Luxvelum.ini is made from it");
 
     const std::wstring next = FreshTakeoverDirectory(outDir, L"takeover-next");
     WriteText(next + L"\\Luxveil.ini", "; Luxveil\r\n[Fog]\r\nDensity=1.75\r\n");
@@ -2574,7 +2574,7 @@ void CheckEarlierSettingsAreTakenOverWhateverTheirShape(const std::wstring& outD
           "a Luxveil.ini without its section is passed over for the CoAVolFog.ini behind it");
 }
 
-constexpr const char* kLuxvelumSpellingSectionLine = "[Luxvelum]";
+constexpr const char* kCamelCaseSectionLine = "[LuxVelum]";
 
 bool IsFolder(const std::wstring& path)
 {
@@ -2585,10 +2585,10 @@ bool IsFolder(const std::wstring& path)
 std::wstring FreshClientFolder(const std::wstring& outDir, const wchar_t* name)
 {
     const std::wstring dir = FreshTakeoverDirectory(outDir, name);
-    for (const wchar_t* file : {L"\\Logs\\LuxVelum.log", L"\\Data\\LuxVelum\\fogdata.bin",
-                                L"\\Data\\LuxVelum\\waterdata.bin", L"\\fogdata.bin", L"\\waterdata.bin"})
+    for (const wchar_t* file : {L"\\Logs\\Luxvelum.log", L"\\Data\\Luxvelum\\fogdata.bin",
+                                L"\\Data\\Luxvelum\\waterdata.bin", L"\\fogdata.bin", L"\\waterdata.bin"})
         DeleteFileW((dir + file).c_str());
-    for (const wchar_t* folder : {L"\\Logs", L"\\WTF", L"\\Data\\LuxVelum", L"\\Data"})
+    for (const wchar_t* folder : {L"\\Logs", L"\\WTF", L"\\Data\\Luxvelum", L"\\Data"})
         if (!RemoveDirectoryW((dir + folder).c_str()))
             DeleteFileW((dir + folder).c_str());
     return dir;
@@ -2615,8 +2615,8 @@ void CheckZoneHaloOwnOverShipped(const std::wstring& outDir)
     Check(written && Near(barrens.factors.sun, 0.25f) && barrens.source == ZoneHaloSource::Shipped &&
               Near(duskwood.factors.sun, 0.8f) && duskwood.source == ZoneHaloSource::Own &&
               Near(durotar.factors.sun, 1.0f) && durotar.source == ZoneHaloSource::Unlisted,
-          "a zone takes the player's own halo from WTF\\LuxVelum-zones.ini, else the shipped one from "
-          "Data\\LuxVelum\\zones.ini, else 1");
+          "a zone takes the player's own halo from WTF\\Luxvelum-zones.ini, else the shipped one from "
+          "Data\\Luxvelum\\zones.ini, else 1");
 
     book.Advance(kTheBarrens, "The Barrens", 2.0);
     book.Edit({0.5f, 1.0f});
@@ -2645,14 +2645,14 @@ void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& sh
     const InstallPaths paths = ClientInstallPaths(freshFolder);
     std::printf("     fresh client folder: log %s, settings %s, fog data %s, water data %s\n", paths.log.c_str(),
                 paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
-    Check(paths.log == freshFolder + "Logs\\LuxVelum.log" && paths.ini == freshFolder + "WTF\\LuxVelum.ini" &&
-              paths.fogData == freshFolder + "Data\\LuxVelum\\fogdata.bin" &&
-              paths.waterData == freshFolder + "Data\\LuxVelum\\waterdata.bin" &&
-              paths.zoneHalo == freshFolder + "WTF\\LuxVelum-zones.ini" &&
-              paths.shippedZoneHalo == freshFolder + "Data\\LuxVelum\\zones.ini" && IsFolder(fresh + L"\\Logs") &&
+    Check(paths.log == freshFolder + "Logs\\Luxvelum.log" && paths.ini == freshFolder + "WTF\\Luxvelum.ini" &&
+              paths.fogData == freshFolder + "Data\\Luxvelum\\fogdata.bin" &&
+              paths.waterData == freshFolder + "Data\\Luxvelum\\waterdata.bin" &&
+              paths.zoneHalo == freshFolder + "WTF\\Luxvelum-zones.ini" &&
+              paths.shippedZoneHalo == freshFolder + "Data\\Luxvelum\\zones.ini" && IsFolder(fresh + L"\\Logs") &&
               IsFolder(fresh + L"\\WTF"),
           "in the client folder the log goes into Logs and the settings and zone halos into WTF, both made when "
-          "missing, and the fog and water data come from Data\\LuxVelum");
+          "missing, and the fog and water data come from Data\\Luxvelum");
 
     const std::wstring earlier = FreshClientFolder(outDir, L"client-earlier-install");
     const std::string earlierFolder = NarrowPath(earlier + L"\\");
@@ -2660,60 +2660,60 @@ void CheckClientInstallLayout(const std::wstring& outDir, const std::wstring& sh
     WriteText(earlier + L"\\waterdata.bin", "water");
     const InstallPaths beside = ClientInstallPaths(earlierFolder);
     CreateDirectoryW((earlier + L"\\Data").c_str(), nullptr);
-    CreateDirectoryW((earlier + L"\\Data\\LuxVelum").c_str(), nullptr);
-    WriteText(earlier + L"\\Data\\LuxVelum\\fogdata.bin", "fog");
+    CreateDirectoryW((earlier + L"\\Data\\Luxvelum").c_str(), nullptr);
+    WriteText(earlier + L"\\Data\\Luxvelum\\fogdata.bin", "fog");
     const InstallPaths partly = ClientInstallPaths(earlierFolder);
     Check(beside.fogData == earlierFolder + "fogdata.bin" && beside.waterData == earlierFolder + "waterdata.bin" &&
-              partly.fogData == earlierFolder + "Data\\LuxVelum\\fogdata.bin" &&
+              partly.fogData == earlierFolder + "Data\\Luxvelum\\fogdata.bin" &&
               partly.waterData == earlierFolder + "waterdata.bin",
-          "an earlier install's fogdata.bin and waterdata.bin beside LuxVelum.dll are read there until "
-          "Data\\LuxVelum holds them, and each file there wins on its own");
+          "an earlier install's fogdata.bin and waterdata.bin beside Luxvelum.dll are read there until "
+          "Data\\Luxvelum holds them, and each file there wins on its own");
 
     const std::wstring blocked = FreshClientFolder(outDir, L"client-blocked");
     const std::string blockedFolder = NarrowPath(blocked + L"\\");
     WriteText(blocked + L"\\Logs", "");
     WriteText(blocked + L"\\WTF", "");
     const InstallPaths stayed = ClientInstallPaths(blockedFolder);
-    Check(stayed.log == blockedFolder + "LuxVelum.log" && stayed.ini == blockedFolder + "LuxVelum.ini",
-          "where Logs or WTF cannot be made, the log and the settings stay beside LuxVelum.dll as before");
+    Check(stayed.log == blockedFolder + "Luxvelum.log" && stayed.ini == blockedFolder + "Luxvelum.ini",
+          "where Logs or WTF cannot be made, the log and the settings stay beside Luxvelum.dll as before");
 
     const std::wstring upgraded = FreshClientFolder(outDir, L"client-upgrade");
-    const std::wstring besideIni = upgraded + L"\\LuxVelum.ini";
+    const std::wstring besideIni = upgraded + L"\\Luxvelum.ini";
     const bool written =
-        WriteEarlierIni(shippedIni, besideIni, kLuxvelumSpellingSectionLine, L"Luxvelum", L"2.5") &&
+        WriteEarlierIni(shippedIni, besideIni, kCamelCaseSectionLine, L"LuxVelum", L"2.5") &&
         WriteEarlierIni(shippedIni, upgraded + L"\\Luxveil.ini", "[Luxveil]", L"Luxveil", L"1.75");
     const std::string before = ReadText(besideIni);
     const TakenOver fromBeside = TakeOverIn(upgraded);
-    Check(written && fromBeside.From("LuxVelum.ini") && fromBeside.settings.density == kTakenOverDensity &&
-              fromBeside.text.find(kLuxVelumSectionLine) != std::string::npos &&
-              fromBeside.text.find(kLuxvelumSpellingSectionLine) == std::string::npos &&
+    Check(written && fromBeside.From("Luxvelum.ini") && fromBeside.settings.density == kTakenOverDensity &&
+              fromBeside.text.find(kLuxvelumSectionLine) != std::string::npos &&
+              fromBeside.text.find(kCamelCaseSectionLine) == std::string::npos &&
               ReadText(besideIni) == before,
-          "a LuxVelum.ini beside LuxVelum.dll, also one with the [Luxvelum] section of the builds before the LuxVelum "
-          "spelling, is taken over into WTF before a Luxveil.ini, and stays as it was");
+          "a Luxvelum.ini beside Luxvelum.dll, also one with the [LuxVelum] section of the builds spelt LuxVelum, is "
+          "taken over into WTF before a Luxveil.ini, and stays as it was");
 }
 
-std::string LuxVelumDllFolder()
+std::string LuxvelumDllFolder()
 {
     char path[MAX_PATH] = {};
-    const DWORD length = GetModuleFileNameA(GetModuleHandleA("LuxVelum.dll"), path, MAX_PATH);
+    const DWORD length = GetModuleFileNameA(GetModuleHandleA("Luxvelum.dll"), path, MAX_PATH);
     const std::string module(path, length);
     return module.substr(0, module.find_last_of("\\/") + 1);
 }
 
 void CheckTheDllUsesTheClientFolders()
 {
-    const std::string folder = LuxVelumDllFolder();
+    const std::string folder = LuxvelumDllFolder();
     const std::string log = vf_test_log_path();
     wchar_t logPath[MAX_PATH] = {};
     MultiByteToWideChar(CP_ACP, 0, log.c_str(), -1, logPath, MAX_PATH);
-    const std::string started = std::string("LuxVelum ") + kLuxVelumBuildId + " loaded from " + folder +
-                                "; settings " + folder + "WTF\\LuxVelum.ini, fog data " + folder +
-                                "Data\\LuxVelum\\fogdata.bin, water data " + folder + "Data\\LuxVelum\\waterdata.bin";
-    std::printf("     LuxVelum.dll in %s writes %s\n", folder.c_str(), log.c_str());
-    Check(!folder.empty() && log.rfind(folder + "Logs\\LuxVelum", 0) == 0 &&
+    const std::string started = std::string("Luxvelum ") + kLuxvelumBuildId + " loaded from " + folder +
+                                "; settings " + folder + "WTF\\Luxvelum.ini, fog data " + folder +
+                                "Data\\Luxvelum\\fogdata.bin, water data " + folder + "Data\\Luxvelum\\waterdata.bin";
+    std::printf("     Luxvelum.dll in %s writes %s\n", folder.c_str(), log.c_str());
+    Check(!folder.empty() && log.rfind(folder + "Logs\\Luxvelum", 0) == 0 &&
               ReadText(logPath).find(started) != std::string::npos,
-          "LuxVelum.dll writes its log into the Logs folder beside it, names its build there and reads "
-          "WTF\\LuxVelum.ini, Data\\LuxVelum\\fogdata.bin and Data\\LuxVelum\\waterdata.bin there");
+          "Luxvelum.dll writes its log into the Logs folder beside it, names its build there and reads "
+          "WTF\\Luxvelum.ini, Data\\Luxvelum\\fogdata.bin and Data\\Luxvelum\\waterdata.bin there");
 }
 
 constexpr const char* kVersionDllExports[] = {
@@ -2756,15 +2756,15 @@ void CheckTheVersionDllLoader()
     const std::wstring probe = system + L"\\kernel32.dll";
     const DWORD throughLoader = VersionInfoSizeThrough(loader, probe);
     const DWORD fromSystem = VersionInfoSizeThrough(systemCopy, probe);
-    const bool anchored = GetProcAddress(GetModuleHandleW(L"LuxVelum.dll"), "vf_loader_anchor") != nullptr;
+    const bool anchored = GetProcAddress(GetModuleHandleW(L"Luxvelum.dll"), "vf_loader_anchor") != nullptr;
     std::printf("     version.dll beside the harness: %d of %zu exports, kernel32.dll version info %lu bytes through "
-                "it and %lu through the system copy, LuxVelum.dll %s vf_loader_anchor\n",
+                "it and %lu through the system copy, Luxvelum.dll %s vf_loader_anchor\n",
                 exported, std::size(kVersionDllExports), throughLoader, fromSystem,
                 anchored ? "exports" : "lacks");
     Check(loader && loader != systemCopy && exported == static_cast<int>(std::size(kVersionDllExports)) &&
               fromSystem > 0 && throughLoader == fromSystem && anchored,
           "the optional version.dll loader exports all 17 functions of the system copy and forwards to it, and "
-          "LuxVelum.dll exports the vf_loader_anchor it imports");
+          "Luxvelum.dll exports the vf_loader_anchor it imports");
 }
 
 struct ClientInput
@@ -3279,13 +3279,13 @@ std::wstring EmptyLogFolder(const std::wstring& outDir, const wchar_t* name)
 
 std::wstring SlotLog(const std::wstring& folder, int slot)
 {
-    return folder + L"\\LuxVelum-" + std::to_wstring(slot) + L".log";
+    return folder + L"\\Luxvelum-" + std::to_wstring(slot) + L".log";
 }
 
 void CheckSecondClientWritesTheSecondSlot(const std::wstring& outDir)
 {
     const std::wstring folder = EmptyLogFolder(outDir, L"two-clients");
-    const std::wstring shared = folder + L"\\LuxVelum.log";
+    const std::wstring shared = folder + L"\\Luxvelum.log";
     const std::wstring own = SlotLog(folder, 2);
     LogFile first = OpenLogFile(NarrowPath(shared));
     LogFile second = OpenLogFile(NarrowPath(shared));
@@ -3293,14 +3293,14 @@ void CheckSecondClientWritesTheSecondSlot(const std::wstring& outDir)
     const std::string secondLine = WrittenAndClosed(second, "second client");
     Check(first.path == NarrowPath(shared) && second.path == NarrowPath(own) && !firstLine.empty() &&
               ReadText(shared) == firstLine && !secondLine.empty() && ReadText(own) == secondLine,
-          "a second client started from the same folder writes LuxVelum-2.log and leaves the first client's "
-          "LuxVelum.log intact");
+          "a second client started from the same folder writes Luxvelum-2.log and leaves the first client's "
+          "Luxvelum.log intact");
 }
 
 void CheckHeldSlotIsSkippedUntouched(const std::wstring& outDir)
 {
     const std::wstring folder = EmptyLogFolder(outDir, L"three-clients");
-    const std::string shared = NarrowPath(folder + L"\\LuxVelum.log");
+    const std::string shared = NarrowPath(folder + L"\\Luxvelum.log");
     std::vector<LogFile> clients = {OpenLogFile(shared), OpenLogFile(shared)};
     const std::string secondLine = WrittenAndKeptOpen(clients[1], "second client");
     LogFile third = OpenLogFile(shared);
@@ -3309,31 +3309,31 @@ void CheckHeldSlotIsSkippedUntouched(const std::wstring& outDir)
     Check(!secondLine.empty() && ReadText(SlotLog(folder, 2)) == secondLine &&
               third.path == NarrowPath(SlotLog(folder, 3)) && !thirdLine.empty() &&
               ReadText(SlotLog(folder, 3)) == thirdLine,
-          "a third client skips the second client's held LuxVelum-2.log without truncating it and writes "
-          "LuxVelum-3.log");
+          "a third client skips the second client's held Luxvelum-2.log without truncating it and writes "
+          "Luxvelum-3.log");
 }
 
 void CheckFreedSlotIsReused(const std::wstring& outDir)
 {
     const std::wstring folder = EmptyLogFolder(outDir, L"reused-slot");
-    const std::string shared = NarrowPath(folder + L"\\LuxVelum.log");
+    const std::string shared = NarrowPath(folder + L"\\Luxvelum.log");
     std::vector<LogFile> running = {OpenLogFile(shared)};
     LogFile exited = OpenLogFile(shared);
     WrittenAndClosed(exited, "exited client");
     LogFile next = OpenLogFile(shared);
     const std::string nextLine = WrittenAndClosed(next, "next client");
     CloseLogs(running);
-    const std::vector<std::wstring> expected = {L"LuxVelum-2.log", L"LuxVelum.log"};
+    const std::vector<std::wstring> expected = {L"Luxvelum-2.log", L"Luxvelum.log"};
     Check(exited.path == NarrowPath(SlotLog(folder, 2)) && next.path == exited.path && !nextLine.empty() &&
               ReadText(SlotLog(folder, 2)) == nextLine && LogFilesIn(folder) == expected,
-          "a client started after another has exited reuses and truncates its LuxVelum-2.log, so no new log "
+          "a client started after another has exited reuses and truncates its Luxvelum-2.log, so no new log "
           "file appears");
 }
 
 void CheckNoLogWhenEverySlotIsHeld(const std::wstring& outDir)
 {
     const std::wstring folder = EmptyLogFolder(outDir, L"every-slot-held");
-    const std::string shared = NarrowPath(folder + L"\\LuxVelum.log");
+    const std::string shared = NarrowPath(folder + L"\\Luxvelum.log");
     std::vector<LogFile> holders;
     for (int client = 1; client <= kLastLogSlot; ++client)
         holders.push_back(OpenLogFile(shared));
@@ -3344,20 +3344,20 @@ void CheckNoLogWhenEverySlotIsHeld(const std::wstring& outDir)
     WrittenAndClosed(ninth, "ninth client");
     CloseLogs(holders);
     const size_t files = LogFilesIn(folder).size();
-    std::printf("     %zu log files with LuxVelum.log and every slot held\n", files);
+    std::printf("     %zu log files with Luxvelum.log and every slot held\n", files);
     Check(everyHolderLogs && !ninthLogs && files == static_cast<size_t>(kLastLogSlot),
-          "with LuxVelum.log and LuxVelum-2.log to LuxVelum-8.log held, a ninth client writes no log and adds no "
+          "with Luxvelum.log and Luxvelum-2.log to Luxvelum-8.log held, a ninth client writes no log and adds no "
           "file");
 }
 
 void CheckHeldLogNoticeNamesTheSlotAndProcess()
 {
     const std::string notice =
-        HeldLogNotice("C:\\WoW\\LuxVelum.log", "C:\\WoW\\LuxVelum-2.log", kSecondClientProcessId);
+        HeldLogNotice("C:\\WoW\\Luxvelum.log", "C:\\WoW\\Luxvelum-2.log", kSecondClientProcessId);
     std::printf("     %s\n", notice.c_str());
-    Check(notice.find("C:\\WoW\\LuxVelum.log") == 0 && notice.find("C:\\WoW\\LuxVelum-2.log") != std::string::npos &&
+    Check(notice.find("C:\\WoW\\Luxvelum.log") == 0 && notice.find("C:\\WoW\\Luxvelum-2.log") != std::string::npos &&
               notice.find("process " + std::to_string(kSecondClientProcessId)) != std::string::npos,
-          "the first line of a slot log names the held LuxVelum.log, the slot file and the client's process id");
+          "the first line of a slot log names the held Luxvelum.log, the slot file and the client's process id");
 }
 
 void CheckFogLogRefusesASecondWriter()
@@ -4077,7 +4077,7 @@ int RunInterior(const std::wstring& outDir, const std::wstring& shippedIni)
     CreateDirectoryW(outDir.c_str(), nullptr);
     const std::wstring iniCopy = FullPath(outDir + L"\\interior.ini");
     Check(CopyFileW(FullPath(shippedIni).c_str(), iniCopy.c_str(), FALSE) != FALSE,
-          "the interior scene saves to a fresh copy of the shipped LuxVelum.ini");
+          "the interior scene saves to a fresh copy of the shipped Luxvelum.ini");
     ConfigStore settings;
     settings.Load(NarrowPath(iniCopy));
     Check(settings.Get().interiorFarFog != kSavedInteriorFarFog,
@@ -4562,9 +4562,9 @@ namespace
 int wmain(int argc, wchar_t** argv)
 {
     std::wstring out = L"harness-out";
-    std::string data = "Data\\LuxVelum\\fogdata.bin";
-    std::string waterData = "Data\\LuxVelum\\waterdata.bin";
-    std::wstring ini = L"WTF\\LuxVelum.ini";
+    std::string data = "Data\\Luxvelum\\fogdata.bin";
+    std::string waterData = "Data\\Luxvelum\\waterdata.bin";
+    std::wstring ini = L"WTF\\Luxvelum.ini";
     std::wstring scene;
     D3DMULTISAMPLE_TYPE samples = D3DMULTISAMPLE_NONE;
     HarbourOptions harbour;

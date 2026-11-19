@@ -49,8 +49,8 @@ jobs:
         run: |
           $package = 'build/package'
           New-Item -ItemType Directory -Path $package | Out-Null
-          $files = 'LuxVelum.dll', 'WTF/LuxVelum.ini', 'Data/LuxVelum/fogdata.bin', 'Data/LuxVelum/waterdata.bin',
-            'Data/LuxVelum/zones.ini'
+          $files = 'Luxvelum.dll', 'WTF/Luxvelum.ini', 'Data/Luxvelum/fogdata.bin', 'Data/Luxvelum/waterdata.bin',
+            'Data/Luxvelum/zones.ini'
           foreach ($file in $files) {
             $destination = "$package/$file"
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
@@ -72,7 +72,7 @@ jobs:
       - name: Upload install archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: LuxVelum-Win32-${{ github.sha }}
+          name: Luxvelum-Win32-${{ github.sha }}
           path: build/package/
           if-no-files-found: error
           retention-days: 30
@@ -80,7 +80,7 @@ jobs:
       - name: Upload the optional version.dll loader
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: LuxVelum-version-dll-Win32-${{ github.sha }}
+          name: Luxvelum-version-dll-Win32-${{ github.sha }}
           path: build/loader-package/
           if-no-files-found: error
           retention-days: 30
@@ -93,7 +93,7 @@ jobs:
           path: |
             build/Testing/Temporary/
             build/cpu-harness-out/harness.log
-            build/Release/Logs/LuxVelum.log
+            build/Release/Logs/Luxvelum.log
           if-no-files-found: ignore
           retention-days: 7
 
@@ -111,19 +111,19 @@ jobs:
       - name: Download install files
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: LuxVelum-Win32-${{ github.sha }}
+          name: Luxvelum-Win32-${{ github.sha }}
           path: package
 
       - name: Download the optional version.dll loader
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: LuxVelum-version-dll-Win32-${{ github.sha }}
+          name: Luxvelum-version-dll-Win32-${{ github.sha }}
           path: loader
 
       - name: Zip install files
         run: |
-          (cd package && zip -r ../LuxVelum-Win32.zip .)
-          (cd loader && zip -r ../LuxVelum-version-dll-Win32.zip .)
+          (cd package && zip -r ../Luxvelum-Win32.zip .)
+          (cd loader && zip -r ../Luxvelum-version-dll-Win32.zip .)
 
       - name: Create or refresh the release
         id: publish
@@ -156,45 +156,45 @@ jobs:
           fi
           tag="build-${number}"
           {
-            echo "LuxVelum: Atmospheric Immersion for Project Reforged — WoW 3.3.5."
+            echo "Luxvelum: Atmospheric Immersion for Project Reforged — WoW 3.3.5."
             echo
             echo "Win32 Release build of \`${BRANCH}\` at ${short}."
             echo
-            echo "Patch \`Wow.exe\` once with the LuxVelum loader of St0ny's AIO WoW EXE Patcher (see"
+            echo "Patch \`Wow.exe\` once with the Luxvelum loader of St0ny's AIO WoW EXE Patcher (see"
             echo "[Install](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${SHA}/README.md#install) in \`README.md\`),"
-            echo "or use the optional \`version.dll\` loader below instead: without one of them \`LuxVelum.dll\` is"
-            echo "never loaded and no \`LuxVelum.log\` is written."
+            echo "or use the optional \`version.dll\` loader below instead: without one of them \`Luxvelum.dll\` is"
+            echo "never loaded and no \`Luxvelum.log\` is written."
             echo
-            echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
-            echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\LuxVelum\`, and"
-            echo "\`LuxVelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
-            echo "\`WTF\\LuxVelum-zones.ini\` are not in the package and stay as they are. The log is"
-            echo "written to \`Logs\\LuxVelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
+            echo "Then, with the client closed, unzip \`Luxvelum-Win32.zip\` into the client folder next to"
+            echo "\`Wow.exe\`: it puts \`Luxvelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
+            echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\Luxvelum\`, and"
+            echo "\`Luxvelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
+            echo "\`WTF\\Luxvelum-zones.ini\` are not in the package and stay as they are. The log is"
+            echo "written to \`Logs\\Luxvelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
             echo "or the client does not start."
-            echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
+            echo "To keep your settings, leave out \`WTF\\Luxvelum.ini\`: an existing \`Luxvelum.ini\` next to"
             echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
-            echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
+            echo "next start. The \`Luxvelum.ini\`, \`Luxvelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
             echo "earlier package next to \`Wow.exe\`, and the old \`Luxveil.*\` and \`CoAVolFog.*\` files, are then"
-            echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\LuxVelum.log\` names it as"
+            echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\Luxvelum.log\` names it as"
             echo "taken over, or a later reset of \`WTF\` takes it over again."
             echo "\`BUILD.txt\` names the commit."
             echo
-            echo "Optional: \`LuxVelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
-            echo "without the LuxVelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
-            echo "system's \`version.dll\` and loads \`LuxVelum.dll\` before the client starts. On Linux with Proton"
+            echo "Optional: \`Luxvelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
+            echo "without the Luxvelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
+            echo "system's \`version.dll\` and loads \`Luxvelum.dll\` before the client starts. On Linux with Proton"
             echo "or Wine, also set the launch option \`WINEDLLOVERRIDES=version=n,b %command%\`. A patched"
-            echo "\`Wow.exe\` does not need it. Remove \`version.dll\` together with \`LuxVelum.dll\` to uninstall:"
+            echo "\`Wow.exe\` does not need it. Remove \`version.dll\` together with \`Luxvelum.dll\` to uninstall:"
             echo "left on its own, it keeps the client from starting."
             echo
             echo "Validation: build, source comments and CPU harness passed in [run ${RUN_NUMBER}](${RUN_URL})."
             echo "D3D9 graphics checks and in-game validation were not run."
           } > notes.md
           release_title() {
-            echo "LuxVelum Build-${number} (${BRANCH} ${short})"
+            echo "Luxvelum Build-${number} (${BRANCH} ${short})"
           }
           create_release() {
-            gh release create "$tag" LuxVelum-Win32.zip LuxVelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
+            gh release create "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
               --target "$SHA" --title "$(release_title)" --notes-file notes.md
           }
           move_tag() {
@@ -216,52 +216,52 @@ jobs:
             gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/$1" --silent
           }
           upload_replacement_zip() {
-            cp LuxVelum-Win32.zip LuxVelum-Win32.new.zip
-            gh release upload "$tag" LuxVelum-Win32.new.zip --clobber --repo "$GITHUB_REPOSITORY"
+            cp Luxvelum-Win32.zip Luxvelum-Win32.new.zip
+            gh release upload "$tag" Luxvelum-Win32.new.zip --clobber --repo "$GITHUB_REPOSITORY"
           }
           discard_replacement_zip() {
             local replacement
-            replacement=$(asset_id LuxVelum-Win32.new.zip) && delete_asset "$replacement"
+            replacement=$(asset_id Luxvelum-Win32.new.zip) && delete_asset "$replacement"
           }
           swap_in_replacement_zip() {
             local stale live replacement
-            stale=$(asset_id LuxVelum-Win32.old.zip)
+            stale=$(asset_id Luxvelum-Win32.old.zip)
             if [ -n "$stale" ]; then
               delete_asset "$stale"
             fi
-            live=$(asset_id LuxVelum-Win32.zip)
-            replacement=$(asset_id LuxVelum-Win32.new.zip)
+            live=$(asset_id Luxvelum-Win32.zip)
+            replacement=$(asset_id Luxvelum-Win32.new.zip)
             if [ -n "$live" ]; then
-              rename_asset "$live" LuxVelum-Win32.old.zip
+              rename_asset "$live" Luxvelum-Win32.old.zip
             fi
-            if ! rename_asset "$replacement" LuxVelum-Win32.zip; then
-              echo "::error::the new zip of ${tag} could not be renamed to LuxVelum-Win32.zip"
+            if ! rename_asset "$replacement" Luxvelum-Win32.zip; then
+              echo "::error::the new zip of ${tag} could not be renamed to Luxvelum-Win32.zip"
               if [ -n "$live" ]; then
-                rename_asset "$live" LuxVelum-Win32.zip
+                rename_asset "$live" Luxvelum-Win32.zip
               fi
               exit 1
             fi
             if [ -n "$live" ]; then
-              delete_asset "$live" || echo "::warning::the replaced zip of ${tag} stays as LuxVelum-Win32.old.zip"
+              delete_asset "$live" || echo "::warning::the replaced zip of ${tag} stays as Luxvelum-Win32.old.zip"
             fi
           }
           refresh_release() {
             upload_replacement_zip
             if ! move_tag; then
-              discard_replacement_zip || echo "::warning::LuxVelum-Win32.new.zip stays on ${tag} until it is deleted"
+              discard_replacement_zip || echo "::warning::Luxvelum-Win32.new.zip stays on ${tag} until it is deleted"
               publish_next_number
               return
             fi
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "$(release_title)" \
               --notes-file notes.md
             swap_in_replacement_zip
-            gh release upload "$tag" LuxVelum-version-dll-Win32.zip --clobber --repo "$GITHUB_REPOSITORY"
+            gh release upload "$tag" Luxvelum-version-dll-Win32.zip --clobber --repo "$GITHUB_REPOSITORY"
           }
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             if [ "$REFRESH" = "true" ]; then
               refresh_release
             else
-              gh release upload "$tag" LuxVelum-Win32.zip LuxVelum-version-dll-Win32.zip --clobber \
+              gh release upload "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip --clobber \
                 --repo "$GITHUB_REPOSITORY"
             fi
           else
@@ -300,19 +300,19 @@ jobs:
       - name: Download install files
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: LuxVelum-Win32-${{ github.sha }}
+          name: Luxvelum-Win32-${{ github.sha }}
           path: package
 
       - name: Download the optional version.dll loader
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: LuxVelum-version-dll-Win32-${{ github.sha }}
+          name: Luxvelum-version-dll-Win32-${{ github.sha }}
           path: loader
 
       - name: Zip install files
         run: |
-          (cd package && zip -r ../LuxVelum-Win32.zip .)
-          (cd loader && zip -r ../LuxVelum-version-dll-Win32.zip .)
+          (cd package && zip -r ../Luxvelum-Win32.zip .)
+          (cd loader && zip -r ../Luxvelum-version-dll-Win32.zip .)
 
       - name: Replace the test release
         env:
@@ -357,45 +357,45 @@ jobs:
             attempt=$(( replaced + 1 ))
           fi
           tag="build-${number}-${attempt}-test"
-          title="LuxVelum TEST Build-${number}-${attempt} (${BRANCH} ${short})"
+          title="Luxvelum TEST Build-${number}-${attempt} (${BRANCH} ${short})"
           {
-            echo "LuxVelum: Atmospheric Immersion for Project Reforged — WoW 3.3.5."
+            echo "Luxvelum: Atmospheric Immersion for Project Reforged — WoW 3.3.5."
             echo
             echo "**Test build, not a release.** It is test build ${attempt} of the candidate for build ${number}:"
             echo "\`${BRANCH}\` at ${short}, ${ahead} commit(s) ahead of \`${MAIN}\`. Use it only to test the next"
             echo "version; the current release stays at releases/latest."
             echo
-            echo "Patch \`Wow.exe\` once with the LuxVelum loader of St0ny's AIO WoW EXE Patcher (see"
+            echo "Patch \`Wow.exe\` once with the Luxvelum loader of St0ny's AIO WoW EXE Patcher (see"
             echo "[Install](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${SHA}/README.md#install) in \`README.md\`),"
-            echo "or use the optional \`version.dll\` loader below instead: without one of them \`LuxVelum.dll\` is"
-            echo "never loaded and no \`LuxVelum.log\` is written."
+            echo "or use the optional \`version.dll\` loader below instead: without one of them \`Luxvelum.dll\` is"
+            echo "never loaded and no \`Luxvelum.log\` is written."
             echo
-            echo "Then, with the client closed, unzip \`LuxVelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`: it puts \`LuxVelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
-            echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\LuxVelum\`, and"
-            echo "\`LuxVelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
-            echo "\`WTF\\LuxVelum-zones.ini\` are not in the package and stay as they are. The log is"
-            echo "written to \`Logs\\LuxVelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
+            echo "Then, with the client closed, unzip \`Luxvelum-Win32.zip\` into the client folder next to"
+            echo "\`Wow.exe\`: it puts \`Luxvelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
+            echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\Luxvelum\`, and"
+            echo "\`Luxvelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
+            echo "\`WTF\\Luxvelum-zones.ini\` are not in the package and stay as they are. The log is"
+            echo "written to \`Logs\\Luxvelum.log\`. Delete the \`version.dll\` of a CoAVolFog or Luxveil package,"
             echo "or the client does not start."
-            echo "To keep your settings, leave out \`WTF\\LuxVelum.ini\`: an existing \`LuxVelum.ini\` next to"
+            echo "To keep your settings, leave out \`WTF\\Luxvelum.ini\`: an existing \`Luxvelum.ini\` next to"
             echo "\`Wow.exe\`, else \`Luxveil.ini\` or \`CoAVolFog.ini\`, is then taken over into \`WTF\` on the"
-            echo "next start. The \`LuxVelum.ini\`, \`LuxVelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
+            echo "next start. The \`Luxvelum.ini\`, \`Luxvelum.log\`, \`fogdata.bin\` and \`waterdata.bin\` of an"
             echo "earlier package next to \`Wow.exe\`, and the old \`Luxveil.*\` and \`CoAVolFog.*\` files, are then"
-            echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\LuxVelum.log\` names it as"
+            echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\Luxvelum.log\` names it as"
             echo "taken over, or a later reset of \`WTF\` takes it over again."
             echo "\`BUILD.txt\` names the commit."
             echo
-            echo "Optional: \`LuxVelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
-            echo "without the LuxVelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
-            echo "system's \`version.dll\` and loads \`LuxVelum.dll\` before the client starts. On Linux with Proton"
+            echo "Optional: \`Luxvelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
+            echo "without the Luxvelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
+            echo "system's \`version.dll\` and loads \`Luxvelum.dll\` before the client starts. On Linux with Proton"
             echo "or Wine, also set the launch option \`WINEDLLOVERRIDES=version=n,b %command%\`. A patched"
-            echo "\`Wow.exe\` does not need it. Remove \`version.dll\` together with \`LuxVelum.dll\` to uninstall:"
+            echo "\`Wow.exe\` does not need it. Remove \`version.dll\` together with \`Luxvelum.dll\` to uninstall:"
             echo "left on its own, it keeps the client from starting."
             echo
             echo "Validation: build, source comments and CPU harness passed in [run ${RUN_NUMBER}](${RUN_URL})."
             echo "D3D9 graphics checks and in-game validation were not run."
           } > notes.md
-          gh release create "$tag" LuxVelum-Win32.zip LuxVelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
+          gh release create "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
             --prerelease --latest=false --target "$SHA" --title "$title" --notes-file notes.md
           released=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
             --jq '.[] | select(.prerelease | not) | .tag_name | select(test("^build-[0-9]+$")) | ltrimstr("build-")' |

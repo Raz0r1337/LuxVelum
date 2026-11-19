@@ -1,7 +1,7 @@
 #pragma once
 
-void FlipLuxVelumSwitch();
-void SwitchLuxVelumOn();
-bool LuxVelumSwitchFlippedOff();
-bool LatchLuxVelumSwitch();
-bool LuxVelumSwitchedOff();
+void FlipLuxvelumSwitch();
+void SwitchLuxvelumOn();
+bool LuxvelumSwitchFlippedOff();
+bool LatchLuxvelumSwitch();
+bool LuxvelumSwitchedOff();

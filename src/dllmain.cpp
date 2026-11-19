@@ -78,10 +78,10 @@ void Attach(HMODULE module)
     const char* adoptedFrom = AdoptEarlierSettings(dir, paths.ini);
     GlobalConfig().Load(paths.ini);
     const Config& cfg = GlobalConfig().Get();
-    VF_LOG_INFO("LuxVelum %s loaded from %s; settings %s, fog data %s, water data %s", kLuxVelumBuildId, dir.c_str(),
+    VF_LOG_INFO("Luxvelum %s loaded from %s; settings %s, fog data %s, water data %s", kLuxvelumBuildId, dir.c_str(),
                 paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
     if (!pinned)
-        VF_LOG_ERROR("LuxVelum.dll could not pin itself in the process; unloading it would leave the hooks calling "
+        VF_LOG_ERROR("Luxvelum.dll could not pin itself in the process; unloading it would leave the hooks calling "
                      "unmapped code");
     if (adoptedFrom)
         VF_LOG_INFO("settings taken over from %s into %s", adoptedFrom, paths.ini.c_str());
@@ -207,18 +207,18 @@ extern "C" void __cdecl vf_test_drawn_fog_shaders(IDirect3DPixelShader9** march,
 
 extern "C" void __cdecl vf_test_flip_luxvelum_switch()
 {
-    FlipLuxVelumSwitch();
+    FlipLuxvelumSwitch();
 }
 
 extern "C" int __cdecl vf_test_latch_luxvelum_switch()
 {
-    return LatchLuxVelumSwitch() ? 1 : 0;
+    return LatchLuxvelumSwitch() ? 1 : 0;
 }
 
 extern "C" int __cdecl vf_test_luxvelum_switched_off(int* flippedOff)
 {
-    *flippedOff = LuxVelumSwitchFlippedOff() ? 1 : 0;
-    return LuxVelumSwitchedOff() ? 1 : 0;
+    *flippedOff = LuxvelumSwitchFlippedOff() ? 1 : 0;
+    return LuxvelumSwitchedOff() ? 1 : 0;
 }
 
 extern "C" int __cdecl vf_test_fog_status(const char** reason)

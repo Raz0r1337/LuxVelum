@@ -10,30 +10,30 @@ std::atomic<unsigned> g_request{0u};
 bool g_switchedOff = false;
 }
 
-void FlipLuxVelumSwitch()
+void FlipLuxvelumSwitch()
 {
     g_request.fetch_xor(kRequestedOff);
 }
 
-void SwitchLuxVelumOn()
+void SwitchLuxvelumOn()
 {
     g_request.store(0u);
 }
 
-bool LuxVelumSwitchFlippedOff()
+bool LuxvelumSwitchFlippedOff()
 {
     return (g_request.load() & kRequestedOff) != 0;
 }
 
-bool LatchLuxVelumSwitch()
+bool LatchLuxvelumSwitch()
 {
-    const bool off = LuxVelumSwitchFlippedOff();
+    const bool off = LuxvelumSwitchFlippedOff();
     const bool changed = off != g_switchedOff;
     g_switchedOff = off;
     return changed;
 }
 
-bool LuxVelumSwitchedOff()
+bool LuxvelumSwitchedOff()
 {
     return g_switchedOff;
 }

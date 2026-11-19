@@ -19,12 +19,12 @@ constexpr float kGlowByteScale = 255.0f;
 constexpr unsigned kDebugSummaryFrames = 600;
 constexpr int kNoClassicLightMap = -1;
 constexpr const char* kGradingOff = "off";
-constexpr const char* kSwitchedOff = "LuxVelum is switched off";
+constexpr const char* kSwitchedOff = "Luxvelum is switched off";
 constexpr const char* kGhostEffect = "ghost effect";
 constexpr const char* kCameraUnderWater = "camera under water";
 constexpr const char* kNoClassicLight = "no Classic light covers the camera";
 constexpr const char* kNoGradedClassicLight = "no Classic light around the camera carries a grading curve";
-constexpr const char* kStoppedAfterException = "stopped after an exception, see LuxVelum.log";
+constexpr const char* kStoppedAfterException = "stopped after an exception, see Luxvelum.log";
 
 struct GlowWrite
 {
@@ -276,11 +276,11 @@ void GradeWorldFrame()
 {
     const GradingFrame grading = g_grading;
     g_grading = GradingFrame();
-    if (GlobalConfig().Get().colorGrading <= 0.0f || LuxVelumSwitchedOff())
+    if (GlobalConfig().Get().colorGrading <= 0.0f || LuxvelumSwitchedOff())
     {
         ReleaseGradingWhenOff();
         g_status.graded = false;
-        g_status.grading = LuxVelumSwitchedOff() ? kSwitchedOff : kGradingOff;
+        g_status.grading = LuxvelumSwitchedOff() ? kSwitchedOff : kGradingOff;
         return;
     }
     if (grading.state == GradingState::NoWorld)
@@ -368,7 +368,7 @@ bool ReadFrameAndFeedGlowOnce()
     if (g_frameRead.attempted)
         return g_frameRead.read;
     g_frameRead.attempted = true;
-    if (LuxVelumSwitchedOff())
+    if (LuxvelumSwitchedOff())
     {
         LeaveTheClientsGlow();
         return false;

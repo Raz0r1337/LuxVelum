@@ -366,7 +366,7 @@ bool PanelTakesMessage(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     const Config& cfg = GlobalConfig().Get();
     LogShortcutKeyArrival(cfg, msg, wParam, lParam);
-    if (TakesHotkey(cfg.toggleKey, &FlipLuxVelumSwitch, msg, wParam, lParam))
+    if (TakesHotkey(cfg.toggleKey, &FlipLuxvelumSwitch, msg, wParam, lParam))
         return true;
     if (!cfg.overlay)
     {
@@ -706,7 +706,7 @@ bool OverlayVisible()
     return g_overlay.visible;
 }
 
-bool OverlayCanSwitchLuxVelumOn()
+bool OverlayCanSwitchLuxvelumOn()
 {
     const Config& cfg = GlobalConfig().Get();
     return !g_overlay.failed && g_overlay.device && (cfg.overlay || IsHotkeySet(cfg.toggleKey));

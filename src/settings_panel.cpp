@@ -151,13 +151,13 @@ void DrawSwitchRow(const Config& cfg)
     const std::string key = HotkeyName(cfg.toggleKey);
     char help[kStatusTextSize];
     std::snprintf(help, sizeof(help),
-                  "Off: the game draws its own fog, water and glow, as without LuxVelum, until LuxVelum is switched "
-                  "on again; a client restart switches it on. ToggleKey in LuxVelum.ini does the same with a key "
+                  "Off: the game draws its own fog, water and glow, as without Luxvelum, until Luxvelum is switched "
+                  "on again; a client restart switches it on. ToggleKey in Luxvelum.ini does the same with a key "
                   "(now %s)",
                   key.c_str());
-    bool on = !LuxVelumSwitchFlippedOff();
-    if (Toggle("LuxVelum on", on, help))
-        FlipLuxVelumSwitch();
+    bool on = !LuxvelumSwitchFlippedOff();
+    if (Toggle("Luxvelum on", on, help))
+        FlipLuxvelumSwitch();
     ImGui::SameLine();
     ImGui::TextDisabled("ToggleKey: %s", key.c_str());
 }
@@ -302,11 +302,11 @@ void DrawZoneHalo()
     ZoneHaloFactors factors = view.factors;
     bool changed = Slider("Sun halo here", factors.sun, 0.0f, kZoneHaloMax, "%.2f",
                           "The sun's halo in this zone, on top of Sun scatter; saved as your own to "
-                          "WTF\\LuxVelum-zones.ini when you let go. 1 = as Sun scatter alone");
+                          "WTF\\Luxvelum-zones.ini when you let go. 1 = as Sun scatter alone");
     bool released = ImGui::IsItemDeactivatedAfterEdit();
     changed |= Slider("Moon halo here", factors.moon, 0.0f, kZoneHaloMax, "%.2f",
                       "The moon's halo in this zone, on top of Moon scatter; saved as your own to "
-                      "WTF\\LuxVelum-zones.ini when you let go. 1 = as Moon scatter alone");
+                      "WTF\\Luxvelum-zones.ini when you let go. 1 = as Moon scatter alone");
     released |= ImGui::IsItemDeactivatedAfterEdit();
     if (changed)
         book.Edit(factors);
@@ -315,8 +315,8 @@ void DrawZoneHalo()
     ImGui::BeginDisabled(view.source != ZoneHaloSource::Own);
     if (ImGui::Button("Reset this zone"))
         book.ForgetCurrent();
-    ImGui::SetItemTooltip("Remove your own halo for this zone from WTF\\LuxVelum-zones.ini, back to the shipped "
-                          "halo of Data\\LuxVelum\\zones.ini, or 1 where it lists none");
+    ImGui::SetItemTooltip("Remove your own halo for this zone from WTF\\Luxvelum-zones.ini, back to the shipped "
+                          "halo of Data\\Luxvelum\\zones.ini, or 1 where it lists none");
     ImGui::EndDisabled();
 }
 
@@ -472,7 +472,7 @@ bool DrawDebug(Config& c)
         return false;
     bool changed = Choice("View", c.debugView, 0, kDebugViewNames, "Show one input of the fog instead of the scene");
     changed |= Toggle("Sun marker", c.sunMarker, "Red marker where the sun direction projects on screen");
-    changed |= Choice("Log level", c.logLevel, 0, kLogLevelNames, "Detail written to LuxVelum.log");
+    changed |= Choice("Log level", c.logLevel, 0, kLogLevelNames, "Detail written to Luxvelum.log");
     return changed;
 }
 
@@ -480,7 +480,7 @@ const char* WindowTitle()
 {
     static char title[kWindowTitleSize] = {};
     if (!title[0])
-        std::snprintf(title, sizeof(title), "LuxVelum %s###LuxVelum", kLuxVelumBuildId);
+        std::snprintf(title, sizeof(title), "Luxvelum %s###Luxvelum", kLuxvelumBuildId);
     return title;
 }
 }
@@ -573,18 +573,18 @@ void SettingsPanel::DrawSaveRow(ConfigStore& store)
     ImGui::BeginDisabled(!unsaved);
     if (ImGui::Button("Save"))
         m_saveFailed = !store.Save();
-    ImGui::SetItemTooltip("Write the changed settings to LuxVelum.ini");
+    ImGui::SetItemTooltip("Write the changed settings to Luxvelum.ini");
     ImGui::SameLine();
     if (ImGui::Button("Revert"))
     {
         store.Revert();
         m_saveFailed = false;
     }
-    ImGui::SetItemTooltip("Go back to the settings in LuxVelum.ini");
+    ImGui::SetItemTooltip("Go back to the settings in Luxvelum.ini");
     ImGui::EndDisabled();
     ImGui::SameLine();
     if (m_saveFailed)
-        ImGui::TextColored(kErrorColour, "Could not write LuxVelum.ini");
+        ImGui::TextColored(kErrorColour, "Could not write Luxvelum.ini");
     else
-        ImGui::TextDisabled("%s", unsaved ? "Unsaved changes" : "Matches LuxVelum.ini");
+        ImGui::TextDisabled("%s", unsaved ? "Unsaved changes" : "Matches Luxvelum.ini");
 }

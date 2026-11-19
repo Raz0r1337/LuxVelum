@@ -12,8 +12,8 @@
 
 namespace
 {
-constexpr const char* kSection = "LuxVelum";
-constexpr const char* kSectionLine = "[LuxVelum]";
+constexpr const char* kSection = "Luxvelum";
+constexpr const char* kSectionLine = "[Luxvelum]";
 constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
 constexpr const char* kUtf16LeBom = "\xFF\xFE";
 
@@ -24,7 +24,7 @@ struct EarlierSettings
 };
 
 constexpr EarlierSettings kEarlierSettings[] = {
-    {"LuxVelum.ini", "LuxVelum"},
+    {"Luxvelum.ini", "Luxvelum"},
     {"Luxveil.ini", "Luxveil"},
     {"CoAVolFog.ini", "CoAVolFog"},
 };
@@ -613,8 +613,8 @@ bool ConfigStore::ReloadIfChanged()
     m_stamp = stamp;
     LogSettledEdits();
     ReadKeepingStartupSwitches();
-    if (!LogChanges("settings from LuxVelum.ini"))
-        VF_LOG_INFO("LuxVelum.ini reloaded; no live setting changed");
+    if (!LogChanges("settings from Luxvelum.ini"))
+        VF_LOG_INFO("Luxvelum.ini reloaded; no live setting changed");
     return true;
 }
 
@@ -674,7 +674,7 @@ bool ConfigStore::Save()
     m_saved = merged;
     LogSetLevel(merged.logLevel);
     VF_LOG_INFO("settings saved to %s", m_path.c_str());
-    LogChanges("settings from LuxVelum.ini");
+    LogChanges("settings from Luxvelum.ini");
     return true;
 }
 
@@ -683,7 +683,7 @@ void ConfigStore::Revert()
     LogSettledEdits();
     m_stamp = FileStamp(m_path);
     ReadKeepingStartupSwitches();
-    LogChanges("settings reverted to LuxVelum.ini");
+    LogChanges("settings reverted to Luxvelum.ini");
 }
 
 void ConfigStore::ReadKeepingStartupSwitches()
