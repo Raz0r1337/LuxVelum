@@ -23,6 +23,7 @@ static const float kSameSurfaceRelativeDepth = 0.02;
 static const float kTapPlaneRelativeDepth = 0.005;
 static const float kWholeBilinearWeight = 0.999;
 static const float kMaxDisplayedMarchCurvature = 2.0 / 255;
+static const int kSurroundingTaps = 16;
 
 float Exposure()
 {
@@ -227,6 +228,40 @@ float4 FilteredFogBetweenTaps(BilinearTaps taps)
     return fog;
 }
 
+bool SameSurfaceTap(float depth, float viewZ, float tapDepth, float tapViewZ)
+{
+    return SameDepthClass(depth, tapDepth) &&
+           abs(tapViewZ - viewZ) <= max(kSameSurfaceAbsoluteDepth, viewZ * kSameSurfaceRelativeDepth);
+}
+
+bool InnerBilinearTap(float2 offset)
+{
+    return all(offset >= 1) && all(offset <= 2);
+}
+
+float4 SameSurfaceFogAroundFootprint(float2 pixel, float depth, float viewZ)
+{
+    float2 lowResCoord = FullPixelToLowResTexel(pixel);
+    float2 firstTexel = floor(lowResCoord) - 1;
+    float4 weightedFog = 0;
+    float weightSum = 0;
+    [loop] for (int j = 0; j < kSurroundingTaps; j++)
+    {
+        float2 offset = float2(frac(j * 0.25) * 4, floor(j * 0.25));
+        float2 tapTexel = clamp(firstTexel + offset, 0, LowResSize() - 1);
+        float tapDepth = SampleDepth(sDepth, LowResTexelToFullPixel(tapTexel));
+        float tapViewZ = LinearDepth(tapDepth);
+        float2 toTap = tapTexel - lowResCoord;
+        float weight = !InnerBilinearTap(offset) && SameSurfaceTap(depth, viewZ, tapDepth, tapViewZ)
+            ? 1 / ((1e-3 + abs(tapViewZ - viewZ) / max(viewZ, 1e-3)) * (1 + dot(toTap, toTap)))
+            : 0;
+        [branch] if (weight > 0)
+            weightedFog += tex2Dlod(sFog, float4(LowResTexelToUv(tapTexel), 0, 0)) * weight;
+        weightSum += weight;
+    }
+    return weightSum > 1e-6 ? weightedFog / weightSum : -1;
+}
+
 float4 FogWithoutMatchingTap(float2 pixel, float depth, float viewZ)
 {
     [branch] if (!LightOnRayNeedsFullResolution(pixel, viewZ))
@@ -242,6 +277,12 @@ float4 FogWithoutMatchingTap(float2 pixel, float depth, float viewZ)
             [branch] if (TapsReproduceMarch(taps, viewZ))
                 return taps.currentMarch;
         }
+    }
+    [branch] if (kMarchesLocalLights)
+    {
+        float4 surroundingFog = SameSurfaceFogAroundFootprint(pixel, depth, viewZ);
+        [branch] if (surroundingFog.a >= 0)
+            return surroundingFog;
     }
     return IntegrateFogAtDepth(pixel, depth, 0.5);
 }
@@ -261,10 +302,8 @@ float4 DepthAwareUpsample(float2 pixel, float depth, float viewZ)
         float tapDepth = SampleDepth(sDepth, LowResTexelToFullPixel(tapTexel));
         float tapViewZ = LinearDepth(tapDepth);
         float2 bilinearWeight = lerp(1 - bilinearFraction, bilinearFraction, tapOffset);
-        bool sameClass = SameDepthClass(depth, tapDepth);
-        bool sameDepth = abs(tapViewZ - viewZ) <= max(kSameSurfaceAbsoluteDepth, viewZ * kSameSurfaceRelativeDepth);
         float relativeDepthDifference = abs(tapViewZ - viewZ) / max(viewZ, 1e-3);
-        float weight = sameClass && sameDepth ?
+        float weight = SameSurfaceTap(depth, viewZ, tapDepth, tapViewZ) ?
             bilinearWeight.x * bilinearWeight.y / (1e-3 + relativeDepthDifference) : 0;
         weightedFog += tex2Dlod(sFog, float4(LowResTexelToUv(tapTexel), 0, 0)) * weight;
         weightSum += weight;
