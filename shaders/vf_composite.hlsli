@@ -18,6 +18,8 @@ static const float4 kSunMarkerColour = float4(1, 0, 0, 1);
 static const float kDebugRadiance = 1;
 static const float kDebugTransmittance = 2;
 static const float kDebugLinearDepth = 3;
+static const float4 kFullResolutionMarchColour = float4(1, 0, 1, 1);
+static bool gMarchedAtFullResolution = false;
 static const float kSameSurfaceAbsoluteDepth = 0.5;
 static const float kSameSurfaceRelativeDepth = 0.02;
 static const float kTapPlaneRelativeDepth = 0.005;
@@ -281,6 +283,7 @@ float4 FogWithoutMatchingTap(float2 pixel, float depth, float viewZ)
     float4 surroundingFog = kMarchesLocalLights ? SameSurfaceFogAroundFootprint(pixel, depth, viewZ) : -1;
     [branch] if (surroundingFog.a >= 0)
         return surroundingFog;
+    gMarchedAtFullResolution = true;
     return IntegrateFogAtDepth(pixel, depth, 0.5);
 }
 
@@ -381,6 +384,7 @@ float4 CompositeAtDepth(float2 pixel, float depth)
             return float4(1 - fog.aaa, 1);
         if (DebugViewAtMost(kDebugLinearDepth))
             return float4(saturate(viewZ / MaxFogDistance()).xxx, 1);
+        return gMarchedAtFullResolution ? kFullResolutionMarchColour : float4(1 - fog.aaa, 1);
     }
     [branch] if (SunMarkerEnabled() && distance(pixel, SunPixel()) < kSunMarkerRadius)
         return kSunMarkerColour;
