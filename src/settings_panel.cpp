@@ -330,10 +330,6 @@ bool DrawLight(Config& c)
                       "How every point light scatters in the fog: 0 evenly in all directions; toward 0.9 mostly in "
                       "the fog between you and the light; below 0 the fog behind the light, steeply brighter toward "
                       "-0.9. The modern client uses one such value for all its lights; 0.3 is a calibration");
-    changed |= Slider("Local light max reach", c.localLightMaxReach, 20.0f, 200.0f, "%.0f yd",
-                      "The farthest any point light's glow reaches in the fog; it fades out over the last quarter. "
-                      "Shorter costs less GPU time where many lamps are in view, but cuts the faint outer glow of "
-                      "bright lamps");
     changed |= Slider("God rays", c.godRays, 0.0f, 4.0f, "%.2f",
                       "Shafts of light through gaps in trees, buildings and terrain in front of the sun, 0 = off. An "
                       "open sky, its clouds included, gets none; the glow around the sun is Sun scatter's");

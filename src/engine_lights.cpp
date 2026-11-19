@@ -368,16 +368,14 @@ bool CandidateInputsValid(const LocalLightInputs& out, const LocalPointLight& li
            ValidVector(cameraPosition, -kMaxWorldCoordinate, kMaxWorldCoordinate) &&
            ValidVector(light.position, -kMaxWorldCoordinate, kMaxWorldCoordinate) &&
            ValidVector(light.color, 0.0f, kMaxLightComponent) && std::isfinite(upload.intensity) &&
-           upload.intensity >= 0.0f && std::isfinite(upload.reach) && upload.reach >= 0.0f &&
-           std::isfinite(upload.maxRadius) && upload.maxRadius > 0.0f;
+           upload.intensity >= 0.0f && std::isfinite(upload.reach) && upload.reach >= 0.0f;
 }
 
 bool BoundCandidate(const LocalPointLight& light, const PointLightUpload& upload, LocalPointLight& candidate)
 {
     candidate = light;
     engine::UploadedPointLightColor(candidate.color, upload, candidate.uploadedColor);
-    candidate.cutoff =
-        engine::PointLightCutoff(candidate.uploadedColor, candidate.attenuation, upload.reach, upload.maxRadius);
+    candidate.cutoff = engine::PointLightCutoff(candidate.uploadedColor, candidate.attenuation, upload.reach);
     return candidate.cutoff > 0.0f;
 }
 
@@ -432,7 +430,7 @@ bool SpanFits(const LocalPointLight* lights, const uint32_t* roots, uint32_t cou
 }
 
 LocalPointLight MergedTwins(const LocalPointLight* lights, const uint32_t* roots, uint32_t count, uint32_t root,
-                            float reach, float maxRadius)
+                            float reach)
 {
     LocalPointLight merged = lights[root];
     double weightSum = 0.0;
@@ -471,7 +469,7 @@ LocalPointLight MergedTwins(const LocalPointLight* lights, const uint32_t* roots
     }
     merged.mergedLights = mergedLights;
     merged.cutoff =
-        std::max(engine::PointLightCutoff(merged.uploadedColor, merged.attenuation, reach, maxRadius), memberCutoff);
+        std::max(engine::PointLightCutoff(merged.uploadedColor, merged.attenuation, reach), memberCutoff);
     return merged;
 }
 
@@ -515,7 +513,7 @@ void UploadedPointLightColor(const float captured[3], const PointLightUpload& up
                                            : std::max(captured[channel], 0.0f)) * upload.intensity;
 }
 
-float PointLightCutoff(const float color[3], const float attenuation[3], float reach, float maxRadius)
+float PointLightCutoff(const float color[3], const float attenuation[3], float reach)
 {
     if (!ValidVector(color, 0.0f, kMaxUploadedLightComponent) ||
         !ValidVector(attenuation, 0.0f, kMaxAttenuationCoefficient) || !std::isfinite(reach) || reach < 0.0f)
@@ -525,9 +523,7 @@ float PointLightCutoff(const float color[3], const float attenuation[3], float r
     if (peak <= 0.0 || target <= std::max(static_cast<double>(attenuation[0]), 1.0))
         return 0.0f;
     const double remaining = target - attenuation[0];
-    const double largest =
-        std::clamp(static_cast<double>(maxRadius), 0.0, static_cast<double>(kMaxLocalPointLightRadius));
-    double radius = largest;
+    double radius = kMaxLocalPointLightRadius;
     if (attenuation[2] > 0.0f)
     {
         const double linear = attenuation[1];
@@ -536,7 +532,7 @@ float PointLightCutoff(const float color[3], const float attenuation[3], float r
     }
     else if (attenuation[1] > 0.0f)
         radius = remaining / attenuation[1];
-    return static_cast<float>(std::min(radius, largest));
+    return static_cast<float>(std::min(radius, static_cast<double>(kMaxLocalPointLightRadius)));
 }
 
 double LocalLightPriority(const LocalPointLight& light, const float cameraPosition[3])
@@ -563,7 +559,7 @@ bool SelectLocalPointLightInView(LocalLightInputs& out, const LocalPointLight& l
            PointLightMeetsView(candidate, camera) && RankCandidate(out, candidate, camera.position);
 }
 
-uint32_t MergeTwinPointLights(LocalLightInputs& lights, const float cameraPosition[3], float reach, float maxRadius)
+uint32_t MergeTwinPointLights(LocalLightInputs& lights, const float cameraPosition[3], float reach)
 {
     const uint32_t count = std::min(lights.candidateCount, kLocalLightCapturePool);
     uint32_t parents[kLocalLightCapturePool];
@@ -591,7 +587,7 @@ uint32_t MergeTwinPointLights(LocalLightInputs& lights, const float cameraPositi
         if (!clustered || !SpanFits(lights.candidates, roots, count, roots[i]))
             pool[pooled++] = lights.candidates[i];
         else if (roots[i] == i)
-            pool[pooled++] = MergedTwins(lights.candidates, roots, count, i, reach, maxRadius);
+            pool[pooled++] = MergedTwins(lights.candidates, roots, count, i, reach);
         else
             ++absorbed;
     }

@@ -39,7 +39,6 @@ struct PointLightUpload
     bool linear = true;
     float intensity = 1.0f;
     float reach = 1.0f;
-    float maxRadius = kMaxLocalPointLightRadius;
 };
 
 struct LocalLightCamera
@@ -92,15 +91,13 @@ bool PointLightMeetsView(const LocalPointLight& light, const LocalLightCamera& c
 namespace engine
 {
 void UploadedPointLightColor(const float captured[3], const PointLightUpload& upload, float uploaded[3]);
-float PointLightCutoff(const float color[3], const float attenuation[3], float reach = 1.0f,
-                       float maxRadius = kMaxLocalPointLightRadius);
+float PointLightCutoff(const float color[3], const float attenuation[3], float reach = 1.0f);
 double LocalLightPriority(const LocalPointLight& light, const float cameraPosition[3]);
 bool SelectLocalPointLight(LocalLightInputs& out, const LocalPointLight& light, const float cameraPosition[3],
                            const PointLightUpload& upload);
 bool SelectLocalPointLightInView(LocalLightInputs& out, const LocalPointLight& light,
                                  const LocalLightCamera& camera, const PointLightUpload& upload);
-uint32_t MergeTwinPointLights(LocalLightInputs& lights, const float cameraPosition[3], float reach,
-                              float maxRadius = kMaxLocalPointLightRadius);
+uint32_t MergeTwinPointLights(LocalLightInputs& lights, const float cameraPosition[3], float reach);
 void KeepStrongestCandidates(LocalLightInputs& lights);
 bool CapturedLightsUsable(LocalLightCapture capture);
 const char* LocalLightCaptureName(LocalLightCapture capture);
